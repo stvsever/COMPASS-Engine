@@ -51,7 +51,6 @@ class ModelConfig:
     tool_model: str = "gpt-5-nano"          # Always gpt-5-nano
     
     # Token limits per model
-    # Token limits per model
     orchestrator_max_tokens: int = 16384
     critic_max_tokens: int = 16384
     predictor_max_tokens: int = 16384
@@ -81,8 +80,8 @@ class TokenBudgetConfig:
     total_budget: int = 1500000
     orchestrator_budget: int = 50000
     executor_budget_per_step: int = 30000
-    fusion_budget: int = 80000  # Reduced for gpt-5-nano safety
-    integrator_budget: int = 80000 
+    fusion_budget: int = 90000  # Reduced for gpt-5-nano safety
+    integrator_budget: int = 90000 
     predictor_budget: int = 100000
     critic_budget: int = 50000
 

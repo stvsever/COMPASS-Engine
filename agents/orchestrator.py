@@ -180,7 +180,7 @@ GUIDANCE:
 ### STRATEGY FOR HIGH-VOLUME DOMAINS (Token Optimization)
 If a specific domain (e.g., BRAIN_MRI, GENOMICS) has >15k tokens, DO NOT process the entire domain in one step. Instead, split it into multiple `UnimodalCompressor` steps using the `node_paths` parameter to target specific subtrees. This ensures the output is detailed and avoids max_token limits.
 
-**Examples of Subtree Splitting:**
+**Examples of (granular) Subtree Splitting :**
 
 1. **BRAIN_MRI (High Volume)**:
    - *Instead of:* One step for 'BRAIN_MRI'.
@@ -192,15 +192,15 @@ If a specific domain (e.g., BRAIN_MRI, GENOMICS) has >15k tokens, DO NOT process
 
 2. **BIOLOGICAL_ASSAY (High Volume)**:
    - *Do:* 
-     - Step A: UnimodalCompressor(domain='BIOLOGICAL_ASSAY', parameters={{'node_paths': ['BIOLOGICAL_ASSAY:Blood_Test:Inflammatory_Markers']}})
-     - Step B: UnimodalCompressor(domain='BIOLOGICAL_ASSAY', parameters={{'node_paths': ['BIOLOGICAL_ASSAY:Metabolomics']}})
+     - Step A: UnimodalCompressor(domain='BIOLOGICAL_ASSAY', parameters={{'node_paths': ['BIOLOGICAL_ASSAY:proteomics']}})
+     - Step B: UnimodalCompressor(domain='BIOLOGICAL_ASSAY', parameters={{'node_paths': ['BIOLOGICAL_ASSAY:NMR_metabolomics']}})
+     - Step C: UnimodalCompressor(domain='BIOLOGICAL_ASSAY', parameters={{'node_paths': ['BIOLOGICAL_ASSAY:haematology']}})
+     - Step D: UnimodalCompressor(domain='BIOLOGICAL_ASSAY', parameters={{'node_paths': ['BIOLOGICAL_ASSAY:serum_biochemistry']}})
 
-3. **GENOMICS (Complex)**:
-   - *Do:* 
-     - Step K: UnimodalCompressor(domain='GENOMICS', parameters={{'node_paths': ['GENOMICS:PolygenicScores']}})
-     - Step L: UnimodalCompressor(domain='GENOMICS', parameters={{'node_paths': ['GENOMICS:RareVariants']}})
+#NOTE:
+- BUT remember that you always just need to choose the subtrees you want to be compressed that seem to be of too high volume to be passed in a later final step to the (phenotypic) Predictor Agent. ; can also be primary domain ; think for yourself cs it dependes on the data overview at hand.
+- Refer to the available leaves in the DATA OVERVIEW to determine valid paths.
 
-*Refer to the available leaves in the DATA OVERVIEW to determine valid paths.*
 """
 
         # Available tools description
