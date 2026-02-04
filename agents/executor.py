@@ -28,7 +28,7 @@ class Executor(BaseAgent):
     """
     
     AGENT_NAME = "Executor"
-    PROMPT_FILE = ""  # Executor doesn't use a prompt directly
+    PROMPT_FILE = ""  # Executor doesn't use a prompt directly ; it's rather a wrapper for the PlanExecutor
     
     def __init__(self, **kwargs):
         super().__init__(**kwargs)

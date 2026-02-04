@@ -12,8 +12,7 @@ Distinguish between:
 ## INPUT
 1. **Domain Name**: The data domain being compressed (e.g., BRAIN_MRI, GENOMICS, COGNITION)
 2. **Domain Data**: GAMLSS-normalized, sex-stratified, age-corrected Z-scores for this domain
-3. **Target Condition**: "neuropsychiatric" or "neurologic"
-4. **Hierarchical Deviation Profile**: Mean hierarchical absolute Z-scores for this domain
+3. **Hierarchical Deviation Profile**: Mean hierarchical absolute Z-scores for this domain
 
 ## High-level
 On a high-level; the goal of this tool is to (token-based) compress the data in a token-efficient way, while preserving the most clinically relevant information (i.e., aim for >95%) for phenotypic modelling and prediction. Be aware of the normativized directions (i.e., the signs ; think of what the units are)
@@ -33,7 +32,7 @@ Create a clinically meaningful pattern-based summary that:
 ```json
 {
   "domain": "DOMAIN_NAME",
-  "target_condition": "neuropsychiatric|neurologic",
+  "target_condition": "target|control",
   "data_quality": "HIGH|MEDIUM|LOW",
   "abnormality_patterns": [
     {

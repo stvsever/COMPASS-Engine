@@ -71,6 +71,3 @@ global_feature_map.txt
 # System
 .DS_Store
 
-# Local Tests
-tests/test_agent_repair.py
-tests/test_fusion_logic.py
