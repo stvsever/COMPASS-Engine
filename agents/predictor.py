@@ -154,8 +154,11 @@ class Predictor(BaseAgent):
             # Try raw key first, fall back to summary
             str(predictor_input.get("non_numerical_data_raw", predictor_input.get("non_numerical_summary", "Not available"))),
             
-            f"\n## TARGET CONDITION",
+            f"\n## TARGET (neuropsychiatric) CONDITION",
             f"Predict: {target_condition}",
+            
+            f"\n## CONTROL (non-psychiatric) CONDITION",
+            "Evaluate whether the 'target phenotype' is present VS whether this data matches better a profile of 'a brain-implicated pathology, but non-psychiatric'!"
             
             "\n## INSTRUCTIONS",
             "Synthesize valid evidence into a binary prediction (CASE or CONTROL).",

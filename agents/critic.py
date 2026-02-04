@@ -163,7 +163,7 @@ class Critic(BaseAgent):
         
         prompt_parts.extend([
             f"\n## HIERARCHICAL DEVIATION PROFILE (INPUT DATA)",
-            f"Note: This is the GROUND TRUTH signal map. Use this to verify if cited findings exist.",
+            f"Note: This is the mean aggregated hierarchy of the multi-modal data. Use this to verify if cited findings exist.",
             str(hierarchical_deviation)[:4000] + "..." if hierarchical_deviation else "Not provided",
             
             f"\n## NON-NUMERICAL CLINICAL NOTES",
@@ -171,6 +171,9 @@ class Critic(BaseAgent):
             
             f"\n## TARGET CONDITION",
             prediction.target_condition,
+            
+            f"\n## CONTROL CONDITION",
+            "Evaluate whether the 'target phenotype' is present VS whether this data matches better a profile of 'a brain-implicated pathology, but non-psychiatric'!"
             
             "\n## EVALUATION TASK",
             "Evaluate this prediction using the following Hierarchical Multi-composite Satisfaction Scoring Matrix.",
