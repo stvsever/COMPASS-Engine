@@ -1,0 +1,216 @@
+\documentclass[11pt, a4paper]{article}
+
+% Packages
+\usepackage[utf8]{inputenc}
+\usepackage[T1]{fontenc}
+\usepackage{geometry}
+\usepackage{amsmath, amssymb, amsfonts}
+\usepackage{graphicx}
+\usepackage{hyperref}
+\usepackage{xcolor}
+\usepackage{listings}
+\usepackage{booktabs}
+\usepackage{fancyhdr}
+\usepackage{float}
+\usepackage{microtype}
+\usepackage[parfill]{parskip}
+\usepackage{tikz}
+\usepackage{algorithm}
+\usepackage{algpseudocode}
+\usetikzlibrary{shapes,arrows,positioning,calc,fit}
+
+% Geometry
+\geometry{a4paper, margin=2.5cm}
+
+% Branding colors
+\definecolor{primary}{RGB}{26, 54, 93}    % Dark Blue
+\definecolor{secondary}{RGB}{45, 55, 72}  % Slate
+\definecolor{accent}{RGB}{66, 153, 225}   % Blue
+\definecolor{codebg}{RGB}{245, 247, 250}
+
+% Hyperref setup
+\hypersetup{
+    colorlinks=true,
+    linkcolor=primary,
+    filecolor=magenta,      
+    urlcolor=accent,
+    pdftitle={COMPASS Engine Technical Overview},
+}
+
+% Listings setup
+\lstset{
+    backgroundcolor=\color{codebg},
+    basicstyle=\small\ttfamily,
+    breaklines=true,
+    frame=single,
+    rulecolor=\color{secondary},
+    keywordstyle=\color{primary}\bfseries,
+    commentstyle=\color{secondary}\itshape,
+    stringstyle=\color{accent},
+    showstringspaces=false
+}
+
+% Header/Footer
+\pagestyle{fancy}
+\fancyhf{}
+\lhead{\textbf{COMPASS Engine}}
+\rhead{Technical Architecture v1.0}
+\cfoot{\thepage}
+
+\title{\textbf{\Huge COMPASS: Clinical Orchestrated Multi-modal Predictive Agentic Support System}\\ \vspace{0.5em} \Large Technical Architecture \& Algorithmic Logic}
+\author{\textbf{Computational Neuroscience Lab (IIS Biobizkaia)} \\ \& Ghent University (MSc Neuroscience Internship)}
+\date{\today}
+
+\begin{document}
+
+\maketitle
+\thispagestyle{empty}
+
+\begin{abstract}
+\noindent The \textbf{COMPASS Engine} is a modular Clinical Decision Support System (CDSS) designed to automate the synthesis of high-dimensional neuropsychiatric data. By orchestrating a tiered system of Large Language Model (LLM) agents, COMPASS integrates heterogeneous biological signals—from lipidomics and proteomics to structural MRI and unstructured clinical notes. This document details the mathematical framework for data normalization (GAMLSS), the recursive signal propagation algorithm used for attentional guidance, and the novel "Integrator Agent" architecture which employs a token-budget-aware Semantic RAG (Retrieval-Augmented Generation) mechanism to optimize inference within strict context window constraints (128k tokens).
+\end{abstract}
+
+\vspace{1cm}
+\tableofcontents
+\newpage
+
+\section{Introduction}
+Modern precision psychiatry is characterized by a "multimodal gap": while we have access to vast datasets (Genomics, MRI, Blood biomarkers, Lifestyle metrics), integrating these into a single clinical decision remains a challenge. The COMPASS engine addresses this by automating the reasoning chain through a \textbf{Multi-Agent Actor-Critic} framework.
+
+Unlike "black box" deep learning models, COMPASS provides fully transparent, chain-of-thought clinical reasoning. It treats the diagnostic process as a planning problem, where a high-level Orchestrator dynamically assigns tasks to specialized Tools, aggregating evidence to form a falsifiable hypothesis.
+
+\section{Data Layer: Normalization \& Representation}
+The foundation of COMPASS is its rigorous data preprocessing pipeline, effectively translating raw biological values into a unified "language" of deviation that LLMs can reason about.
+
+\subsection{GAMLSS Normalization}
+Raw biological feature values $y$ (e.g., Hippocampal Volume in $mm^3$, Serum CRP in $mg/L$) are transformed into normalized Z-scores using \textbf{Generalized Additive Models for Location, Scale and Shape (GAMLSS)}.
+
+This framework models the distribution of each feature $Y$ conditional on covariates $X$ (specifically \textbf{Age} and \textbf{Sex}). The probability density function $f_Y(y|\theta)$ is defined where $\theta = (\mu, \sigma, \nu, \tau)$ represents the location, scale, skewness, and kurtosis parameters respectively.
+
+For a given participant $i$, the normalized Z-score is computed as:
+\begin{equation}
+    z_{i} = \Phi^{-1}\left( F_Y(y_i | \hat{\mu}_i, \hat{\sigma}_i, \hat{\nu}_i, \hat{\tau}_i) \right)
+\end{equation}
+Where:
+\begin{itemize}
+    \item $\Phi^{-1}$ is the inverse cumulative distribution function (quantile function) of the standard normal distribution $\mathcal{N}(0,1)$.
+    \item $F_Y$ is the cumulative distribution function of the fitted distribution family (e.g., Box-Cox Power Exponential).
+    \item $\hat{\mu}_i, \dots, \hat{\tau}_i$ are the predicted parameters for participant $i$ based on their age and sex, typically modeled using cubic splines (e.g., $\log(\mu) = \beta_0 + s(\text{Age})$).
+\end{itemize}
+
+This transformation ensures that every leaf node in the input tree represents a \textbf{sex-stratified, age-corrected deviation score}, eliminating confounding factors.
+
+\subsection{Hierarchical Deviation Map}
+To effectively guide the attention of the Orchestrator Agent across $>30,000$ features, we compute a \textbf{Hierarchical Deviation Map}. This map recursively aggregates signal intensity from leaf nodes (individual features) up to domains (e.g., "Lipidomics").
+
+Let $N$ be a node in the feature ontology. Let $C(N)$ be the set of its child nodes.
+The deviation score $D(N)$ is defined recursively:
+
+\begin{equation}
+    D(N) = \begin{cases} 
+      |z_N| & \text{if } N \text{ is a leaf node} \\
+      \frac{1}{|C(N)|} \sum_{c \in C(N)} D(c) & \text{if } N \text{ is an internal node}
+   \end{cases}
+\end{equation}
+
+This formula propagates anomalies upwards. A high $D(\text{Brain MRI})$ score guarantees the existence of significant abnormalities in its sub-branches, enabling the agent to perform an $O(\log M)$ search to identify the root cause, rather than linearly scanning all $M$ features.
+
+\section{Agentic Architecture}
+COMPASS implements a modular multi-agent system (MAS) inspired by Global Workspace Theory. The architecture consists of four primary agent types working in a dynamic loop.
+
+\subsection{1. The Orchestrator (System 2 Planner)}
+The Orchestrator functions as the high-level executive planner. It does not look at raw data directly but relies on metadata and the Hierarchical Deviation Map.
+\begin{enumerate}
+    \item \textbf{Scan Phase}: Reads the `Hierarchical Deviation Map` to identify high-signal domains (e.g., "Lipidomics has a mean deviation of 2.1").
+    \item \textbf{Plan Phase}: Dynamically constructs a Directed Acyclic Graph (DAG) of tasks using available Tools.
+    \item \textbf{Dependency Management}: Orders tasks logically (e.g., "Get Lipidomics analysis BEFORE Clinical Narrative integration").
+\end{enumerate}
+
+\subsection{2. The Executor (System 1 Actor)}
+The Executor is the "doer". It receives the plan from the Orchestrator and executes tools in parallel where possible. Crucially, it manages the \textbf{Unimodal Compressor} tools.
+\begin{itemize}
+    \item \textbf{Unimodal Compression}: For domains with massive data (e.g., Genomics), the Executor runs a compression tool that summarizes thousands of SNPs into clinically relevant "Risk Patterns" before passing them to the fusion layer.
+\end{itemize}
+
+\subsection{3. The Integrator Agent (Fusion Layer)}
+The Integrator is the system's bottleneck manager. It fuses outputs from multiple tools into a coherent narrative for the Predictor. To manage the finite Context Window ($L_{max} \approx 128k$ tokens), it employs a \textbf{Smart Fusion} algorithm.
+
+\subsubsection{Algorithm: Token Estimation \& Usage}
+Let $T$ satisfy the input token load:
+\begin{equation}
+    T_{input} = T_{tools} + T_{notes} + T_{deviation} + T_{raw\_multimodal} + T_{overhead}
+\end{equation}
+We define a safety threshold $\Theta = 0.9 \times L_{max}$ (approx 115,000 tokens).
+
+\subsubsection{Algorithm: Smart Fusion Logic}
+The Fusion Layer uses a decision gate to determine if compression is needed.
+
+\begin{algorithm}
+\caption{Smart Fusion Decision Logic}
+\begin{algorithmic}[1]
+\State $T_{input} \gets \text{EstimateTokens(Inputs)}$
+\If{$T_{input} \le \Theta$}
+    \State \textbf{Mode} $\gets$ \text{PASS\_THROUGH}
+    \State \text{Result} $\gets$ \text{Concatenate(RawData, ToolOutputs)}
+    \Comment{Preserve 100\% fidelity}
+    
+    \State $B \gets \Theta - T_{input}$
+    \If{$B > 2000$}
+        \State \text{Result} $\gets$ \Call{SemanticRAGFill}{\text{Result}, B}
+        \Comment{Use budget to recover processed data}
+    \EndIf
+\Else
+    \State \textbf{Mode} $\gets$ \text{COMPRESS}
+    \State \text{Prompt} $\gets$ "Summarize these outputs..."
+    \State \text{Result} $\gets$ \Call{LLM}{\text{Prompt}, Inputs}
+\EndIf
+\State \Return \text{Result}
+\end{algorithmic}
+\end{algorithm}
+
+\subsubsection{Semantic RAG Fill}
+If the system is in Pass-Through mode and has remaining budget $B$, it attempts to re-inject raw data chunks that were previously "compressed" by tools (e.g., raw MRI tables).
+
+1. \textbf{Scoring}: For each processed data chunk $m_i$, compute semantic relevance to the target condition vector $q$:
+\begin{equation}
+    S(m_i) = \cos(q, \text{embed}(m_i)) = \frac{q \cdot \text{embed}(m_i)}{\|q\| \|\text{embed}(m_i)\|}
+\end{equation}
+
+2. \textbf{Selection (Greedy Knapsack)}: Sort $M$ such that $S(m_{(1)}) \ge S(m_{(2)}) \ge \dots$.
+Iteratively select chunks $m_{(i)}$ into set $K$ while $\sum_{m \in K} \text{tokens}(m) \le B$.
+
+3. \textbf{Context Injection}: The raw JSON of selected chunks is appended to the prompt context.
+
+This ensures the model sees the most clinically relevant features (e.g., "Hippocampal Volume" for "Depression") in their raw numerical form, rather than just a summary.
+
+\subsection{4. The Predictor \& Critic}
+\begin{itemize}
+    \item \textbf{Predictor}: Performs chain-of-thought reasoning on the fused data to produce a binary classification (`CASE`/`CONTROL`) and a confidence score. It must cite specific biomarkers from the input.
+    \item \textbf{Critic}: An adversarial agent that reviews the Predictor's evidence. If the reasoning is weak or hallucinatory (e.g., citing a biomarker not present in the data), it rejects the verdict (`UNSATISFACTORY`) and forces a re-plan loop.
+\end{itemize}
+
+\section{Local LLM Integration}
+To ensure data privacy and accessibility, COMPASS supports local inference via a robust hybrid backend.
+
+\subsection{Hybrid Switching Logic}
+The system enables dynamic switching between `OpenAI` and `Local` backends via the `config/settings.py` or CLI arguments (`--backend local`).
+
+\subsection{Fallback Mechanism}
+The Local Handler implements a tiered loading strategy:
+\begin{enumerate}
+    \item \textbf{vLLM (Priority)}: Attempts to load the model (e.g., `Qwen2.5-0.5B-Instruct`) using `vLLM` for high-throughput inference.
+    \item \textbf{Transformers (Fallback)}: If `vLLM` fails (e.g., on macOS without CUDA), it falls back to `HuggingFace Transformers`.
+    \item \textbf{MPS Acceleration}: On macOS devices, it automatically detects Metal Performance Shaders (MPS) to utilize the GPU, falling back to CPU only if necessary.
+\end{enumerate}
+
+\subsection{Concurrency Throttling}
+To prevent VRAM saturation during local execution, the `PlanExecutor` dynamically adjusts its thread pool:
+\begin{itemize}
+    \item \textbf{OpenAI Mode}: `max_workers=12` (Parallel Tool Execution)
+    \item \textbf{Local Mode}: `max_workers=1` (Sequential Tool Execution)
+\end{itemize}
+
+\section{Conclusion}
+COMPASS represents a significant advance in automated clinical diagnostics. By combining statistically rigorous preprocessing (GAMLSS) with adaptive agentic reasoning (Smart Fusion), it achieves high accuracy while maintaining total transparency and explainability. Future work will focus on expanding the GAMLSS normative models to include polygenic risk scores and lifestyle factors.
+
+\end{document}

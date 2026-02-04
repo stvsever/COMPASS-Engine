@@ -1,0 +1,32 @@
+cff-version: 1.2.0
+message: "If you use this software, please cite it as below."
+authors:
+- family-names: "Van Severen"
+  given-names: "Stijn"
+  affiliation: "Ghent University (& Master's Internship at IIS Biobizkaia)"
+- family-names: "Díez Palacio"
+  given-names: "Ibai"
+  affiliation: "Dept. of Radiology, MGH, Harvard Medical School & IIS Biobizkaia"
+- family-names: "Cortés"
+  given-names: "Jesús M."
+  affiliation: "Computational Neuroimaging Lab, IIS Biobizkaia & Ikerbasque Foundation"
+title: "COMPASS: Clinical Orchestrated Multi-modal Predictive Agentic Support System"
+version: 1.0.0
+date-released: 2026-02-04
+url: "https://github.com/IIS-Biobizkaia/COMPASS"
+preferred-citation:
+  type: software
+  authors:
+  - family-names: "Van Severen"
+    given-names: "Stijn"
+    affiliation: "Ghent University & Master's Internship at IIS Biobizkaia"
+  - family-names: "Díez Palacio"
+    given-names: "Ibai"
+    affiliation: "Dept. of Radiology, MGH, Harvard Medical School & IIS Biobizkaia"
+  - family-names: "Cortés"
+    given-names: "Jesús M."
+    affiliation: "Computational Neuroimaging Lab, IIS Biobizkaia & Ikerbasque Foundation"
+  title: "COMPASS: Clinical Orchestrated Multi-modal Predictive Agentic Support System"
+  year: 2026
+  institution:
+    name: "Computational Neuroscience Lab, IIS Biobizkaia"

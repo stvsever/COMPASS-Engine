@@ -1,0 +1,128 @@
+# COMPASS Engine
+### Clinical Orchestrated Multi-modal Predictive Agentic Support System
+
+<div align="center">
+  <img src="/Users/stijnvanseveren/PythonProjects/IIS_BIOBIZKAIA/INFERENCE_PIPELINE/multi_agent_system/overview/logo/COMPASS_logo_2.png" alt="COMPASS Logo" width="150" />
+</div>
+
+
+> [!NOTE]
+> **CURRENT SCOPE**
+> The current version of the COMPASS engine is optimized specifically for **Neuropsychiatric Disorders** (e.g., Major Depressive Disorder, Schizophrenia). Future updates will expand capabilities to broader Neurologic and Systemic conditions.
+
+---
+
+**COMPASS** is an advanced AI-driven inference engine designed for complex clinical diagnostics. By orchestrating a team of specialized autonomous agents, COMPASS ingests multi-modal patient data—ranging from genomic files and brain MRI neuroimaging to unstructured clinical notes and biological assays—to generate precise, evidence-based diagnostic predictions.
+
+## 🚀 Key Features
+
+- **Multi-Agent Orchestration**: A dynamic team of agents (Orchestrator, Executor, Integrator, Predictor, Critic) collaborates to solve cases.
+- **Semantic RAG Fusion**: The **Integrator Agent** employs a "Smart Fusion" layer that prioritizes semantically relevant multi-modal data using hierarchical embeddings.
+- **Hierarchical Feature Embedding**: Pre-computes and caches 30,000+ clinical feature embeddings for ultra-fast semantic retrieval.
+- **Dynamic Phenotype Targeting**: Flexible targeting system that adapts to specific diagnostic queries (e.g., "Major Depressive Disorder" vs "General Neuropsychiatric").
+- **Live Dashboard**: Integrated Flask-based real-time UI for monitoring agent reasoning, token usage, and system load.
+
+## 🧠 System Architecture
+
+COMPASS utilizes a sequential multi-agent workflow with iterative feedback loops.
+
+<div align="center">
+  <img src="/Users/stijnvanseveren/PythonProjects/IIS_BIOBIZKAIA/INFERENCE_PIPELINE/multi_agent_system/overview/compass_flowchart.png" alt="COMPASS Flowchart" width="800" />
+</div>
+<br>
+
+## 🛠️ Installation
+
+1. **Clone the repository**:
+   ```bash
+   git clone https://github.com/IIS-Biobizkaia/COMPASS.git
+   cd COMPASS
+   ```
+
+2. **Install dependencies**:
+   ```bash
+   pip install -r requirements.txt
+   ```
+
+3. **Configure Environment**:
+   Create a `.env` file with your API keys:
+   ```env
+   OPENAI_API_KEY=sk-...
+   ```
+
+## ⚡ Usage
+
+### Quick Start (CLI)
+Run the pipeline on a participant folder:
+
+```bash
+python main.py data/pseudo_data/SUBJ_001_PSEUDO --target "Major Depressive Disorder" --backend local
+```
+
+> [!IMPORTANT]
+> **Understanding "CASE" vs "CONTROL"**
+> The COMPASS engine performs binary classification against a specific **Target Condition**.
+> - **CASE**: The participant has the request Target Condition (e.g., "Major Depressive Disorder").
+> - **CONTROL**: The participant strictly refers to **"Brain-implicated pathology, but NON-psychiatric"**.
+> 
+> *Note: Do not include "CASE" or "CONTROL" in the `--target` string. Simply provide the condition name.*
+
+**Options:**
+- `--target`: The specific condition to predict (e.g., "Major Depressive Disorder").
+- `--backend`: Choose `openai` (default) or `local`.
+- `--model`: Model ID for local backend (default: `Qwen/Qwen2.5-0.5B-Instruct`).
+- `--ui`: Launches the real-time web dashboard.
+- `--detailed_log`: Enables full raw I/O logging for debugging.
+
+### Batch Processing
+To process multiple participants sequentially (e.g., for validation studies):
+
+```bash
+python batch_run.py --backend openai --model gpt-5-nano
+```
+
+> [!NOTE]
+> **Batch Configuration**
+> The participant list and specific target conditions are defined within `batch_run.py`. 
+> Results, including Confusion Matrices and detailed logs, are saved to the `results/` directory.
+
+For a hands-on walkthrough, run the included Jupyter Notebook:
+
+```bash
+jupyter notebook COMPASS_demo.ipynb
+```
+
+## 📁 Project Structure
+
+```text
+multi_agent_system/
+├── agents/             # Autonomous agent definitions (Orchestrator, Predictor, etc.)
+├── core/               # Core engine logic (Fusion Layer, Data Loading)
+├── tools/              # Clinical analysis tools
+├── utils/              # Utilities (Embeddings, UI, Validation)
+├── compass_logging/    # Structured logging & reporting
+├── data/pseudo_data/   # Synthetic data for testing/demo
+├── main.py             # CLI Entry Point
+└── COMPASS_demo.ipynb  # Interactive Tutorial
+```
+
+## 🎓 Project Context
+
+This Multi-Agent System was developed in the context of a **Master's Internship in Theoretical and Experimental Psychology (Neuroscience)** at **Ghent University** (Belgium).
+
+The research was conducted at the **Computational Neuroscience Lab** of **[IIS Biobizkaia](https://compneurobilbao.eus)** (Bilbao, Spain).
+
+**Author**: Stijn Van Severen
+**Supervisors**: 
+*   **Ibai Díez Palacio** (Dept. of Radiology, MGH, Harvard Medical School & IIS Biobizkaia)
+*   **Jesús M. Cortés** (Computational Neuroimaging Lab, IIS Biobizkaia & Ikerbasque Foundation)
+
+**Lab**: [Computational Neuroscience Group](https://compneurobilbao.eus)
+
+## 🛡️ License
+
+This project is licensed under the MIT License ; see the [LICENSE](LICENSE) file for details.
+
+> [!CAUTION]
+> **EU MDR / PRE-CLINICAL DISCLAIMER**
+> COMPASS is a **Clinical Decision Support System (CDSS) prototype** designed for research purposes only. It is **NOT** a certified medical device under the EU Medical Device Regulation (MDR 2017/745) or FDA guidelines. Do not use for primary diagnostic decisions. All outputs must be verified by a qualified clinician.

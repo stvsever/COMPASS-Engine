@@ -1,0 +1,44 @@
+[
+  {
+    "type": "PIPELINE_START",
+    "timestamp": "2026-02-01T22:11:54.390536",
+    "data": {
+      "participant_id": "ID002",
+      "target_condition": "neuropsychiatric",
+      "timestamp": "2026-02-01T22:11:54.390534"
+    }
+  },
+  {
+    "type": "ORCHESTRATOR",
+    "timestamp": "2026-02-01T22:12:49.257217",
+    "data": {
+      "plan_id": "ID002-NEUROPLAN-V1",
+      "total_steps": 12,
+      "priority_domains": [
+        "GENOMICS",
+        "BRAIN_MRI",
+        "BIOLOGICAL_ASSAY",
+        "MENTAL_HEALTH",
+        "COGNITION",
+        "DEMOGRAPHICS",
+        "LIFESTYLE"
+      ]
+    }
+  },
+  {
+    "type": "PREDICTOR",
+    "timestamp": "2026-02-01T22:17:36.062868",
+    "data": {
+      "classification": "CONTROL",
+      "probability": 0.18
+    }
+  },
+  {
+    "type": "CRITIC",
+    "timestamp": "2026-02-01T22:17:49.831280",
+    "data": {
+      "verdict": "SATISFACTORY",
+      "confidence": 0.86
+    }
+  }
+]

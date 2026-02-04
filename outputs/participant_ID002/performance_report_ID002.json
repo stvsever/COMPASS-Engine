@@ -1,0 +1,153 @@
+{
+  "participant_id": "ID002",
+  "target_condition": "neuropsychiatric",
+  "execution_timestamp": "2026-02-01T22:11:54.388909",
+  "total_duration_seconds": 355.44,
+  "iterations": 1,
+  "prediction_result": {
+    "classification": "CONTROL",
+    "probability": 0.18,
+    "confidence": "HIGH"
+  },
+  "critic_verdict": "SATISFACTORY",
+  "token_usage": {
+    "total_tokens": 58753,
+    "prompt_tokens": 17769,
+    "completion_tokens": 40984,
+    "calls": [
+      {
+        "component": "orchestrator",
+        "prompt_tokens": 1663,
+        "completion_tokens": 6356,
+        "total": 8019,
+        "step_tool": null,
+        "step_reasoning": null
+      },
+      {
+        "component": "executor",
+        "prompt_tokens": 1355,
+        "completion_tokens": 3646,
+        "total": 5001,
+        "step_tool": "AnomalyNarrativeBuilder",
+        "step_reasoning": "Early anomaly synthesis guides subsequent feature prioritization and compression focus."
+      },
+      {
+        "component": "executor",
+        "prompt_tokens": 663,
+        "completion_tokens": 977,
+        "total": 1640,
+        "step_tool": "FeatureSynthesizer",
+        "step_reasoning": "Provides a compact, hierarchy-informed feature list to guide clinical relevance ranking."
+      },
+      {
+        "component": "executor",
+        "prompt_tokens": 829,
+        "completion_tokens": 1669,
+        "total": 2498,
+        "step_tool": "ClinicalRelevanceRanker",
+        "step_reasoning": "Prioritizes features for downstream compression and interpretation under the clinical lens."
+      },
+      {
+        "component": "executor",
+        "prompt_tokens": 892,
+        "completion_tokens": 2853,
+        "total": 3745,
+        "step_tool": "UnimodalCompressor",
+        "step_reasoning": "Genomics data are high-dimensional; compression preserves essential signals with minimal tokens."
+      },
+      {
+        "component": "executor",
+        "prompt_tokens": 893,
+        "completion_tokens": 1988,
+        "total": 2881,
+        "step_tool": "UnimodalCompressor",
+        "step_reasoning": "MRI features often contain rich information; compressed summaries retain salient abnormalities."
+      },
+      {
+        "component": "executor",
+        "prompt_tokens": 894,
+        "completion_tokens": 1813,
+        "total": 2707,
+        "step_tool": "UnimodalCompressor",
+        "step_reasoning": "Biomarker panel data provide actionable signals; compression maintains core signals."
+      },
+      {
+        "component": "executor",
+        "prompt_tokens": 902,
+        "completion_tokens": 2411,
+        "total": 3313,
+        "step_tool": "UnimodalCompressor",
+        "step_reasoning": "Mental health metrics are central to neuropsychiatric predictions; compressed summaries retain key signals."
+      },
+      {
+        "component": "executor",
+        "prompt_tokens": 889,
+        "completion_tokens": 2611,
+        "total": 3500,
+        "step_tool": "UnimodalCompressor",
+        "step_reasoning": "Cognitive performance signals add discriminative value; compact representation aids integration."
+      },
+      {
+        "component": "executor",
+        "prompt_tokens": 813,
+        "completion_tokens": 1499,
+        "total": 2312,
+        "step_tool": "UnimodalCompressor",
+        "step_reasoning": "Demographic context informs risk stratification and interpretation."
+      },
+      {
+        "component": "executor",
+        "prompt_tokens": 813,
+        "completion_tokens": 1392,
+        "total": 2205,
+        "step_tool": "UnimodalCompressor",
+        "step_reasoning": "Lifestyle factors contribute to risk and prognosis; concise summaries preserve signal."
+      },
+      {
+        "component": "executor",
+        "prompt_tokens": 1551,
+        "completion_tokens": 5161,
+        "total": 6712,
+        "step_tool": "MultimodalNarrativeCreator",
+        "step_reasoning": "Integrates multi-domain data to support holistic interpretation and hypothesis generation."
+      },
+      {
+        "component": "executor",
+        "prompt_tokens": 736,
+        "completion_tokens": 3871,
+        "total": 4607,
+        "step_tool": "HypothesisGenerator",
+        "step_reasoning": "Provides mechanistic explanations to guide further research and clinical interpretation."
+      },
+      {
+        "component": "predictor",
+        "prompt_tokens": 2929,
+        "completion_tokens": 2798,
+        "total": 5727,
+        "step_tool": null,
+        "step_reasoning": null
+      },
+      {
+        "component": "critic",
+        "prompt_tokens": 1947,
+        "completion_tokens": 1939,
+        "total": 3886,
+        "step_tool": null,
+        "step_reasoning": null
+      }
+    ]
+  },
+  "plan_summary": {
+    "plan_id": "ID002-NEUROPLAN-V1",
+    "total_steps": 12,
+    "priority_domains": [
+      "GENOMICS",
+      "BRAIN_MRI",
+      "BIOLOGICAL_ASSAY",
+      "MENTAL_HEALTH",
+      "COGNITION",
+      "DEMOGRAPHICS",
+      "LIFESTYLE"
+    ]
+  }
+}

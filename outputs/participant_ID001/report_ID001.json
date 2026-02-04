@@ -1,0 +1,112 @@
+{
+  "report_id": "RPT_ID001_20260202_161814",
+  "participant_id": "ID001",
+  "generated_at": "2026-02-02T16:18:14.798796",
+  "prediction": {
+    "classification": "CASE",
+    "probability": 0.82,
+    "confidence": "HIGH",
+    "target_condition": "neuropsychiatric"
+  },
+  "evaluation": {
+    "verdict": "SATISFACTORY",
+    "confidence_in_verdict": 0.82,
+    "checklist_passed": 7,
+    "checklist_total": 7
+  },
+  "key_findings": [
+    {
+      "domain": "BRAIN_MRI",
+      "finding": "Bilateral hippocampal atrophy with ACC reduction indicating limbic-prefrontal involvement",
+      "direction": "ABNORMAL_HIGH"
+    },
+    {
+      "domain": "MENTAL_HEALTH",
+      "finding": "Active depressive and anxiety symptoms with PHQ-9 16 and GAD-7 13",
+      "direction": "ABNORMAL_HIGH"
+    },
+    {
+      "domain": "BIOLOGICAL_ASSAY",
+      "finding": "Pro-inflammatory state with CRP z=+2.34 and IL-6 z=+1.78",
+      "direction": "ABNORMAL_HIGH"
+    },
+    {
+      "domain": "GENOMICS",
+      "finding": "Moderate elevation in polygenic risk for mood and anxiety disorders",
+      "direction": "ABNORMAL_HIGH"
+    },
+    {
+      "domain": "COGNITION",
+      "finding": "Mild processing speed and executive-control deficits",
+      "direction": "ABNORMAL_LOW"
+    },
+    {
+      "domain": "LIFESTYLE",
+      "finding": "Lifestyle data not provided; no abnormal patterns derivable",
+      "direction": "NORMAL"
+    },
+    {
+      "domain": "DEMOGRAPHICS",
+      "finding": "Demographics data not provided; no demographic pattern inference available",
+      "direction": "NORMAL"
+    }
+  ],
+  "reasoning": [
+    "Step 1: MRI evidence shows limbic-prefrontal disruption (bilateral hippocampal atrophy with ACC reduction), aligning with emotional regulation and executive function impairment commonly seen in neuropsychiatric illness.",
+    "Step 2: Active mood/anxiety symptoms (PHQ-9 16, GAD-7 13) corroborate a clinically significant affective burden.",
+    "Step 3: Systemic inflammatory activation (CRP z=+2.34, IL-6 z=+1.78) provides a plausible inflammatory mechanism contributing to mood symptoms and cognitive slowing.",
+    "Step 4: Moderate genetic predisposition (polygenic risk for mood/anxiety disorders) supports vulnerability.",
+    "Step 5: Mild cognitive inefficiency (processing speed/executive deficits) is consistent with depressive-cognitive phenotypes and limbic-prefrontal circuitry involvement.",
+    "Step 6: Potential confounders include hypothyroidism and sleep disruption; cortisol/metabolic data and lifestyle/demographic context are missing, which temper specificity but do not negate the convergent neuropsychiatric signal.",
+    "Step 7: Integrated pattern across imaging, psychiatric symptoms, inflammation, and genetics supports a CASE requiring integrated management for neuropsychiatric risk."
+  ],
+  "clinical_summary": "Participant ID001 (45-year-old female) presents with an integrated neuropsychiatric risk profile. Neuroimaging reveals limbic-prefrontal disruption (bilateral hippocampal atrophy with ACC reduction). Clinically significant mood/anxiety symptoms (PHQ-9 16, GAD-7 13) co-occur with mild cognitive inefficiency and a pro-inflammatory biomarker state (CRP z=+2.34, IL-6 z=+1.78). Moderate polygenic risk for mood/anxiety disorders supports genetic vulnerability. Sleep disturbance and past psychiatric history further corroborate risk. Data gaps include cortisol/metabolic markers, lifestyle factors, and full demographics, and hypothyroidism may confound mood and cognition. Overall, convergent multimodal evidence supports a CASE of neuropsychiatric disorder requiring integrated management, with data gaps tempering precise prognostication.",
+  "execution": {
+    "iterations": 1,
+    "tokens_used": 90265,
+    "domains_processed": [
+      "MENTAL_HEALTH",
+      "BRAIN_MRI",
+      "COGNITION",
+      "BIOLOGICAL_ASSAY",
+      "GENOMICS",
+      "DEMOGRAPHICS",
+      "LIFESTYLE"
+    ]
+  },
+  "decision_trace": [
+    {
+      "decision_id": "D001",
+      "component": "Orchestrator",
+      "decision_type": "PLAN_GENERATION",
+      "input_summary": "Domains: MENTAL_HEALTH, BRAIN_MRI, COGNITION, BIOLOGICAL_ASSAY, GENOMICS, DEMOGRAPHICS, LIFESTYLE",
+      "output_summary": "Generated 14-step plan",
+      "reasoning": "We start with broad phenotype characterization and anomaly screening (Steps 1-3) to anchor domain priorities. We compress each domain (Steps 4-10) to keep token usage efficient while preserving key signals. A MultimodalNarrative (Step 11) fuses cross-domain summaries, enabling clinically relevant feature ranking (Step 12). Hypotheses (Step 13) are generated from the integrated narrative and ranked features, and DifferentialDiagnosis (Step 14) combines phenotype, hypotheses, and ranked features t",
+      "timestamp": "2026-02-02T16:06:44.850934",
+      "metadata": {}
+    },
+    {
+      "decision_id": "D002",
+      "component": "Predictor",
+      "decision_type": "CLASSIFICATION",
+      "input_summary": "Key findings: Bilateral hippocampal atrophy with ACC reduction indicating limbic-prefrontal involvement, Active depressive and anxiety symptoms with PHQ-9 16 and GAD-7 13, Pro-inflammatory state with CRP z=+2.34 and IL-6 z=+1.78...",
+      "output_summary": "CASE (p=0.820)",
+      "reasoning": "Participant ID001 (45-year-old female) presents with an integrated neuropsychiatric risk profile. Neuroimaging reveals limbic-prefrontal disruption (bilateral hippocampal atrophy with ACC reduction). Clinically significant mood/anxiety symptoms (PHQ-9 16, GAD-7 13) co-occur with mild cognitive inefficiency and a pro-inflammatory biomarker state (CRP z=+2.34, IL-6 z=+1.78). Moderate polygenic risk for mood/anxiety disorders supports genetic vulnerability. Sleep disturbance and past psychiatric hi",
+      "timestamp": "2026-02-02T16:17:55.091331",
+      "metadata": {
+        "probability": 0.82,
+        "classification": "CASE"
+      }
+    },
+    {
+      "decision_id": "D003",
+      "component": "Critic",
+      "decision_type": "EVALUATION",
+      "input_summary": "Checklist: 7/7 passed",
+      "output_summary": "SATISFACTORY",
+      "reasoning": "The prediction demonstrates robust cross-domain alignment for a neuropsychiatric CASE, with a coherent chain from limbic-prefrontal MRI findings to mood/anxiety symptoms, inflammation, genetic vulnerability, and mild cognitive inefficiency. The probability (0.82) is consistent with the binary outcome. Coverage exceeds 70% (5 of 7 domains processed), and critical domains for NEUROPSYCHIATRIC (BRAIN_MRI and COGNITION, with additional supportive data from MENTAL_HEALTH, BIOLOGICAL_ASSAY, GENOMICS) ",
+      "timestamp": "2026-02-02T16:18:14.798598",
+      "metadata": {}
+    }
+  ]
+}
