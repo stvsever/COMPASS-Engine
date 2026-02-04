@@ -186,5 +186,29 @@ class UnimodalCompressor(BaseTool):
     ) -> Dict[str, Any]:
         """Add domain info to output."""
         domain = input_data.get("input_domains", ["UNKNOWN"])[0]
+        
+        # Check for node_paths to create a specific domain label
+        parameters = input_data.get("parameters", {})
+        node_paths = parameters.get("node_paths", [])
+        # Backward compatibility check
+        if not node_paths and "node_path" in parameters:
+             single = parameters["node_path"]
+             node_paths = [single] if isinstance(single, list) else [single]
+             
+        if node_paths:
+            # Create label likes "BRAIN_MRI:Structural+Functional"
+            # Extract last segment of each path
+            labels = []
+            for p in node_paths:
+                segments = p if isinstance(p, list) else str(p).split(":")
+                # If segment[0] is domain, skip it
+                if segments and segments[0].upper() == domain.upper():
+                    segments = segments[1:]
+                if segments:
+                    labels.append(segments[-1]) # Use leaf name
+            
+            if labels:
+                domain = f"{domain}:{'+'.join(labels)}"
+
         output_data["domain"] = domain
         return output_data

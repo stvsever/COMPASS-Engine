@@ -175,7 +175,30 @@ Status: {volume_status}
 
 GUIDANCE:
 - If FIT_FOR_RAW: The Fusion Layer will likely PASS DATA RAW to the Predictor. You can plan for high-fidelity extraction without aggressive early compression.
-- If REQUIRES_COMPRESSION: The Fusion Layer will COMPRESS data. You must plan for efficient summarization (UnimodalCompressor) to ensure critical signals are preserved in the summaries.
+- If REQUIRES_COMPRESSION: The Fusion Layer will COMPRESS data. You must plan for efficient summarization.
+
+### STRATEGY FOR HIGH-VOLUME DOMAINS (Token Optimization)
+If a specific domain (e.g., BRAIN_MRI, GENOMICS) has >15k tokens, DO NOT process the entire domain in one step. Instead, split it into multiple `UnimodalCompressor` steps using the `node_paths` parameter to target specific subtrees. This ensures the output is detailed and avoids max_token limits.
+
+**Examples of Subtree Splitting:**
+
+1. **BRAIN_MRI (High Volume)**:
+   - *Instead of:* One step for 'BRAIN_MRI'.
+   - *Do:* 
+     - Step X: UnimodalCompressor(domain='BRAIN_MRI', parameters={'node_paths': ['BRAIN_MRI:Morphologics', 'BRAIN_MRI:Connectivity']})
+     - Step Y: UnimodalCompressor(domain='BRAIN_MRI', parameters={'node_paths': ['BRAIN_MRI:Functional']})
+
+2. **BIOLOGICAL_ASSAY (High Volume)**:
+   - *Do:* 
+     - Step A: UnimodalCompressor(domain='BIOLOGICAL_ASSAY', parameters={'node_paths': ['BIOLOGICAL_ASSAY:Blood_Test:Inflammatory_Markers']})
+     - Step B: UnimodalCompressor(domain='BIOLOGICAL_ASSAY', parameters={'node_paths': ['BIOLOGICAL_ASSAY:Metabolomics']})
+
+3. **GENOMICS (Complex)**:
+   - *Do:* 
+     - Step K: UnimodalCompressor(domain='GENOMICS', parameters={'node_paths': ['GENOMICS:PolygenicScores']})
+     - Step L: UnimodalCompressor(domain='GENOMICS', parameters={'node_paths': ['GENOMICS:RareVariants']})
+
+*Refer to the available leaves in the DATA OVERVIEW to determine valid paths.*
 """
 
         # Available tools description
