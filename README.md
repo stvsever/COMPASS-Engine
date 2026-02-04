@@ -53,9 +53,11 @@ python main.py data/pseudo_data/SUBJ_001_PSEUDO --target "Major Depressive Disor
 
 > [!IMPORTANT]
 > **Understanding "CASE" vs "CONTROL"**
-> The COMPASS engine (for now) performs binary classification against a specific **Target Condition**.
+> The COMPASS engine performs binary classification against a specific **Target Condition**.
 > - **CASE**: The participant has the request Target Condition (e.g., "Major Depressive Disorder").
 > - **CONTROL**: The participant strictly refers to **"Brain-implicated pathology, but NON-psychiatric"**.
+> This is a methodological design choice for a research paper that is under development.
+
 > 
 > *Note: Do not include "CASE" or "CONTROL" in the `--target` string. Simply provide the condition name.*
 
