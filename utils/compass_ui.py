@@ -747,10 +747,11 @@ DASHBOARD_HTML = """
 
             <!-- TIMELINE -->
             <div class="timeline-wrapper">
-                <div class="timeline-tabs">
+                <div class="timeline-tabs" style="display:flex; align-items:center;">
                     <button class="tab-btn active" onclick="switchTab('timeline')"><i class="fas fa-stream"></i> Live Execution</button>
                     <button class="tab-btn" onclick="switchTab('results'); loadResults();"><i class="fas fa-file-alt"></i> Results</button>
                     <button class="tab-btn" onclick="switchTab('inspector'); loadInputs();"><i class="fas fa-code"></i> Data Inspector</button>
+                    <button onclick="toggleTimelineScroll()" id="btn-timeline-scroll" style="margin-left:auto; background:none; border:none; color:var(--primary); cursor:pointer; font-size:0.7rem; font-weight:600; padding:0 10px;">AUTO-FOLLOW: ON</button>
                 </div>
 
                 <!-- TAB: TIMELINE -->
@@ -843,6 +844,7 @@ DASHBOARD_HTML = """
         let latestEventId = 0;
         let startTime = null;
         let autoScrollLogs = true;
+        let autoScrollTimeline = true;
         let isRunning = false;
         let currentStep = 1;
 
@@ -907,6 +909,13 @@ DASHBOARD_HTML = """
         function toggleLogScroll() {
             autoScrollLogs = !autoScrollLogs;
             document.getElementById('btn-log-scroll').textContent = autoScrollLogs ? 'AUTO: ON' : 'AUTO: OFF';
+        }
+
+        function toggleTimelineScroll() {
+            autoScrollTimeline = !autoScrollTimeline;
+            const btn = document.getElementById('btn-timeline-scroll');
+            btn.textContent = autoScrollTimeline ? 'AUTO-FOLLOW: ON' : 'AUTO-FOLLOW: OFF';
+            btn.style.opacity = autoScrollTimeline ? '1' : '0.5';
         }
         
         function switchTab(tab) {
@@ -1026,9 +1035,9 @@ DASHBOARD_HTML = """
                 }
                 
                 // Auto scroll main timeline
-                if (isRunning && state.steps.length > 0) {
+                if (isRunning && autoScrollTimeline && state.steps.length > 0) {
                      const activeStep = document.querySelector('.step.active');
-                     if (activeStep && !document.getElementById('tab-results').classList.contains('active')) {
+                     if (activeStep && !document.getElementById('tab-results').classList.contains('active') && !document.getElementById('tab-inspector').classList.contains('active')) {
                          activeStep.scrollIntoView({behavior: "smooth", block: "nearest"});
                      }
                 }
