@@ -10,11 +10,13 @@
 
 ## 🚀 Key Features
 
-- **Multi-Agent Orchestration**: A dynamic team of agents (Orchestrator, Executor, Integrator, Predictor, Critic) collaborates to solve cases.
-- **Semantic RAG Fusion**: The **Integrator Agent** employs a "Smart Fusion" layer that prioritizes semantically relevant multi-modal data using hierarchical embeddings.
-- **Hierarchical Feature Embedding**: Pre-computes and caches 30,000+ clinical feature embeddings for ultra-fast semantic retrieval.
-- **Dynamic Phenotype Targeting**: Flexible targeting system that adapts to specific diagnostic queries (e.g., "Major Depressive Disorder" vs "General Neuropsychiatric").
-- **Live Dashboard**: Integrated Flask-based real-time UI for monitoring agent reasoning, token usage, and system load.
+- **Multi-Agent Orchestration**: A dynamic actor-critic team of specialized agents (**Orchestrator, Executor, Integrator, Predictor, Critic**) collaborates to synthesize complex diagnostic logic through iterative refinement cycles.
+- **Scalable Nature of LLM-based Knowledge**: Leverages the vast pre-trained clinical and biomedical knowledge of state-of-the-art large language models (LLM) for high-precision phenotypic prediction without requiring task-specific training, or fine-tuning.
+- **Zero-Shot Scalability**: Architected to scale across thousands of multi-modal features and diverse clinical phenotypes by utilizing LLMs as flexible, data-aware reasoning engines.
+- **Semantic RAG Fusion**: Employs a "Smart Fusion" layer that prioritizes semantically relevant biomarkers using hierarchical embeddings and targeted context retrieval to maximize the information-to-token ratio.
+- **Explainable Clinical Reasoning**: Generates multi-modal evidence chains and structured patient reports, transforming complex high-dimensional data signals into human-interpretable clinical narratives.
+- **Live Dashboard**: Integrated real-time UI for monitoring agent reasoning, token usage, and cross-modal evidence synthesis as it happens.
+
 
 ## 🧠 System Architecture
 
@@ -95,34 +97,31 @@ The research was conducted at the **Computational Neuroscience Lab** of **[IIS B
 
 **Author**: Stijn Van Severen
 **Supervisors**: 
-*   **Ibai Díez Palacio** (Dept. of Radiology; Harvard Medical School & IIS Biobizkaia)
-*   **Jesús M. Cortés** (Computational Neuroimaging Lab @ IIS Biobizkaia & Ikerbasque Foundation)
+*   **Ibai Díez Palacio** (omputational Neuroimaging Lab @ IIS Biobizkaia & Dept. of Radiology; Harvard Medical School)
+*   **Jesús M. Cortés** (Computational Neuroimaging Lab @ IIS Biobizkaia)
 
 **Lab**: [Computational Neuroscience Group](https://compneurobilbao.eus)
+
+COMPASS is currently being tested on a large neuropsychiatric cohort from the **UK Biobank**, leveraging available multi-modal brain and clinical data to evaluate robustness, scalability, and generalization in real-world population settings.
 
 ## 🛡️ License
 
 This project is licensed under the MIT License ; see the [LICENSE](LICENSE) file for details.
 
+## 📈 Future Work
 
-> [!FUTURE WORK]
-> **Large-Scale UK Biobank Validation & Explainable Feature Attribution**
->
-> COMPASS is currently being tested on a large neuropsychiatric cohort from the **UK Biobank**, leveraging available multi-modal brain and clinical data to evaluate robustness, scalability, and generalization in real-world population settings.
->
-> Key future development directions include:
->
-> - **Automated Explainability of Token-Driven Predictions**  
->   We are developing an integrated evaluation layer to automatically quantify which **feature-based token sets** most strongly drive each clinical prediction.  
->   This builds directly on prior work in *Hierarchical TokenSHAP-style attribution* (see: https://github.com/stvsever/aHFR_TokenSHAP), enabling transparent post-hoc interpretability across hierarchical and multi-modal inputs.
->
-> - **Improved Frontend & Clinical Usability**  
->   Ongoing work focuses on expanding the interactive dashboard into a more user-friendly clinical frontend, simplifying workflow monitoring, interpretation, and report exploration.
->
-> - **Dedicated DataLoader Agent for Raw Multi-Modal Preparation**  
->   A major next step is the implementation of a specialized **Data Loader Agent** that automatically prepares raw neuroimaging, deviation-map, and electronic health inputs into a standardized `ParticipantData` container, ensuring seamless delivery to the **Orchestrator Agent** and reducing manual preprocessing overhead.
->
-> Together, these developments aim to strengthen COMPASS as a scalable, interpretable, and clinician-oriented framework for next-generation neuropsychiatric phenotyping and decision support.
+Key future development directions include:
+- **Automated Explainability of Token-Driven Predictions**  
+  We are developing an integrated evaluation layer to automatically quantify which **feature-based token sets** most strongly drive each clinical prediction.  
+  This builds directly on prior work in *Hierarchical TokenSHAP-style attribution* (see: https://github.com/stvsever/aHFR_TokenSHAP), enabling transparent post-hoc interpretability across hierarchical and multi-modal inputs.
+  
+- **Improved Frontend & Clinical Usability**  
+  Ongoing work focuses on expanding the interactive dashboard into a more user-friendly clinical frontend, simplifying workflow monitoring, interpretation, and report exploration.
+
+- **Dedicated DataLoader Agent for Raw Multi-Modal Preparation**  
+  A major next step is the implementation of a specialized **Data Loader Agent** that automatically prepares raw neuroimaging, deviation-map, and electronic health inputs into a standardized `ParticipantData` container, ensuring seamless delivery to the **Orchestrator Agent** and reducing manual preprocessing overhead.
+
+Together, these developments aim to strengthen COMPASS as a scalable, interpretable, and clinician-oriented framework for next-generation neuropsychiatric phenotyping and decision support.
 
 > [!CAUTION]
 > **EU MDR / PRE-CLINICAL DISCLAIMER**
