@@ -4,7 +4,7 @@
   <img src="overview/logo/COMPASS_logo_2.png" alt="COMPASS Logo" width="150" />
 </div>
 
-**COMPASS** is an advanced multi-agent orchestrator for clinical decision support, enabling precise phenotypic prediction by integrating (hierarchical) multi-modal deviation maps and non-tabular electronic health information. Our current system is optimized for neuropsychiatric phenotyping with data from the UK Biobank—developed as part of an internship project.
+**COMPASS** is an advanced multi-agent orchestrator for clinical decision support, enabling precise phenotypic prediction by integrating (hierarchical) multi-modal deviation maps and non-tabular electronic health information. Our current system is customized for neuropsychiatric phenotyping with data from the UK Biobank—developed as part of an internship project.
 
 ## 🚀 Key Features
 
@@ -19,7 +19,7 @@
 COMPASS utilizes a sequential multi-agent workflow with iterative feedback loops.
 
 <div align="center">
-  <img src="/Users/stijnvanseveren/PythonProjects/IIS_BIOBIZKAIA/INFERENCE_PIPELINE/multi_agent_system/overview/compass_flowchart.png" alt="COMPASS Flowchart" width="800" />
+  <img src="overview/compass_flowchart.png" alt="COMPASS Flowchart" width="800" />
 </div>
 <br>
 
@@ -53,7 +53,7 @@ python main.py data/pseudo_data/SUBJ_001_PSEUDO --target "Major Depressive Disor
 
 > [!IMPORTANT]
 > **Understanding "CASE" vs "CONTROL"**
-> The COMPASS engine performs binary classification against a specific **Target Condition**.
+> The COMPASS engine (for now) performs binary classification against a specific **Target Condition**.
 > - **CASE**: The participant has the request Target Condition (e.g., "Major Depressive Disorder").
 > - **CONTROL**: The participant strictly refers to **"Brain-implicated pathology, but NON-psychiatric"**.
 > 
@@ -100,20 +100,40 @@ multi_agent_system/
 
 ## 🎓 Project Context
 
-This Multi-Agent System was developed in the context of a **Master's Internship in Theoretical and Experimental Psychology (Neuroscience)** at **Ghent University** (Belgium).
+This Multi-Agent System is being) developed in the context of a **Master's Internship in Theoretical and Experimental Psychology (Neuroscience)** at **Ghent University** (Belgium).
 
 The research was conducted at the **Computational Neuroscience Lab** of **[IIS Biobizkaia](https://compneurobilbao.eus)** (Bilbao, Spain).
 
 **Author**: Stijn Van Severen
 **Supervisors**: 
-*   **Ibai Díez Palacio** (Dept. of Radiology, MGH, Harvard Medical School & IIS Biobizkaia)
-*   **Jesús M. Cortés** (Computational Neuroimaging Lab, IIS Biobizkaia & Ikerbasque Foundation)
+*   **Ibai Díez Palacio** (Dept. of Radiology; Harvard Medical School & IIS Biobizkaia)
+*   **Jesús M. Cortés** (Computational Neuroimaging Lab @ IIS Biobizkaia & Ikerbasque Foundation)
 
 **Lab**: [Computational Neuroscience Group](https://compneurobilbao.eus)
 
 ## 🛡️ License
 
 This project is licensed under the MIT License ; see the [LICENSE](LICENSE) file for details.
+
+
+> [!FUTURE WORK]
+> **Large-Scale UK Biobank Validation & Explainable Feature Attribution**
+>
+> COMPASS is currently being tested on a large neuropsychiatric cohort from the **UK Biobank**, leveraging available multi-modal brain and clinical data to evaluate robustness, scalability, and generalization in real-world population settings.
+>
+> Key future development directions include:
+>
+> - **Automated Explainability of Token-Driven Predictions**  
+>   We are developing an integrated evaluation layer to automatically quantify which **feature-based token sets** most strongly drive each clinical prediction.  
+>   This builds directly on prior work in *TokenSHAP-style attribution* (see: https://github.com/stvsever/aHFR_TokenSHAP), enabling transparent post-hoc interpretability across hierarchical and multi-modal inputs.
+>
+> - **Improved Frontend & Clinical Usability**  
+>   Ongoing work focuses on expanding the interactive dashboard into a more user-friendly clinical frontend, simplifying workflow monitoring, interpretation, and report exploration.
+>
+> - **Dedicated DataLoader Agent for Raw Multi-Modal Preparation**  
+>   A major next step is the implementation of a specialized **Data Loader Agent** that automatically prepares raw neuroimaging, deviation-map, and electronic health inputs into a standardized `ParticipantData` container, ensuring seamless delivery to the **Orchestrator Agent** and reducing manual preprocessing overhead.
+>
+> Together, these developments aim to strengthen COMPASS as a scalable, interpretable, and clinician-oriented framework for next-generation neuropsychiatric phenotyping and decision support.
 
 > [!CAUTION]
 > **EU MDR / PRE-CLINICAL DISCLAIMER**
