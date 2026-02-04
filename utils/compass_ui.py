@@ -24,8 +24,8 @@ log.setLevel(logging.ERROR)
 class EventStore:
     """Thread-safe storage for pipeline events with optimized state tracking."""
     def __init__(self):
-        self.reset()
         self._lock = threading.Lock()
+        self.reset() # init msg
 
     def reset(self):
         self.events = []
@@ -41,7 +41,8 @@ class EventStore:
             "prediction": None,
             "latest_update_id": 0,
             "current_stage": -1, # -1: Setup, 0:Init, 1:Plan, 2:Exec, 3:Predict, 4:Verify
-            "stages": ["Initialization", "Orchestration", "Execution", "Prediction", "Verification"]
+            "stages": ["Initialization", "Orchestration", "Execution", "Prediction", "Verification"],
+            "iteration": 1
         }
 
     def add_event(self, event_type, data):
@@ -62,6 +63,8 @@ class EventStore:
                 self.state["status"] = data["message"]
                 if "stage" in data:
                     self.state["current_stage"] = data["stage"]
+                if "iteration" in data:
+                     self.state["iteration"] = data["iteration"]
 
             elif event_type == "INIT":
                 self.state["participant_id"] = data["participant_id"]
@@ -69,11 +72,17 @@ class EventStore:
                 self.state["start_time"] = timestamp
                 self.state["status"] = "Initializing Engine..."
                 self.state["current_stage"] = 0
+                self.state["steps"] = [] # Clear steps on new run
                 
             elif event_type == "PLAN":
+                # If existing steps from previous iteration, maybe keep them? 
+                # For now, let's append? No, usually a plan replaces. 
+                # But if iteration > 1, we might want to see history.
+                # Simplified: Replace steps for current iteration visibility.
                 self.state["max_steps"] = data["steps"]
                 self.state["status"] = "Orchestrating Plan..."
                 self.state["current_stage"] = 1
+                self.state["steps"] = [] 
                 
             elif event_type == "STEP_START":
                 # Check if step exists vs new step
@@ -142,18 +151,10 @@ class EventStore:
                 import psutil
                 import os
                 process = psutil.Process(os.getpid())
-                mem_mb = process.memory_info().rss / 1024 / 1024
+                # mem_mb = process.memory_info().rss / 1024 / 1024 # User requested removal
                 cpu_pct = psutil.cpu_percent(interval=None) # Non-blocking
-                
-                self.state["system"] = {
-                    "memory_mb": round(mem_mb, 1),
-                    "cpu_percent": round(cpu_pct, 1)
-                }
             except (ImportError, Exception):
-                self.state["system"] = {
-                    "memory_mb": 0,
-                    "cpu_percent": 0
-                }
+                pass
             
             # Return full state but only new events to save bandwidth
             new_events = [e for e in self.events if e["id"] > int(since_id)]
@@ -165,7 +166,7 @@ class EventStore:
 # --- GLOBAL SINGLETONS ---
 _event_store = EventStore()
 _ui_instance = None
-_launcher_callback: Optional[Callable[[str, str], None]] = None
+_launcher_callback: Optional[Callable[[Dict], None]] = None
 
 # --- FLASK APP ---
 app = Flask(__name__)
@@ -260,7 +261,7 @@ DASHBOARD_HTML = """
         }
 
         .log-panel {
-            width: 400px;
+            width: 380px;
             background: var(--bg-sidebar);
             border-left: 1px solid var(--border);
             display: flex;
@@ -295,7 +296,7 @@ DASHBOARD_HTML = """
         /* STATS */
         .stats-grid {
             display: grid;
-            grid-template-columns: repeat(4, 1fr);
+            grid-template-columns: repeat(3, 1fr); /* Removed Memory MB */
             gap: 1rem;
             margin-bottom: 2rem;
         }
@@ -393,7 +394,7 @@ DASHBOARD_HTML = """
         
         .glass-panel {
             background: rgba(18, 18, 18, 0.95); border: 1px solid #333;
-            border-radius: 16px; padding: 2.5rem; width: 480px;
+            border-radius: 16px; padding: 2.5rem; width: 520px;
             box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.5);
             transform: translateY(30px); transition: transform 0.4s cubic-bezier(0.34, 1.56, 0.64, 1);
         }
@@ -405,7 +406,7 @@ DASHBOARD_HTML = """
         .form-input { 
             width: 100%; background: #050505; border: 1px solid #333;
             padding: 0.9rem; border-radius: 8px; color: white; font-family: inherit; font-size: 0.9rem;
-            transition: border-color 0.2s;
+            transition: border-color 0.2s; margin-bottom: 1rem;
         }
         .form-input:focus { outline: none; border-color: var(--primary); box-shadow: 0 0 0 2px rgba(99, 102, 241, 0.2); }
         
@@ -413,30 +414,19 @@ DASHBOARD_HTML = """
             width: 100%; background: var(--primary); border: none; color: white;
             padding: 1rem; border-radius: 8px; font-weight: 600; cursor: pointer;
             transition: all 0.2s; font-size: 0.95rem; text-transform: uppercase; letter-spacing: 0.05em;
-            margin-top: 2rem; display: flex; justify-content: center; align-items: center; gap: 0.8rem;
+            margin-top: 1rem; display: flex; justify-content: center; align-items: center; gap: 0.8rem;
         }
         .btn-launch:hover { background: #4f46e5; box-shadow: 0 10px 20px -5px rgba(99, 102, 241, 0.4); }
-        .btn-launch:disabled { opacity: 0.7; cursor: not-allowed; }
+        .btn-secondary { background: #27272a; color: #fff; margin-top: 1rem; }
+        .btn-secondary:hover { background: #3f3f46; }
 
-        /* PREDICTION VERDICT */
-        .prediction-hero {
-            margin-top: 2rem;
-            background: linear-gradient(180deg, rgba(18,18,18,0) 0%, rgba(99,102,241,0.05) 100%);
-            border: 1px solid var(--border); border-radius: 12px; padding: 3rem;
-            text-align: center; display: none;
-            animation: slideUp 0.6s ease;
-        }
-        
-        .verdict-badge {
-            display: inline-block; padding: 0.5rem 1.5rem; border-radius: 50px;
-            font-weight: 700; font-size: 0.9rem; text-transform: uppercase; letter-spacing: 0.1em;
-            margin-bottom: 1.5rem; background: #27272a; color: #fff;
-        }
-        
-        .verdict-line { font-size: 4rem; font-weight: 800; margin: 0 0 1rem 0; letter-spacing: -0.03em; line-height: 1; }
-        .CASE { color: var(--danger); text-shadow: 0 0 40px rgba(239, 68, 68, 0.3); }
-        .CONTROL { color: var(--success); text-shadow: 0 0 40px rgba(16, 185, 129, 0.3); }
-        
+        /* WIZARD */
+        .wizard-step { display: none; animation: fadeIn 0.3s; }
+        .wizard-step.active { display: block; }
+        .wizard-progress { display: flex; gap: 5px; margin-bottom: 2rem; justify-content: center; }
+        .wizard-dot { width: 40px; height: 4px; background: #333; border-radius: 2px; }
+        .wizard-dot.active { background: var(--primary); }
+
         /* UTILS */
         .log-entry { margin-bottom: 6px; padding-left: 12px; border-left: 2px solid #333; animation: fadeIn 0.2s; }
         .log-ts { color: #52525b; font-size: 0.7em; margin-right: 8px; user-select: none; }
@@ -457,37 +447,69 @@ DASHBOARD_HTML = """
             width: 0%;
         }
         
-        /* JSON VIEWER */
-        .json-tree { font-family: var(--font-mono); font-size: 0.75rem; color: #a1a1aa; background: #0a0a0a; padding: 1.5rem; border-radius: 8px; border: 1px solid var(--border); }
-        .json-key { color: #d8b4fe; } 
-        .json-string { color: #86efac; }
-        .json-number { color: #fca5a5; }
-        .json-boolean { color: #93c5fd; }
     </style>
 </head>
 <body>
     
-    <!-- SETUP MODAL -->
+    <!-- SETUP MODAL (WIZARD) -->
     <div id="setup-modal" class="modal-overlay active">
         <div class="glass-panel">
-            <i class="fas fa-rocket launch-icon"></i>
-            <h2 style="font-size: 1.5rem; text-align: center; margin-bottom: 0.5rem;">Initialize Mission</h2>
-            <p style="color:var(--text-muted); text-align: center; margin-bottom: 2rem;">Configure the inference pipeline parameters.</p>
-            
-            <div style="margin-bottom: 1.5rem;">
-                <label class="form-label">PARTICIPANT IDENTIFIER</label>
-                <input type="text" id="input-pid" class="form-input" placeholder="e.g. participant_ID6015951" value="participant_ID6015951">
+            <div class="wizard-progress">
+                <div class="wizard-dot active" id="dot-1"></div>
+                <div class="wizard-dot" id="dot-2"></div>
             </div>
-            
-            <div>
-                <label class="form-label">TARGET PHENOTYPE</label>
-                <input type="text" id="input-target" class="form-input" placeholder="e.g. neuropsychiatric" value="neuropsychiatric">
+
+            <!-- STEP 1: Mission Data -->
+            <div id="wiz-1" class="wizard-step active">
+                <i class="fas fa-satellite-dish launch-icon"></i>
+                <h2 style="font-size: 1.5rem; text-align: center; margin-bottom: 0.5rem;">Mission Data</h2>
+                <div style="margin-bottom: 1.5rem;">
+                    <label class="form-label">PARTICIPANT IDENTIFIER (or path)</label>
+                    <input type="text" id="input-pid" class="form-input" placeholder="e.g. participant_ID6015951 or 6015951" value="">
+                </div>
+                
+                <div>
+                    <label class="form-label">TARGET PHENOTYPE</label>
+                    <input type="text" id="input-target" class="form-input" placeholder="e.g. neuropsychiatric" value="neuropsychiatric">
+                </div>
+                
+                <button class="btn-launch" onclick="nextStep()">
+                    <span>Next: Configure AI</span>
+                    <i class="fas fa-arrow-right"></i>
+                </button>
             </div>
-            
-            <button id="btn-launch" class="btn-launch" onclick="launchPipeline()">
-                <span>Launch Pipeline</span>
-                <i class="fas fa-arrow-right"></i>
-            </button>
+
+            <!-- STEP 2: AI Configuration -->
+            <div id="wiz-2" class="wizard-step">
+                <i class="fas fa-microchip launch-icon"></i>
+                <h2 style="font-size: 1.5rem; text-align: center; margin-bottom: 0.5rem;">AI Configuration</h2>
+                
+                <div style="margin-bottom: 1.5rem;">
+                    <label class="form-label">BACKEND</label>
+                    <select id="input-backend" class="form-input" onchange="toggleModelInput()">
+                        <option value="openai">OpenAI (GPT-4o/5)</option>
+                        <option value="local">Local LLM (Ollama/VLLM)</option>
+                    </select>
+                </div>
+                
+                <div id="group-model" style="display:none;">
+                     <label class="form-label">LOCAL MODEL NAME</label>
+                     <input type="text" id="input-model" class="form-input" placeholder="e.g. Qwen/Qwen2.5-0.5B-Instruct" value="Qwen/Qwen2.5-0.5B-Instruct">
+                </div>
+
+                <div>
+                     <label class="form-label">MAX TOKENS</label>
+                     <input type="number" id="input-tokens" class="form-input" value="2048">
+                </div>
+
+                <div style="display:flex; gap:10px;">
+                    <button class="btn-launch btn-secondary" style="margin-top:0" onclick="prevStep()">Back</button>
+                    <button id="btn-final-launch" class="btn-launch" style="margin-top:0" onclick="launchPipeline()">
+                        <span>Launch Pipeline</span>
+                        <i class="fas fa-rocket"></i>
+                    </button>
+                </div>
+            </div>
         </div>
     </div>
 
@@ -499,7 +521,6 @@ DASHBOARD_HTML = """
         </div>
         
         <div class="stepper" id="stepper">
-            <!-- Populated via JS -->
             <div class="stepper-item">Initializing...</div>
         </div>
         
@@ -527,15 +548,11 @@ DASHBOARD_HTML = """
                     <div class="stat-title">Token Usage</div>
                     <div class="stat-value" id="token-display">0</div>
                 </div>
-                <div class="stat-card">
-                    <i class="fas fa-microchip stat-icon"></i>
-                    <div class="stat-title">Memory</div>
-                    <div class="stat-value" id="ram-display">--</div>
-                </div>
+                <!-- REMOVED MEMORY CARD -->
                 <div class="stat-card">
                     <i class="fas fa-layer-group stat-icon"></i>
                     <div class="stat-title">Iteration</div>
-                    <div class="stat-value"><span id="iter-display">1</span><span style="font-size:0.9rem; opacity:0.5; margin-left:2px;">/ 3</span></div>
+                    <div class="stat-value"><span id="iter-display">1</span></div>
                 </div>
             </div>
 
@@ -567,7 +584,7 @@ DASHBOARD_HTML = """
             </div>
 
             <!-- PREDICTION HERO -->
-            <div id="prediction-hero" class="prediction-hero">
+            <div id="prediction-hero" class="prediction-hero" style="display:none; text-align:center; margin-top:20px; padding:20px; border:1px solid #333; border-radius:10px;">
                 <span class="verdict-badge">Assessment Complete</span>
                 <div class="verdict-line" id="final-verdict-text">--</div>
                 <div style="font-size: 1.1rem; color: var(--text-muted);">
@@ -586,9 +603,7 @@ DASHBOARD_HTML = """
                     <button onclick="toggleLogScroll()" id="btn-log-scroll" style="background:none; border:none; color:var(--primary); cursor:pointer; font-size:0.7rem; font-weight:600;">AUTO: ON</button>
                 </div>
             </div>
-            <div class="log-content" id="log-container">
-                <!-- Logs injected here -->
-            </div>
+            <div class="log-content" id="log-container"></div>
         </aside>
     </div>
 
@@ -597,31 +612,50 @@ DASHBOARD_HTML = """
         let latestEventId = 0;
         let startTime = null;
         let autoScrollLogs = true;
-        let autoScrollMain = true;
         let isRunning = false;
-        
-        // Setup Logic
+        let currentStep = 1;
+
+        // WIZARD LOGIC
+        function nextStep() {
+            document.getElementById('wiz-1').classList.remove('active');
+            document.getElementById('wiz-2').classList.add('active');
+            document.getElementById('dot-2').classList.add('active');
+        }
+        function prevStep() {
+            document.getElementById('wiz-2').classList.remove('active');
+            document.getElementById('wiz-1').classList.add('active');
+            document.getElementById('dot-2').classList.remove('active');
+        }
+        function toggleModelInput() {
+            const val = document.getElementById('input-backend').value;
+            document.getElementById('group-model').style.display = val === 'local' ? 'block' : 'none';
+        }
+
         async function launchPipeline() {
             const pid = document.getElementById('input-pid').value;
             const target = document.getElementById('input-target').value;
-            
+            const backend = document.getElementById('input-backend').value;
+            const model = document.getElementById('input-model').value;
+            const tokens = document.getElementById('input-tokens').value;
+
             if (!pid) return alert("Participant ID required");
-            
-            // UI Feedback
-            const btn = document.getElementById('btn-launch');
-            btn.innerHTML = '<i class="fas fa-circle-notch spin"></i> Initiating...';
+
+            const btn = document.getElementById('btn-final-launch');
+            btn.innerHTML = '<i class="fas fa-circle-notch spin"></i> Launching...';
             btn.disabled = true;
-            
+
             try {
                 const res = await fetch('/api/launch', {
                     method: 'POST',
                     headers: {'Content-Type': 'application/json'},
-                    body: JSON.stringify({id: pid, target: target})
+                    body: JSON.stringify({
+                        id: pid, target: target, 
+                        backend: backend, model: model, max_tokens: tokens
+                    })
                 });
                 const data = await res.json();
                 
                 if (data.status === 'started') {
-                    // Success animation then hide
                     setTimeout(() => {
                          document.getElementById('setup-modal').classList.remove('active');
                          document.getElementById('session-status').textContent = "Pipeline Active";
@@ -630,30 +664,27 @@ DASHBOARD_HTML = """
                     }, 800);
                 }
             } catch (e) {
+                console.error(e);
                 btn.innerHTML = 'Launch Failed';
                 btn.disabled = false;
-                alert("Connection failed. Is the python server running?");
+                alert("Connection failed.");
             }
         }
 
         function toggleLogScroll() {
             autoScrollLogs = !autoScrollLogs;
-            const btn = document.getElementById('btn-log-scroll');
-            btn.textContent = autoScrollLogs ? 'AUTO: ON' : 'AUTO: OFF';
-            btn.style.color = autoScrollLogs ? 'var(--primary)' : 'var(--text-muted)';
+            document.getElementById('btn-log-scroll').textContent = autoScrollLogs ? 'AUTO: ON' : 'AUTO: OFF';
         }
-
-        // --- Renderers ---
+        
         function switchTab(tab) {
-            document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
-            document.querySelectorAll('.tab-content').forEach(c => c.classList.remove('active'));
-            event.target.classList.add('active');
-            document.getElementById('tab-' + tab).classList.add('active');
+             document.querySelectorAll('.tab-content').forEach(c => c.classList.remove('active'));
+             document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
+             document.getElementById('tab-'+tab).classList.add('active');
+             event.target.classList.add('active');
         }
 
         function renderSteps(steps) {
             if (!steps || steps.length === 0) return;
-            
             const container = document.getElementById('steps-container');
             const html = steps.map(step => `
                 <div class="step ${step.status} ${step.status === 'running' ? 'active' : ''}" id="step-${step.id}">
@@ -672,35 +703,25 @@ DASHBOARD_HTML = """
                     </div>
                 </div>
             `).join('');
-            
             container.innerHTML = html;
         }
 
         function renderJson(json) {
-            if (!json) return '';
-            const str = JSON.stringify(json, null, 2);
-             return str.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;')
-                .replace(/("(\\u[a-zA-Z0-9]{4}|\\[^u]|[^\\"])*"(\s*:)?|\b(true|false|null)\b|-?\d+(?:\.\d*)?(?:[eE][+\-]?\d+)?)/g, function (match) {
-                    var cls = 'json-number';
-                    if (/^"/.test(match)) {
-                        if (/:$/.test(match)) { cls = 'json-key'; } else { cls = 'json-string'; }
-                    } else if (/true|false/.test(match)) { cls = 'json-boolean'; } else if (/null/.test(match)) { cls = 'json-boolean'; }
-                    return '<span class="' + cls + '">' + match + '</span>';
-                });
+            return JSON.stringify(json, null, 2); 
         }
 
-        // --- Main Loop ---
+        // POLLING LOOP
         async function updateLoop() {
             try {
                 const res = await fetch(`/api/snapshot?since_id=${latestEventId}`);
                 const data = await res.json();
                 const state = data.state;
-                
-                // 1. Stats
+
+                // Stats
                 document.getElementById('token-display').textContent = state.total_tokens.toLocaleString();
-                if (state.system) document.getElementById('ram-display').textContent = `${state.system.memory_mb} MB`;
+                document.getElementById('iter-display').textContent = state.iteration || 1;
                 
-                // 2. Timer
+                // Timer
                 if (state.start_time && !startTime) startTime = new Date();
                 if (startTime && state.status !== "Pipeline Completed") {
                     const diff = Math.floor((new Date() - startTime) / 1000);
@@ -708,77 +729,59 @@ DASHBOARD_HTML = """
                     const s = (diff % 60).toString().padStart(2, '0');
                     document.getElementById('timer').textContent = `${m}:${s}`;
                 }
-                
-                // 3. Stepper
-                const stepper = document.getElementById('stepper');
-                const curStage = state.current_stage || 0;
-                stepper.innerHTML = state.stages.map((st, i) => `
-                    <div class="stepper-item ${i < curStage ? 'completed' : ''} ${i === curStage ? 'active' : ''}">
-                        <div class="stepper-dot"></div>${st}
-                    </div>
-                    ${i < state.stages.length - 1 ? '<div class="stepper-line"></div>' : ''}
-                `).join('');
-                
-                // 4. Progress
+
+                // Global Progress
                 const pct = (state.progress / (state.max_steps || 1)) * 100;
                 document.getElementById('global-progress').style.width = `${Math.min(pct, 100)}%`;
-                
-                // 5. Steps
-                renderSteps(state.steps);
-                
-                // 6. Inspector
-                if (state.fusion_data) {
-                    const ins = document.getElementById('inspector-content');
-                    if (!ins.innerHTML.includes('json-tree')) {
-                        ins.innerHTML = `<pre class="json-tree">${renderJson(state.fusion_data)}</pre>`;
-                    }
-                }
-                
-                // 7. Prediction
-                if (state.prediction) {
-                     const hero = document.getElementById('prediction-hero');
-                     hero.style.display = 'block';
-                     const v = state.prediction.result; // CASE/CONTROL
-                     const c = (state.prediction.prob * 100).toFixed(1);
-                     document.getElementById('final-verdict-text').textContent = v;
-                     document.getElementById('final-verdict-text').className = `verdict-line ${v}`;
-                     document.getElementById('final-confidence').textContent = `${c}%`;
-                     
-                     document.getElementById('status-dot').style.color = v === 'CASE' ? 'var(--danger)' : 'var(--success)';
-                     document.getElementById('status-dot').classList.remove('pulse');
-                     document.getElementById('session-status').textContent = "Mission Complete";
+
+                // Stepper Header
+                const stepper = document.getElementById('stepper');
+                const curStage = state.current_stage || 0;
+                if (state.stages) {
+                    stepper.innerHTML = state.stages.map((st, i) => `
+                        <div class="stepper-item ${i < curStage ? 'completed' : ''} ${i === curStage ? 'active' : ''}">
+                            <div class="stepper-dot"></div>${st}
+                        </div>
+                        ${i < state.stages.length - 1 ? '<div class="stepper-line"></div>' : ''}
+                    `).join('');
                 }
 
-                // 8. Logs
-                const logCon = document.getElementById('log-container');
+                // Render Steps (Main Timeline)
+                renderSteps(state.steps);
+
+                // Prediction Result
+                if (state.prediction) {
+                     document.getElementById('prediction-hero').style.display = 'block';
+                     document.getElementById('final-verdict-text').textContent = state.prediction.result;
+                     document.getElementById('final-confidence').textContent = (state.prediction.prob*100).toFixed(1) + "%";
+                     document.getElementById('status-dot').style.color = state.prediction.result === 'CASE' ? 'var(--danger)' : 'var(--success)';
+                }
+
+                // Logs
                 if (data.events.length > 0) {
-                    document.getElementById('activity-spinner').style.opacity = 1;
-                    setTimeout(()=>document.getElementById('activity-spinner').style.opacity=0, 500);
-                    
-                    data.events.forEach(e => {
+                     const logCon = document.getElementById('log-container');
+                     document.getElementById('activity-spinner').style.opacity = 1;
+                     setTimeout(()=>document.getElementById('activity-spinner').style.opacity=0, 500);
+
+                     data.events.forEach(e => {
                         if (e.id <= latestEventId) return;
                         latestEventId = e.id;
                         const div = document.createElement('div');
                         div.className = 'log-entry';
-                        div.innerHTML = `<span class="log-ts">${e.time}</span><span class="log-type type-${e.type}">${e.type}</span> <span>${JSON.stringify(e.data).substring(0, 120)}</span>`;
+                        div.innerHTML = `<span class="log-ts">${e.time}</span><span class="log-type type-${e.type}">${e.type}</span> <span>${JSON.stringify(e.data).substring(0, 100)}</span>`;
                         logCon.appendChild(div);
-                    });
-                    
-                    if (autoScrollLogs) logCon.scrollTop = logCon.scrollHeight;
+                     });
+                     if (autoScrollLogs) logCon.scrollTop = logCon.scrollHeight;
                 }
                 
-                // Auto scroll main panel to follow active step
+                // Auto scroll main timeline
                 if (isRunning && state.steps.length > 0) {
                      const activeStep = document.querySelector('.step.active');
-                     if (activeStep) {
-                         // Only if near bottom? Or always? Let's be gentle.
-                         activeStep.scrollIntoView({behavior: "smooth", block: "nearest"});
-                     }
+                     if (activeStep) activeStep.scrollIntoView({behavior: "smooth", block: "nearest"});
                 }
 
             } catch (err) { console.error(err); }
         }
-        
         setInterval(updateLoop, 800);
     </script>
 </body>
@@ -797,11 +800,19 @@ def snapshot():
 @app.route('/api/launch', methods=['POST'])
 def launch():
     data = request.json
-    pid = data.get('id')
-    target = data.get('target', 'neuropsychiatric')
+    
+    # Extract new config args
+    config = {
+        "id": data.get('id'),
+        "target": data.get('target', 'neuropsychiatric'),
+        "backend": data.get('backend'),
+        "model": data.get('model'),
+        "max_tokens": data.get('max_tokens')
+    }
     
     if _launcher_callback:
-        threading.Thread(target=_launcher_callback, args=(pid, target), daemon=True).start()
+        # Pass the full config dict to the callback
+        threading.Thread(target=_launcher_callback, args=(config,), daemon=True).start()
         return jsonify({"status": "started"})
     return jsonify({"status": "no_callback"}), 500
 
@@ -827,13 +838,13 @@ class FlaskUI:
         
         threading.Thread(target=open_browser, daemon=True).start()
 
-    def set_status(self, message, stage=None):
+    def set_status(self, message, stage=None, iteration=None):
         data = {"message": message}
-        if stage is not None:
-            data["stage"] = stage
+        if stage is not None: data["stage"] = stage
+        if iteration is not None: data["iteration"] = iteration
         _event_store.add_event("STATUS", data)
 
-    def on_pipeline_start(self, participant_id, target, max_iterations=3):
+    def on_pipeline_start(self, participant_id, target):
         _event_store.add_event("INIT", {"participant_id": participant_id, "target": target})
         
     def on_plan_created(self, plan_id, total_steps, domains):
@@ -873,7 +884,7 @@ def reset_ui():
     global _ui_instance
     _ui_instance = None
 
-def start_ui_loop(launcher_callback: Callable[[str, str], None]):
+def start_ui_loop(launcher_callback: Callable[[Dict], None]):
     """Start server and wait for user to launch via UI."""
     global _launcher_callback
     _launcher_callback = launcher_callback

@@ -499,8 +499,26 @@ Examples:
 
             print(f"[*] Data Root: {compass_data_root}")
             
-            def launch_wrapper(participant_id: str, target_condition: str):
+            def launch_wrapper(config: dict):
                 """Callback triggered by UI Launch button"""
+                participant_id = config.get("id")
+                target_condition = config.get("target")
+                
+                # Apply Dynamic Settings
+                from multi_agent_system.config.settings import get_settings, LLMBackend
+                settings = get_settings()
+                
+                if config.get("backend") == "local":
+                    settings.models.backend = LLMBackend.LOCAL
+                    if config.get("model"):
+                        settings.models.local_model_name = config.get("model")
+                    if config.get("max_tokens"):
+                        settings.models.local_max_tokens = int(config.get("max_tokens"))
+                    print(f"[*] Configured LOCAL backend: {settings.models.local_model_name}")
+                elif config.get("backend") == "openai":
+                    settings.models.backend = LLMBackend.OPENAI
+                    print("[*] Configured OPENAI backend")
+
                 print(f"[*] UI Triggered Launch: {participant_id} -> {target_condition}")
                 
                 # Construct full path
@@ -521,7 +539,7 @@ Examples:
                     target_condition=target_condition,
                     max_iterations=args.iterations,
                     verbose=not args.quiet,
-                    interactive_ui=True
+                    interactive_ui=args.ui
                 )
 
             print("Launching COMPASS Dashboard...")
