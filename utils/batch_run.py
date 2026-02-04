@@ -6,7 +6,9 @@ import time
 from pathlib import Path
 
 # Config
-PROJECT_ROOT = Path(__file__).resolve().parent
+# Config
+SCRIPT_DIR = Path(__file__).resolve().parent
+PROJECT_ROOT = SCRIPT_DIR.parent
 DATA_ROOT = PROJECT_ROOT.parent / "data" / "__FEATURES__" / "COMPASS_data"
 MAIN_SCRIPT = PROJECT_ROOT / "main.py"
 RESULTS_DIR = PROJECT_ROOT.parent / "results"

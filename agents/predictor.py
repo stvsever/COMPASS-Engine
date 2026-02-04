@@ -169,7 +169,32 @@ class Predictor(BaseAgent):
             "2. NON-EXHAUSTIVE REASONING: If data is missing (e.g., no MRI), admit it. Do NOT hallucinate connections.",
             "3. HYPOTHESIS DRIVEN: If findings are subtle, formulate a hypothesis but keep probability conservative.",
             "",
-            "Provide your binary prediction, probability score, and detailed reasoning."
+            "",
+            "Provide your binary prediction, probability score, and detailed reasoning.",
+            "",
+            "## OUTPUT FORMAT",
+            "Return a JSON object with:",
+            "{",
+            "  \"binary_classification\": \"CASE (likely has target phenotype)\" | \"CONTROL (Likely brain-related implication, however NOT psychiatric profile)\",",
+            "  \"probability_score\": float (0.00-1.00),",
+            "  \"confidence_level\": \"HIGH\"|\"MEDIUM\"|\"LOW\",",
+            "  \"key_findings\": [",
+            "    {",
+            "      \"domain\": \"domain_name\",",
+            "      \"finding\": \"Description\",",
+            "      \"direction\": \"ABNORMAL_HIGH\"|\"ABNORMAL_LOW\"|\"NORMAL\",",
+            "      \"z_score\": float,",
+            "      \"relevance_to_prediction\": \"Explanation\"",
+            "    }",
+            "  ],",
+            "  \"reasoning_chain\": [\"Step 1\", \"Step 2\"],",
+            "  \"clinical_summary\": \"Detailed summary\",",
+            "  \"supporting_evidence\": {",
+            "    \"for_case\": [\"evidence1\"],",
+            "    \"for_control\": [\"evidence2\"]",
+            "  },",
+            "  \"uncertainty_factors\": [\"factor1\"]",
+            "}"
         ])
         
         return "\n".join(prompt_parts)

@@ -60,15 +60,12 @@ data/*
 !data/__FEATURES__/
 !data/__FEATURES__/.keep
 
-#Ignore specific .py or other files
-run_batches.py
-utils/audit_feature_strings.py
-utils/embedding_cache_list.txt
-utils/audit_embeddings.py
-utils/verify_rag_and_cache.py
-global_feature_map.txt
-
 # System
 .DS_Store
 __init__.py
 
+# Tests
+tests/
+
+# Outputs
+outputs/

@@ -10,7 +10,10 @@ from enum import Enum
 
 
 class TargetCondition(str, Enum):
-    """Valid prediction targets."""
+    """
+    Broad categorization of prediction targets.
+    Specific phenotypes (e.g., ANXIETY_DISORDERS) are also valid as strings in the system.
+    """
     NEUROPSYCHIATRIC = "neuropsychiatric"
     NEUROLOGIC = "neurologic"
 
@@ -78,7 +81,7 @@ class DataOverview(BaseModel):
     domain_coverage: Dict[str, DomainCoverage]
     total_tokens: int = Field(..., description="Total estimated tokens across all data")
     available_domains: List[str] = Field(default_factory=list)
-    prediction_target: Optional[TargetCondition] = None
+    prediction_target: Optional[Union[TargetCondition, str]] = None
     token_budget: Optional[int] = None
     
     @validator('available_domains', pre=True, always=True)
@@ -126,7 +129,7 @@ class DeviationNode(BaseModel):
         return abs(self.z_score) > 1.5
     
     @property
-    def severity(self) -> SeverityLevel:
+    def computed_severity(self) -> SeverityLevel:
         """Classify severity based on z-score."""
         if self.z_score is None:
             return SeverityLevel.NORMAL

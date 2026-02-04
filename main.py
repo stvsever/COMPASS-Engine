@@ -177,13 +177,13 @@ def run_compass_pipeline(
         if interactive_ui: ui.set_status("Critic Evaluating...", stage=4)
         print(f"\n[6/6] Critic evaluating prediction...")
         # Pass FULL data overview as dictionary (User Requirement)
-        data_overview_dict = participant_data.data_overview.dict()
+        data_overview_dict = participant_data.data_overview.model_dump()
         
         evaluation = critic.execute(
             prediction=prediction,
             executor_output=executor_output,
             data_overview=data_overview_dict,
-            hierarchical_deviation=participant_data.hierarchical_deviation.dict(),
+            hierarchical_deviation=participant_data.hierarchical_deviation.model_dump(),
             non_numerical_data=participant_data.non_numerical_data.raw_text
         )
         

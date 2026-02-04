@@ -48,7 +48,7 @@ class FusionResult:
 
 
 
-# FUSION_PROMPT removed - now loaded by Integrator Agent from config/prompts/integrator_prompt.txt
+# FUSION_PROMPT removed - now loaded by Integrator Agent from agents/prompts/integrator_prompt.txt
 
 
 class FusionLayer:

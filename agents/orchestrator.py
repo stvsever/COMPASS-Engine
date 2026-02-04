@@ -204,6 +204,30 @@ GUIDANCE:
         
         prompt_parts.append("\nPlease create an execution plan to process all available data and generate a prediction.")
         
+        prompt_parts.append("""
+## OUTPUT FORMAT
+Return a JSON object with:
+{
+  "plan_id": "string",
+  "priority_domains": ["domain1", "domain2"],
+  "fusion_strategy": "Description of how to combine data",
+  "reasoning": "Explanation of the plan",
+  "steps": [
+    {
+      "step_id": 1,
+      "tool_name": "ToolName",
+      "description": "What to do",
+      "reasoning": "Why this step is needed",
+      "input_domains": ["domain"],
+      "parameters": {},
+      "estimated_tokens": 1000,
+      "depends_on": []
+    }
+  ],
+  "total_estimated_tokens": int
+}
+""")
+        
         return "\n".join(prompt_parts)
     
     def _get_tools_description(self) -> str:
