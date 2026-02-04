@@ -185,18 +185,19 @@ If a specific domain (e.g., BRAIN_MRI, GENOMICS) has >15k tokens, DO NOT process
 1. **BRAIN_MRI (High Volume)**:
    - *Instead of:* One step for 'BRAIN_MRI'.
    - *Do:* 
-     - Step X: UnimodalCompressor(domain='BRAIN_MRI', parameters={'node_paths': ['BRAIN_MRI:Morphologics', 'BRAIN_MRI:Connectivity']})
-     - Step Y: UnimodalCompressor(domain='BRAIN_MRI', parameters={'node_paths': ['BRAIN_MRI:Functional']})
+     - Step X: UnimodalCompressor(domain='BRAIN_MRI', parameters={{'node_paths': ['BRAIN_MRI:Morphologics']}})
+     - Step Y: UnimodalCompressor(domain='BRAIN_MRI', parameters={{'node_paths': ['BRAIN_MRI:Connectomics:Structural', 'BRAIN_MRI:Connectomics:Functional']}})
+     - *(Or split further if needed: Step Z for Functional only)*
 
 2. **BIOLOGICAL_ASSAY (High Volume)**:
    - *Do:* 
-     - Step A: UnimodalCompressor(domain='BIOLOGICAL_ASSAY', parameters={'node_paths': ['BIOLOGICAL_ASSAY:Blood_Test:Inflammatory_Markers']})
-     - Step B: UnimodalCompressor(domain='BIOLOGICAL_ASSAY', parameters={'node_paths': ['BIOLOGICAL_ASSAY:Metabolomics']})
+     - Step A: UnimodalCompressor(domain='BIOLOGICAL_ASSAY', parameters={{'node_paths': ['BIOLOGICAL_ASSAY:Blood_Test:Inflammatory_Markers']}})
+     - Step B: UnimodalCompressor(domain='BIOLOGICAL_ASSAY', parameters={{'node_paths': ['BIOLOGICAL_ASSAY:Metabolomics']}})
 
 3. **GENOMICS (Complex)**:
    - *Do:* 
-     - Step K: UnimodalCompressor(domain='GENOMICS', parameters={'node_paths': ['GENOMICS:PolygenicScores']})
-     - Step L: UnimodalCompressor(domain='GENOMICS', parameters={'node_paths': ['GENOMICS:RareVariants']})
+     - Step K: UnimodalCompressor(domain='GENOMICS', parameters={{'node_paths': ['GENOMICS:PolygenicScores']}})
+     - Step L: UnimodalCompressor(domain='GENOMICS', parameters={{'node_paths': ['GENOMICS:RareVariants']}})
 
 *Refer to the available leaves in the DATA OVERVIEW to determine valid paths.*
 """
