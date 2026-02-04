@@ -6,10 +6,10 @@ import time
 from pathlib import Path
 
 # Config
-
-DATA_ROOT = "/Users/stijnvanseveren/PythonProjects/IIS_BIOBIZKAIA/INFERENCE_PIPELINE/data/__FEATURES__/COMPASS_data"
-MAIN_SCRIPT = "/Users/stijnvanseveren/PythonProjects/IIS_BIOBIZKAIA/INFERENCE_PIPELINE/multi_agent_system/main.py"
-RESULTS_DIR = "/Users/stijnvanseveren/PythonProjects/IIS_BIOBIZKAIA/INFERENCE_PIPELINE/results"
+PROJECT_ROOT = Path(__file__).resolve().parent.parent
+DATA_ROOT = PROJECT_ROOT.parent / "data" / "__FEATURES__" / "COMPASS_data"
+MAIN_SCRIPT = PROJECT_ROOT / "main.py"
+RESULTS_DIR = PROJECT_ROOT.parent / "results"
 
 # To be processed participants (both fake and real targets)
 PARTICIPANTS = [

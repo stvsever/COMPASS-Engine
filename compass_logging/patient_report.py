@@ -111,14 +111,22 @@ class PatientReportGenerator:
         pred = report.get("prediction", {})
         eval_data = report.get("evaluation", {})
         
+        classification = pred.get('classification', 'N/A')
+        target = pred.get('target_condition', 'N/A')
+        
+        display_classification = classification
+        # Re-inject target for CASE results to match user's exact specification
+        if "CASE" in classification:
+            display_classification = f"CASE (Phenotype match found for: {target})"
+
         lines = [
             f"# Patient Report: {report.get('participant_id', 'Unknown')}",
             f"\n**Generated**: {report.get('generated_at', '')}",
             f"\n## Prediction",
-            f"- **Classification**: {pred.get('classification', 'N/A')}",
+            f"- **Classification**: {display_classification}",
             f"- **Probability**: {pred.get('probability', 0):.1%}",
             f"- **Confidence**: {pred.get('confidence', 'N/A')}",
-            f"- **Target Condition**: {pred.get('target_condition', 'N/A')}",
+            f"- **Target Condition**: {target}",
             
             f"\n## Evaluation",
             f"- **Verdict**: {eval_data.get('verdict', 'N/A')}",

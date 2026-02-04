@@ -46,7 +46,7 @@ except ImportError:
 load_dotenv()
 
 # Configuration
-DATA_DIR = Path("/Users/stijnvanseveren/PythonProjects/IIS_BIOBIZKAIA/INFERENCE_PIPELINE/data/__FEATURES__/COMPASS_data")
+DATA_DIR = Path(__file__).resolve().parent.parent.parent / "data" / "__FEATURES__" / "COMPASS_data"
 # Handle running from root or utils
 if Path(".cache").exists():
     CACHE_DIR = Path(".cache/embeddings")

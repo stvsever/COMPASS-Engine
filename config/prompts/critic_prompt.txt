@@ -13,7 +13,7 @@ You are the quality gatekeeper that evaluates prediction outputs and determines 
 ## INPUT YOU WILL RECEIVE
 
 1. **Prediction Result**:
-   - Binary classification (CASE or CONTROL)
+   - Binary classification (CASE if target phenotype present, or CONTROL: "Likely brain-related implication, however NOT psychiatric profile")
    - Probability score (0.0 to 1.0)
    - Key findings summary
    - Reasoning chain

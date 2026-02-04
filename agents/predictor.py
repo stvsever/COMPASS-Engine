@@ -185,12 +185,18 @@ class Predictor(BaseAgent):
         """Parse LLM response into PredictionResult."""
         
         # Parse classification
-        classification_str = prediction_data.get("binary_classification", "CONTROL")
-        try:
-            classification = BinaryClassification(classification_str.upper())
-        except ValueError:
-            logger.warning(f"Invalid classification: {classification_str}")
+        # Support long-form research strings and varied LLM outputs
+        clean_str = str(prediction_data.get("binary_classification", "CONTROL")).upper()
+        if "NOT PSYCHIATRIC" in clean_str or clean_str.startswith("CONTROL"):
             classification = BinaryClassification.CONTROL
+        elif "CASE" in clean_str or "TARGET PHENOTYPE" in clean_str:
+            classification = BinaryClassification.CASE
+        else:
+            # Fallback to loose search
+            if "CASE" in clean_str:
+                classification = BinaryClassification.CASE
+            else:
+                classification = BinaryClassification.CONTROL
         
         # Parse probability
         probability = prediction_data.get("probability_score", 0.5)

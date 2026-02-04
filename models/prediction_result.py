@@ -12,8 +12,8 @@ from datetime import datetime
 
 class BinaryClassification(str, Enum):
     """Binary prediction outcome."""
-    CASE = "CASE"
-    CONTROL = "CONTROL"
+    CASE = "CASE (likely has target phenotype)"
+    CONTROL = "CONTROL (Likely brain-related implication, however NOT psychiatric profile)"
 
 
 class ConfidenceLevel(str, Enum):
