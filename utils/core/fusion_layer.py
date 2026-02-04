@@ -13,9 +13,9 @@ import hashlib
 import pickle
 from pathlib import Path
 
-from ..config.settings import get_settings
-from ..utils.llm_client import get_llm_client
-from ..utils.json_parser import parse_json_response
+from ...config.settings import get_settings
+from ..llm_client import get_llm_client
+from ..json_parser import parse_json_response
 import json
 import tiktoken
 import numpy as np
@@ -72,7 +72,7 @@ class FusionLayer:
             self.encoder = tiktoken.get_encoding("cl100k_base")
             
         # Determine threshold based on backend
-        from ..config.settings import LLMBackend
+        from ...config.settings import LLMBackend
         if self.settings.models.backend == LLMBackend.LOCAL:
             max_ctx = self.settings.models.local_max_tokens
             self.threshold = int(0.9 * max_ctx)

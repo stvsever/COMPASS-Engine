@@ -44,9 +44,9 @@ class ModelConfig:
     
     # TESTING MODE: All gpt-5-nano
     # PRODUCTION: Change orchestrator/critic/predictor to "gpt-5"
-    orchestrator_model: str = "gpt-5-nano"  # Production: "gpt-5"
-    critic_model: str = "gpt-5-nano"        # Production: "gpt-5"
-    predictor_model: str = "gpt-5-nano"     # Production: "gpt-5"
+    orchestrator_model: str = "gpt-5"       # Production: "gpt-5"
+    critic_model: str = "gpt-5"             # Production: "gpt-5"
+    predictor_model: str = "gpt-5"          # Production: "gpt-5"
     tool_model: str = "gpt-5-nano"          # Always gpt-5-nano
     
     # Token limits per model
@@ -87,7 +87,10 @@ class TokenBudgetConfig:
 class PathConfig:
     """File and directory paths configuration."""
     base_dir: Path = field(default_factory=lambda: Path(__file__).parent.parent)
-    prompts_dir: Path = field(default_factory=lambda: Path(__file__).parent / "prompts")
+    # New prompt locations
+    agent_prompts_dir: Path = field(default_factory=lambda: Path(__file__).parent.parent / "agents" / "prompts")
+    tool_prompts_dir: Path = field(default_factory=lambda: Path(__file__).parent.parent / "tools" / "prompts")
+    
     logs_dir: Path = field(default_factory=lambda: Path(__file__).parent.parent / "logs")
     output_dir: Path = field(default_factory=lambda: Path(__file__).parent.parent.parent / "results")
     overview_dir: Path = field(default_factory=lambda: Path(__file__).parent.parent / "overview")
@@ -97,6 +100,8 @@ class PathConfig:
         self.logs_dir.mkdir(parents=True, exist_ok=True)
         self.output_dir.mkdir(parents=True, exist_ok=True)
         self.overview_dir.mkdir(parents=True, exist_ok=True)
+        self.agent_prompts_dir.mkdir(parents=True, exist_ok=True)
+        self.tool_prompts_dir.mkdir(parents=True, exist_ok=True)
 
 
 @dataclass

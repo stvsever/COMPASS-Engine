@@ -10,7 +10,7 @@ import logging
 from typing import Dict, Any, Optional
 
 from .base_agent import BaseAgent
-from ..core.fusion_layer import FusionLayer, FusionResult
+from ..utils.core.fusion_layer import FusionLayer, FusionResult
 
 logger = logging.getLogger("compass.integrator")
 

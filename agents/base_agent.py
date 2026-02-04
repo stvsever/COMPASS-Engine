@@ -12,7 +12,7 @@ from pathlib import Path
 from ..config.settings import get_settings
 from ..utils.llm_client import LLMClient, get_llm_client
 from ..utils.json_parser import parse_json_response
-from ..core.token_manager import TokenManager
+from ..utils.core.token_manager import TokenManager
 
 logger = logging.getLogger("compass.agents")
 
@@ -58,7 +58,7 @@ class BaseAgent(ABC):
         if not self.PROMPT_FILE:
             return ""
         
-        prompt_path = self.settings.paths.prompts_dir / self.PROMPT_FILE
+        prompt_path = self.settings.paths.agent_prompts_dir / self.PROMPT_FILE
         
         if not prompt_path.exists():
             logger.warning(f"Prompt file not found: {prompt_path}")

@@ -9,19 +9,19 @@ import logging
 from typing import Dict, Any, Optional, List
 from dataclasses import dataclass
 
-from ..config.settings import get_settings
-from ..models.execution_plan import (
+from ...config.settings import get_settings
+from ...models.execution_plan import (
     ExecutionPlan,
     PlanStep,
     StepStatus,
     ToolName,
     PlanExecutionResult,
 )
-from ..tools import get_tool
+from ...tools import get_tool
 from .auto_repair import AutoRepair
-from .auto_repair import AutoRepair
+# Removed duplicate import
 from .token_manager import TokenManager
-from ..utils.compass_ui import get_ui
+from ..compass_ui import get_ui
 
 logger = logging.getLogger("compass.plan_executor")
 
@@ -106,7 +106,7 @@ class PlanExecutor:
             
             # Execute steps in parallel where possible
             from concurrent.futures import ThreadPoolExecutor, as_completed
-            from ..config.settings import LLMBackend
+            from ...config.settings import LLMBackend
             
             # Use max_workers=12 as requested, BUT force 1 for Local LLM to save VRAM
             active_workers = 12

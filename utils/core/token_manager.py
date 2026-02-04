@@ -8,7 +8,7 @@ import logging
 from typing import Dict, Any, Optional
 from dataclasses import dataclass, field
 
-from ..config.settings import get_settings
+from ...config.settings import get_settings
 
 logger = logging.getLogger("compass.token_manager")
 

@@ -11,7 +11,7 @@ from pathlib import Path
 from typing import Optional, Any
 import json
 
-from ..config.settings import get_settings
+from ...config.settings import get_settings
 
 
 class ExecutionLogger:

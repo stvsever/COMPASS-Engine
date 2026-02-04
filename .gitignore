@@ -70,4 +70,5 @@ global_feature_map.txt
 
 # System
 .DS_Store
+__init__.py
 

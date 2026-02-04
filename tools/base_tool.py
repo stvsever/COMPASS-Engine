@@ -75,7 +75,7 @@ class BaseTool(ABC):
         if not self.PROMPT_FILE:
             return ""
         
-        prompt_path = self.settings.paths.prompts_dir / "tool_prompts" / self.PROMPT_FILE
+        prompt_path = self.settings.paths.tool_prompts_dir / self.PROMPT_FILE
         
         if not prompt_path.exists():
             logger.warning(f"Tool prompt not found: {prompt_path}")

@@ -9,8 +9,8 @@ from typing import Dict, Any, Optional
 
 from .base_agent import BaseAgent
 from .integrator import Integrator
-from ..core.plan_executor import PlanExecutor
-from ..core.data_loader import ParticipantData
+from ..utils.core.plan_executor import PlanExecutor
+from ..utils.core.data_loader import ParticipantData
 from ..models.execution_plan import ExecutionPlan, PlanExecutionResult
 
 logger = logging.getLogger("compass.executor")

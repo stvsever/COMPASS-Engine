@@ -13,7 +13,7 @@ from datetime import datetime
 from .base_agent import BaseAgent
 from ..config.settings import get_settings
 from ..models.execution_plan import ExecutionPlan, PlanStep, ToolName
-from ..core.data_loader import ParticipantData
+from ..utils.core.data_loader import ParticipantData
 from ..utils.validation import validate_execution_plan
 
 logger = logging.getLogger("compass.orchestrator")

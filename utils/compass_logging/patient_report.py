@@ -9,8 +9,8 @@ from datetime import datetime
 from pathlib import Path
 from typing import Dict, Any, Optional
 
-from ..config.settings import get_settings
-from ..models.prediction_result import PredictionResult, CriticEvaluation
+from ...config.settings import get_settings
+from ...models.prediction_result import PredictionResult, CriticEvaluation
 
 
 class PatientReportGenerator:

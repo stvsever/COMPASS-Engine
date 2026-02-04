@@ -6,23 +6,23 @@ import time
 from pathlib import Path
 
 # Config
-PROJECT_ROOT = Path(__file__).resolve().parent.parent
+PROJECT_ROOT = Path(__file__).resolve().parent
 DATA_ROOT = PROJECT_ROOT.parent / "data" / "__FEATURES__" / "COMPASS_data"
 MAIN_SCRIPT = PROJECT_ROOT / "main.py"
 RESULTS_DIR = PROJECT_ROOT.parent / "results"
 
 # To be processed participants (both fake and real targets)
 PARTICIPANTS = [
-    {"id": "3584280", "expected": "CONTROL", "target_str": "ANXIETY_DISORDERS"},
-    {"id": "1843825", "expected": "CASE", "target_str": "ANXIETY_DISORDERS | F419:Anxiety disorder, unspecified"},
-    {"id": "3552265", "expected": "CASE", "target_str": "ANXIETY_DISORDERS | F419:Anxiety disorder, unspecified"},
-    {"id": "1897299", "expected": "CONTROL", "target_str": "SUBSTANCE_USE_DISORDERS"},
-    {"id": "4425091", "expected": "CASE", "target_str": "SUBSTANCE_USE_DISORDERS | F100:F10.0 Acute intoxication"},
-    {"id": "3136207", "expected": "CASE", "target_str": "MAJOR_DEPRESSIVE_DISORDER | F329:Major depressive disorder, single episode, unspecified"},
-    {"id": "2453502", "expected": "CASE", "target_str": "MAJOR_DEPRESSIVE_DISORDER | F329:Major depressive disorder, single episode, unspecified"},
-    {"id": "1710567", "expected": "CASE", "target_str": "SUBSTANCE_USE_DISORDERS | F171:F17.1 Harmful use"},
-    {"id": "1367956", "expected": "CONTROL", "target_str": "MAJOR_DEPRESSIVE_DISORDER"},
-    {"id": "1262933", "expected": "CONTROL", "target_str": "ANXIETY_DISORDERS"}
+    {"id": "5755396", "expected": "CASE", "target_str": "ANXIETY_DISORDERS | F419:Anxiety disorder, unspecified"},
+    {"id": "1452610", "expected": "CONTROL", "target_str": "MAJOR_DEPRESSIVE_DISORDER"},
+    {"id": "4072571", "expected": "CONTROL", "target_str": "ANXIETY_DISORDERS"},
+    {"id": "5180280", "expected": "CASE", "target_str": "SUBSTANCE_USE_DISORDERS | F171:F17.1 Harmful use"},
+    {"id": "1491991", "expected": "CASE", "target_str": "MAJOR_DEPRESSIVE_DISORDER | F329:Major depressive disorder, single episode, unspecified"},
+    {"id": "3135697", "expected": "CASE", "target_str": "ANXIETY_DISORDERS | F411:Generalized anxiety disorder"},
+    {"id": "5165165", "expected": "CONTROL", "target_str": "ANXIETY_DISORDERS"},
+    {"id": "4528012", "expected": "CONTROL", "target_str": "ANXIETY_DISORDERS"},
+    {"id": "5545315", "expected": "CASE", "target_str": "ANXIETY_DISORDERS | F410:Panic disorder [episodic paroxysmal anxiety]"},
+    {"id": "1719479", "expected": "CONTROL", "target_str": "MAJOR_DEPRESSIVE_DISORDER"}
 ]
 
 def run_participant(pid_info):

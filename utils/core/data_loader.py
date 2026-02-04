@@ -10,8 +10,8 @@ from pathlib import Path
 from typing import Dict, Any, Optional, Tuple, List
 from dataclasses import dataclass
 
-from ..config.settings import get_settings
-from ..models.schemas import (
+from ...config.settings import get_settings
+from ...models.schemas import (
     DataOverview,
     DomainCoverage,
     HierarchicalDeviation,
@@ -19,7 +19,7 @@ from ..models.schemas import (
     MultimodalData,
     NonNumericalData,
 )
-from ..utils.validation import validate_participant_files
+from ..validation import validate_participant_files
 
 logger = logging.getLogger("compass.data_loader")
 

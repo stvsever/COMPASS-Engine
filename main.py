@@ -22,15 +22,15 @@ logger = logging.getLogger(__name__)
 sys.path.insert(0, str(Path(__file__).parent.parent))
 
 from multi_agent_system.config.settings import get_settings
-from multi_agent_system.core.data_loader import DataLoader
-from multi_agent_system.core.token_manager import TokenManager
+from multi_agent_system.utils.core.data_loader import DataLoader
+from multi_agent_system.utils.core.token_manager import TokenManager
 from multi_agent_system.agents.orchestrator import Orchestrator
 from multi_agent_system.agents.executor import Executor
 from multi_agent_system.agents.predictor import Predictor
 from multi_agent_system.agents.critic import Critic
-from multi_agent_system.compass_logging.execution_logger import ExecutionLogger
-from multi_agent_system.compass_logging.decision_trace import DecisionTrace
-from multi_agent_system.compass_logging.patient_report import PatientReportGenerator
+from multi_agent_system.utils.compass_logging.execution_logger import ExecutionLogger
+from multi_agent_system.utils.compass_logging.decision_trace import DecisionTrace
+from multi_agent_system.utils.compass_logging.patient_report import PatientReportGenerator
 from multi_agent_system.models.prediction_result import Verdict
 from multi_agent_system.models.prediction_result import Verdict
 from multi_agent_system.utils.compass_ui import get_ui, reset_ui, start_ui_loop

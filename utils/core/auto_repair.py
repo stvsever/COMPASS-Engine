@@ -9,8 +9,8 @@ from typing import Dict, Any, Optional, List
 from dataclasses import dataclass
 from enum import Enum
 
-from ..config.settings import get_settings
-from ..models.execution_plan import PlanStep, ToolName
+from ...config.settings import get_settings
+from ...models.execution_plan import PlanStep, ToolName
 
 logger = logging.getLogger("compass.auto_repair")
 
