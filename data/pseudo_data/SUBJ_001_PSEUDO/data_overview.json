@@ -1,0 +1,26 @@
+{
+    "domain_coverage": {
+        "BIOLOGICAL_ASSAY": {
+            "present_leaves": 12,
+            "total_leaves": 150,
+            "coverage_percentage": 8.0,
+            "total_tokens": 1200,
+            "is_available": true
+        },
+        "BRAIN_MRI": {
+            "present_leaves": 8,
+            "total_leaves": 80,
+            "coverage_percentage": 10.0,
+            "total_tokens": 850,
+            "is_available": true
+        },
+        "DEMOGRAPHICS": {
+            "present_leaves": 4,
+            "total_leaves": 10,
+            "coverage_percentage": 40.0,
+            "total_tokens": 150,
+            "is_available": true
+        }
+    },
+    "total_tokens": 2800
+}

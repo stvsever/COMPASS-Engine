@@ -1,0 +1,48 @@
+{
+    "BIOLOGICAL_ASSAY": {
+        "lipidomics": {
+            "sphingolipids": {
+                "ceramides": {
+                    "score": 2.1
+                }
+            }
+        },
+        "proteomics": {
+            "inflammation_markers": {
+                "score": 1.6
+            },
+            "neurotrophic_factors": {
+                "score": -2.3
+            }
+        },
+        "genomics": {
+            "polygenic_risk_scores": {
+                "score": 2.1
+            }
+        }
+    },
+    "BRAIN_MRI": {
+        "structural": {
+            "subcortical_volumes": {
+                "hippocampus": {
+                    "score": -2.1
+                },
+                "amygdala": {
+                    "score": -1.5
+                }
+            },
+            "cortical_thickness": {
+                "frontal_lobe": {
+                    "score": -1.4
+                }
+            }
+        },
+        "functional_connectivity": {
+            "resting_state": {
+                "default_mode_network": {
+                    "score": 2.8
+                }
+            }
+        }
+    }
+}

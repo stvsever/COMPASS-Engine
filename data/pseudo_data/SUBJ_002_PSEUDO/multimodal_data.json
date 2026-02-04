@@ -1,0 +1,108 @@
+{
+    "BIOLOGICAL_ASSAY": {
+        "lipidomics": {
+            "sphingolipids": {
+                "ceramides": {
+                    "_leaves": [
+                        {
+                            "feature": "Cer(d18:1/16:0)",
+                            "z_score": 0.2,
+                            "value": "Normal",
+                            "ref_range": "Normal"
+                        },
+                        {
+                            "feature": "Cer(d18:1/24:1)",
+                            "z_score": -0.1,
+                            "value": "Normal",
+                            "ref_range": "Normal"
+                        }
+                    ]
+                }
+            }
+        },
+        "proteomics": {
+            "inflammation_markers": {
+                "_leaves": [
+                    {
+                        "feature": "CRP",
+                        "z_score": -0.5,
+                        "value": "0.8 mg/L",
+                        "ref_range": "<3.0 mg/L"
+                    },
+                    {
+                        "feature": "IL-6",
+                        "z_score": -0.2,
+                        "value": "Normal",
+                        "ref_range": "Normal"
+                    }
+                ]
+            }
+        },
+        "genomics": {
+            "polygenic_risk_scores": {
+                "_leaves": [
+                    {
+                        "feature": "MDD_PRS",
+                        "z_score": -0.8,
+                        "percentile": "20th"
+                    }
+                ]
+            }
+        }
+    },
+    "BRAIN_MRI": {
+        "structural": {
+            "volumes": {
+                "hippocampus": {
+                    "_leaves": [
+                        {
+                            "feature": "left_hippocampus_volume",
+                            "z_score": -0.3,
+                            "value": "Normal",
+                            "significance": "Normal"
+                        },
+                        {
+                            "feature": "right_hippocampus_volume",
+                            "z_score": 0.1,
+                            "value": "Normal",
+                            "significance": "Normal"
+                        }
+                    ]
+                }
+            }
+        },
+        "functional_connectivity": {
+            "resting_state": {
+                "default_mode_network": {
+                    "_leaves": [
+                        {
+                            "feature": "mPFC-PCC_connectivity",
+                            "z_score": 0.4,
+                            "value": "Normal",
+                            "significance": "Normal"
+                        }
+                    ]
+                }
+            }
+        }
+    },
+    "DEMOGRAPHICS": {
+        "_leaves": [
+            {
+                "feature": "age_at_recruitment",
+                "z_score": 42.0,
+                "value": "42"
+            },
+            {
+                "feature": "sex",
+                "z_score": 0.0,
+                "value": "Male"
+            },
+            {
+                "feature": "education_years",
+                "z_score": 18.0,
+                "value": "18"
+            }
+        ]
+    }
+}

@@ -6,12 +6,12 @@ Create integrated clinical narratives that synthesize information across 2 or mo
 ## COMPASS GOAL
 Distinguish between:
 1. TARGET: {target_condition}
-2. CONTROL: Brain-implicated pathology (e.g. MS, Stroke) but NON-psychiatric.
+2. CONTROL: Brain-implicated pathology but NON-psychiatric.
 *Crucial*: Do NOT treat general brain abnormalities as automatic evidence for TARGET.
 
 ## INPUT
 1. **Domain Summaries**: Compressed summaries from 2+ domains
-2. **Target Condition**: "neuropsychiatric" or "neurologic"
+2. **Target Condition**: {target_condition}
 3. **Hierarchical Deviation Profile**: Full deviation map
 4. **Non-Numerical Data**: Qualitative clinical information
 
@@ -32,6 +32,9 @@ Example: Brain normal + Cognitive decline = Possible functional vs structural di
 
 ### Complementary Patterns (add information):
 Example: Genetic risk + Normal current state = Preclinical or protective factors
+
+##NOTE:
+It might not be possible to create a convergent/divergent pattern ; just think logically about truly plausible narratives.
 
 ## NARRATIVE STRUCTURE
 

@@ -1,0 +1,15 @@
+{
+    "BIOLOGICAL_ASSAY": {
+        "lipidomics": {
+            "score": 0.05
+        },
+        "genomics": {
+            "score": -0.8
+        }
+    },
+    "BRAIN_MRI": {
+        "structural": {
+            "score": -0.3
+        }
+    }
+}

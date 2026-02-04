@@ -1,0 +1,210 @@
+{
+    "BIOLOGICAL_ASSAY": {
+        "lipidomics": {
+            "sphingolipids": {
+                "ceramides": {
+                    "_leaves": [
+                        {
+                            "feature": "Cer(d18:1/16:0)",
+                            "z_score": 2.45,
+                            "value": "High",
+                            "ref_range": "Normal"
+                        },
+                        {
+                            "feature": "Cer(d18:1/24:1)",
+                            "z_score": 1.8,
+                            "value": "Elevated",
+                            "ref_range": "Normal"
+                        },
+                        {
+                            "feature": "HexCer(d18:1/24:1)",
+                            "z_score": 1.1,
+                            "value": "Borderline",
+                            "ref_range": "Normal"
+                        }
+                    ]
+                },
+                "sphingomyelins": {
+                    "_leaves": [
+                        {
+                            "feature": "SM(d18:1/18:0)",
+                            "z_score": -1.2,
+                            "value": "Low",
+                            "ref_range": "Normal"
+                        }
+                    ]
+                }
+            },
+            "phospholipids": {
+                "phosphatidylcholines": {
+                    "_leaves": [
+                        {
+                            "feature": "PC(34:1)",
+                            "z_score": -0.8,
+                            "value": "Normal",
+                            "ref_range": "Normal"
+                        }
+                    ]
+                }
+            }
+        },
+        "proteomics": {
+            "inflammation_markers": {
+                "_leaves": [
+                    {
+                        "feature": "C-Reactive Protein (CRP)",
+                        "z_score": 1.9,
+                        "value": "4.5 mg/L",
+                        "ref_range": "<3.0 mg/L"
+                    },
+                    {
+                        "feature": "Interleukin-6 (IL-6)",
+                        "z_score": 1.2,
+                        "value": "Elevated",
+                        "ref_range": "Normal"
+                    },
+                    {
+                        "feature": "TNF-alpha",
+                        "z_score": 0.9,
+                        "value": "High-Normal",
+                        "ref_range": "Normal"
+                    }
+                ]
+            },
+            "neurotrophic_factors": {
+                "_leaves": [
+                    {
+                        "feature": "BDNF",
+                        "z_score": -2.3,
+                        "value": "Critically Low",
+                        "ref_range": "Normal"
+                    }
+                ]
+            }
+        },
+        "genomics": {
+            "polygenic_risk_scores": {
+                "_leaves": [
+                    {
+                        "feature": "MDD_PRS",
+                        "z_score": 2.1,
+                        "percentile": "98th"
+                    },
+                    {
+                        "feature": "Schizophrenia_PRS",
+                        "z_score": 0.4,
+                        "percentile": "60th"
+                    }
+                ]
+            }
+        }
+    },
+    "BRAIN_MRI": {
+        "structural": {
+            "subcortical_volumes": {
+                "hippocampus": {
+                    "_leaves": [
+                        {
+                            "feature": "left_hippocampus_volume",
+                            "z_score": -2.1,
+                            "value": "3200 mm3",
+                            "significance": "Atrophy"
+                        },
+                        {
+                            "feature": "right_hippocampus_volume",
+                            "z_score": -1.8,
+                            "value": "3400 mm3",
+                            "significance": "Mild Atrophy"
+                        }
+                    ]
+                },
+                "amygdala": {
+                    "_leaves": [
+                        {
+                            "feature": "right_amygdala_volume",
+                            "z_score": -1.5,
+                            "value": "Reduced",
+                            "significance": "Abnormal"
+                        },
+                        {
+                            "feature": "left_amygdala_volume",
+                            "z_score": -0.9,
+                            "value": "Normal-Low",
+                            "significance": "Normal"
+                        }
+                    ]
+                },
+                "thalamus": {
+                    "_leaves": [
+                        {
+                            "feature": "thalamic_volume_bilateral",
+                            "z_score": -0.2,
+                            "value": "Normal",
+                            "significance": "Normal"
+                        }
+                    ]
+                }
+            },
+            "cortical_thickness": {
+                "frontal_lobe": {
+                    "_leaves": [
+                        {
+                            "feature": "dlPFC_thickness_left",
+                            "z_score": -1.4,
+                            "value": "Thinning",
+                            "significance": "Borderline"
+                        }
+                    ]
+                }
+            }
+        },
+        "functional_connectivity": {
+            "resting_state": {
+                "default_mode_network": {
+                    "_leaves": [
+                        {
+                            "feature": "mPFC-PCC_connectivity",
+                            "z_score": 2.8,
+                            "value": "Hyperconnectivity",
+                            "significance": "Highly Abnormal"
+                        }
+                    ]
+                },
+                "salience_network": {
+                    "_leaves": [
+                        {
+                            "feature": "AI-dACC_connectivity",
+                            "z_score": -0.5,
+                            "value": "Normal",
+                            "significance": "Normal"
+                        }
+                    ]
+                }
+            }
+        }
+    },
+    "DEMOGRAPHICS": {
+        "_leaves": [
+            {
+                "feature": "age_at_recruitment",
+                "z_score": 45.0,
+                "value": "45"
+            },
+            {
+                "feature": "sex",
+                "z_score": 0.0,
+                "value": "Female"
+            },
+            {
+                "feature": "education_years",
+                "z_score": 16.0,
+                "value": "16"
+            },
+            {
+                "feature": "bmi",
+                "z_score": 1.1,
+                "value": "26.5"
+            }
+        ]
+    }
+}

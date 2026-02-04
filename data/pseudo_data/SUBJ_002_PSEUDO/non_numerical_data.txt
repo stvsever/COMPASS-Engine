@@ -1,0 +1,17 @@
+Patient ID: SUBJ_002_PSEUDO
+Date of Assessment: 2025-10-20
+Clinician: Dr. B. Jones
+
+HISTORY:
+42-year-old male volunteer for the control group. No family history of psychiatric or neurodegenerative disorders.
+Reports good physical health. Exercises 3 times a week (running). sleep pattern is regular (7-8 hours).
+
+SOCIAL:
+Married, stable employment in IT sector. Non-smoker. Moderate alcohol consumption.
+
+EXAMINATION:
+Mental State Examination is unremarkable. Mood is euthymic. No cognitive deficits detected.
+MRI incidental finding: Small arachnoid cyst in middle cranial fossa, deemed stable and non-clinical.
+
+IMPRESSION:
+Healthy control participant. No evidence of pathology.

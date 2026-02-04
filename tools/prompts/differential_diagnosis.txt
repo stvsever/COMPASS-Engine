@@ -6,7 +6,7 @@ Generate a comprehensive differential diagnosis based on accumulated evidence, u
 ## COMPASS GOAL
 Distinguish between:
 1. TARGET: {target_condition}
-2. CONTROL: Brain-implicated pathology (e.g. MS, Stroke) but NON-psychiatric.
+2. CONTROL: Brain-implicated pathology, but NON-psychiatric.
 *Crucial*: Do NOT treat general brain abnormalities as automatic evidence for TARGET.
 
 6. **INPUT**

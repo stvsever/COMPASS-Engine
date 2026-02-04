@@ -1,0 +1,47 @@
+Patient ID: SUBJ_001_PSEUDO
+Date of Assessment: 2025-10-15
+Clinician: Dr. A. Smith
+
+PRESENTING COMPLAINT:
+Patient is a 45-year-old female presenting with a 6-month history of persistent low mood, profound anhedonia, and significant fatigue ("feeling like I'm walking through mud"). She reports early morning awakening usually around 4 AM and is unable to fall back asleep. 
+
+HISTORY OF PRESENT ILLNESS:
+Symptoms began gradually following a period of high stress at work. She describes a "hollow" feeling and lack of emotional reactivity. She has withdrawn from her usual social circle and has stopped attending her weekly choir practice. Concentration is markedly impaired; she struggles to finish reading prolonged emails. Appetite is reduced with a 4kg weight loss over 2 months. She denies current suicidal ideation but admits to feeling that "life is a burden."
+
+PAST PSYCHIATRIC HISTORY:
+- First episode of depression at age 22 during university. Treated with SSRIs (Sertraline) with good response.
+- Post-partum low mood requiring brief counseling (age 30).
+- No history of mania, psychosis, or hypomania.
+
+MEDICAL HISTORY:
+- Hypothyroidism (managed on Levothyroxine).
+- Irritable Bowel Syndrome.
+
+FAMILY HISTORY:
+- Mother diagnosed with Major Depressive Disorder (recurrent).
+- Maternal aunt committed suicide in her 50s.
+
+SOCIAL HISTORY:
+- Married, two teenage children. Works as a secondary school teacher. 
+- Non-smoker. Alcohol: 1-2 units per week (reduced recently).
+- Reportedly high psychosocial stress due to caring for aging parents.
+
+MENTAL STATUS EXAMINATION:
+- Appearance: Well-groomed but appears tired. Psychomotor retardation noted (slowed speech and movement).
+- Mood: Subjectively "low" and "numb". Objectively depressed.
+- Affect: Restricted and congruent with mood.
+- Thought Process: Linear but slow latency of response.
+- Perception: No hallucinations or delusions elicited.
+- Cognition: MMSE 28/30 (lost points on serial 7s due to concentration).
+- Insight: Good. She recognizes she is depressed.
+
+NEUROIMAGING REPORT (Summary):
+Structural MRI indicates reduced volume in the left hippocampus compared to age-matched controls (Z-score -2.1). Mild thinning in the left dorsolateral prefrontal cortex. No white matter hyperintensities or evidence of ischemic changes.
+
+LABORATORY RESULTS (Summary):
+- Thyroid function: Euthyroid.
+- CRP: Mildly elevated (4.5 mg/L).
+- Lipid panel: Normal.
+
+IMPRESSION:
+Symptoms are consistent with a recurrence of Major Depressive Disorder, moderate to severe severity. Biological markers (hippocampal atrophy, elevated CRP, low BDNF) align with this diagnosis.

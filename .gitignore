@@ -44,7 +44,6 @@ wheels/
 results/
 logs/
 
-data/
 # Documentation & Diagrams - Strict Whitelist
 overview/*
 !overview/logo/
@@ -53,10 +52,11 @@ overview/*
 !overview/uml_diagram.py
 !overview/compass_flowchart.png
 
-# Ignore data but keep specific folders
+# Ignore data by default but whitelist specific folders
 data/*
 !data/.keep
 !data/pseudo_data/
+!data/models/
 !data/__FEATURES__/
 !data/__FEATURES__/.keep
 
