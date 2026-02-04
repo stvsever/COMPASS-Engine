@@ -47,6 +47,7 @@ class ModelConfig:
     orchestrator_model: str = "gpt-5"       # Production: "gpt-5"
     critic_model: str = "gpt-5"             # Production: "gpt-5"
     predictor_model: str = "gpt-5"          # Production: "gpt-5"
+    integrator_model: str = "gpt-5"         # Production: "gpt-5"
     tool_model: str = "gpt-5-nano"          # Always gpt-5-nano
     
     # Token limits per model
@@ -54,12 +55,14 @@ class ModelConfig:
     orchestrator_max_tokens: int = 16384
     critic_max_tokens: int = 16384
     predictor_max_tokens: int = 16384
+    integrator_max_tokens: int = 24000
     tool_max_tokens: int = 16384
     
     # Temperature settings
     orchestrator_temperature: float = 0.3
     critic_temperature: float = 0.2
     predictor_temperature: float = 0.2  # Reduced to avoid verbose loops
+    integrator_temperature: float = 0.3
     tool_temperature: float = 0.5
 
 
@@ -79,6 +82,7 @@ class TokenBudgetConfig:
     orchestrator_budget: int = 50000
     executor_budget_per_step: int = 30000
     fusion_budget: int = 80000  # Reduced for gpt-5-nano safety
+    integrator_budget: int = 80000 
     predictor_budget: int = 100000
     critic_budget: int = 50000
 

@@ -36,6 +36,11 @@ class Integrator(BaseAgent):
         # The core logic resides in FusionLayer, which we orchestrate here
         self.fusion_layer = FusionLayer()
         
+        # Configure LLM params
+        self.LLM_MODEL = self.settings.models.integrator_model
+        self.LLM_MAX_TOKENS = self.settings.models.integrator_max_tokens
+        self.LLM_TEMPERATURE = self.settings.models.integrator_temperature
+        
     def execute(
         self, 
         step_outputs: Dict[int, Dict[str, Any]], 
