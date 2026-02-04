@@ -440,19 +440,62 @@ Examples:
         if args.ui:
             # Run with GUI: Main thread -> UI, Background logic via callback
             
-            # Determine data root
-            # Try to find COMPASS_data relative to this script
+            # --- SMART DATA DISCOVERY ---
+            def find_compass_data(start_path: Path) -> Path:
+                """
+                Locate COMPASS_data directory using heuristic scan.
+                1. Check specific relative paths (fastest)
+                2. Check specific common data folders in parents
+                3. Shallow BFS scan of project tree (fallback)
+                """
+                search_target = "COMPASS_data"
+                
+                # S1: Check standard legacy paths
+                candidates = [
+                    start_path / "data" / "__FEATURES__" / search_target,  # Original
+                    start_path.parent / "data" / "__FEATURES__" / search_target,
+                    start_path / "data" / search_target,
+                    start_path.parent / "data" / search_target,
+                    start_path.parent.parent / "data" / search_target
+                ]
+                
+                for cand in candidates:
+                    if cand.exists() and cand.is_dir():
+                        return cand
+
+                # S2: Upward Search + Shallow Downward Scan
+                # We go up to 3 levels to find a likely project root
+                curr = start_path
+                project_root = start_path
+                for _ in range(3):
+                    if (curr / search_target).exists(): return curr / search_target
+                    if (curr / ".git").exists(): # Stop at git root
+                        project_root = curr
+                        break
+                    if curr.parent == curr: break
+                    curr = curr.parent
+                    project_root = curr # Assume highest reachable is root if no .git
+                
+                # S3: Limited Scan from Project Root (Max Depth 3)
+                print(f"[*] Scanning for '{search_target}' in {project_root}...")
+                for path in project_root.rglob(search_target):
+                    if path.is_dir():
+                        if "node_modules" in str(path) or ".git" in str(path): continue
+                        return path
+
+                # Fallback: Return standard path even if missing (will be created or error later)
+                return start_path.parent / "data" / "__FEATURES__" / "COMPASS_data"
+
+            # Execute Discovery
             script_path = Path(__file__).parent
-            pipeline_root = script_path.parent # INFERENCE_PIPELINE
-            compass_data_root = pipeline_root / "data" / "__FEATURES__" / "COMPASS_data"
-            
+            compass_data_root = find_compass_data(script_path)
+
             if not compass_data_root.exists():
-                # Fallback to the passed arg if valid
-                if args.participant_dir.exists() and "COMPASS_data" in str(args.participant_dir):
+                # One last try check user argument
+                if args.participant_dir and args.participant_dir.exists():
                      compass_data_root = args.participant_dir.parent
-                else:
-                     logger.warning(f"Could not auto-locate COMPASS_data root. Using parent of {args.participant_dir}")
-                     compass_data_root = args.participant_dir.parent
+                else:    
+                     logger.warning(f"[!] Could not auto-locate 'COMPASS_data'. Assumed default: {compass_data_root}")
 
             print(f"[*] Data Root: {compass_data_root}")
             
