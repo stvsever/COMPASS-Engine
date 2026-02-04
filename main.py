@@ -362,7 +362,8 @@ Examples:
     parser.add_argument(
         "participant_dir",
         type=Path,
-        help="Path to participant data directory"
+        nargs='?',
+        help="Path to participant data directory (Optional if using --ui)"
     )
     
     parser.add_argument(
@@ -425,7 +426,12 @@ Examples:
     args = parser.parse_args()
     
     # Validate participant directory
-    if not args.participant_dir.exists():
+    if not args.ui and not args.participant_dir:
+        print("Error: participant_dir is required when not using --ui mode.")
+        parser.print_help()
+        sys.exit(1)
+
+    if args.participant_dir and not args.participant_dir.exists():
         print(f"Error: Participant directory not found: {args.participant_dir}")
         sys.exit(1)
     
