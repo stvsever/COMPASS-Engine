@@ -83,8 +83,9 @@ multi_agent_system/
 ├── tools/              # Clinical analysis tools and prompts
 ├── utils/              # Utilities (Core Engine, Logging, Embeddings, UI)
 ├── config/             # Configuration settings
-├── models/             # Pydantic data models
-├── data/               # Data loaders and schemas
+├── data/               # Data package
+│   ├── models/         # Pydantic data models & schemas
+│   └── pseudo_data/    # Synthetic data for testing
 ├── main.py             # CLI Entry Point
 └── requirements.txt    # Project dependencies
 ```

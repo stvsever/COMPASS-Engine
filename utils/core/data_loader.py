@@ -11,7 +11,7 @@ from typing import Dict, Any, Optional, Tuple, List
 from dataclasses import dataclass
 
 from ...config.settings import get_settings
-from ...models.schemas import (
+from ...data.models.schemas import (
     DataOverview,
     DomainCoverage,
     HierarchicalDeviation,

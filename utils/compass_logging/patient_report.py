@@ -10,7 +10,7 @@ from pathlib import Path
 from typing import Dict, Any, Optional
 
 from ...config.settings import get_settings
-from ...models.prediction_result import PredictionResult, CriticEvaluation
+from ...data.models.prediction_result import PredictionResult, CriticEvaluation
 
 
 class PatientReportGenerator:

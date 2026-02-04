@@ -129,20 +129,21 @@ The executor will automatically parallelize steps that have no unmet dependencie
 - **Group 3 (Mid)**: ClinicalRelevanceRanker (after FeatureSynthesizer)
 
 ### Sequential Requirements:
-- MultimodalNarrativeCreator MUST wait for UnimodalCompressor(s)
-- HypothesisGenerator MUST wait for narrative tools
-- DifferentialDiagnosis MUST wait for PhenotypeRepresentation + HypothesisGenerator + ClinicalRanker + FeatureSynthesizer (if used)
+- MultimodalNarrativeCreator MUST wait for UnimodalCompressor(s) or previous MultimodalNarrativeCreator(s).
+- **HIERARCHICAL FUSION (POWERFUL)**: You are encouraged to use multi-stage fusion for complex datasets. For example, you can first fuse unimodal subtrees of the same domain (e.g., different MRI sequences) in parallel, and then fuse those intermediate results into a global multimodal clinical picture.
+- HypothesisGenerator MUST wait for narrative tools.
+- DifferentialDiagnosis MUST wait for PhenotypeRepresentation + HypothesisGenerator + ClinicalRanker.
 
 ## CRITICAL REQUIREMENTS
 
 1. **ALWAYS PASS** hierarchical_deviation_map.json and non_numerical_data.txt to relevant tools
 2. **COMPLETE COVERAGE**: Process ALL available data domains
 3. **TOKEN EFFICIENCY**: Use compression tools aggressively for multimodal_data.json
-4. **LOGICAL SEQUENCING**:
+4. **HIERARCHICAL REASONING**:
    - Start with PhenotypeRepresentation, AnomalyNarrativeBuilder, FeatureSynthesizer (PARALLEL)
-   - Compress each domain with UnimodalCompressor (PARALLEL across domains)
-   - Create multimodal narratives (SEQUENTIAL after compression)
-   - Generate hypotheses (SEQUENTIAL after narratives)
+   - Compress each sub-domain with UnimodalCompressor (PARALLEL)
+   - **FUSION TREE**: Perform intermediate MultimodalNarrativeCreator fusions for related sub-systems (e.g., separate independent fusions for "Brain Architecture" vs "Biological Assays") before performing the final global integration.
+   - Generate hypotheses (SEQUENTIAL after final fusion)
    - End with DifferentialDiagnosis (SEQUENTIAL after all above)
 
 ## REASONING & TOOL SELECTION STRATEGY

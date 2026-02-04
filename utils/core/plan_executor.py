@@ -10,7 +10,7 @@ from typing import Dict, Any, Optional, List
 from dataclasses import dataclass
 
 from ...config.settings import get_settings
-from ...models.execution_plan import (
+from ...data.models.execution_plan import (
     ExecutionPlan,
     PlanStep,
     StepStatus,

@@ -12,7 +12,7 @@ from datetime import datetime
 
 from .base_agent import BaseAgent
 from ..config.settings import get_settings
-from ..models.prediction_result import (
+from ..data.models.prediction_result import (
     PredictionResult,
     CriticEvaluation,
     EvaluationChecklist,
@@ -20,7 +20,7 @@ from ..models.prediction_result import (
     Verdict,
     ImprovementPriority,
 )
-from ..models.execution_plan import PlanExecutionResult
+from ..data.models.execution_plan import PlanExecutionResult
 from ..utils.json_parser import parse_json_response
 
 logger = logging.getLogger("compass.critic")

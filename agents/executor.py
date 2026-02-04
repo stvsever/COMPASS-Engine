@@ -11,7 +11,7 @@ from .base_agent import BaseAgent
 from .integrator import Integrator
 from ..utils.core.plan_executor import PlanExecutor
 from ..utils.core.data_loader import ParticipantData
-from ..models.execution_plan import ExecutionPlan, PlanExecutionResult
+from ..data.models.execution_plan import ExecutionPlan, PlanExecutionResult
 
 logger = logging.getLogger("compass.executor")
 

@@ -14,6 +14,7 @@ import logging
 import webbrowser
 import queue
 from flask import Flask, render_template_string, jsonify, request, send_file, make_response
+from flask.json.provider import DefaultJSONProvider
 import os
 from datetime import datetime
 from typing import List, Dict, Any, Optional, Callable
@@ -32,6 +33,7 @@ class EventStore:
         self.events = []
         self.state = {
             "participant_id": "Unknown",
+            "participant_dir": None,
             "target": "None",
             "status": "Ready to Launch",
             "start_time": None,
@@ -41,8 +43,8 @@ class EventStore:
             "steps": [],
             "prediction": None,
             "latest_update_id": 0,
-            "current_stage": -1, # -1: Setup, 0:Init, 1:Plan, 2:Exec, 3:Predict, 4:Verify
-            "stages": ["Initialization", "Orchestration", "Execution", "Prediction", "Verification"],
+            "current_stage": -1, # -1: Setup, 0:Init, 1:Plan, 2:Exec, 3:Predict, 4:Evaluate
+            "stages": ["Initialization", "Orchestration", "Execution", "Prediction", "Evaluation"],
             "iteration": 1
         }
 
@@ -70,24 +72,15 @@ class EventStore:
             elif event_type == "INIT":
                 self.state["participant_id"] = data["participant_id"]
                 self.state["target"] = data["target"]
+                self.state["max_iterations"] = data.get("max_iterations", 1)
                 self.state["start_time"] = timestamp
                 self.state["status"] = "Initializing Engine..."
                 self.state["current_stage"] = 0
                 self.state["steps"] = [] # Clear steps on new run
                 
             elif event_type == "PLAN":
-                # Only clear steps if it's the first iteration or a new run
                 current_iter = self.state.get("iteration", 1)
-                # We append total steps to max_steps to show cumulative progress? 
-                # Or just reset progress bar for this iteration?
-                # User wants to see history.
-                # Let's keep steps but ensure IDs are unique or grouped?
-                # IDs are usually 1, 2, 3... from Orchestrator.
-                # If we have same IDs, frontend might glitch.
-                # Orchestrator resets step IDs per plan? Yes.
-                # So we should probably archive old steps.
                 if current_iter > 1 and self.state["steps"]:
-                    # Archive current steps to history
                     if "history" not in self.state: self.state["history"] = []
                     self.state["history"].append({
                         "iteration": current_iter - 1,
@@ -100,7 +93,6 @@ class EventStore:
                 self.state["steps"] = [] # Clear for new plan steps
                 
             elif event_type == "STEP_START":
-                # ... (rest same)
                 existing = next((s for s in self.state["steps"] if s["id"] == data["id"]), None)
                 if not existing:
                     self.state["steps"].append({
@@ -113,7 +105,7 @@ class EventStore:
                         "duration": 0,
                         "iteration": self.state.get("iteration", 1)
                     })
-                self.state["current_stage"] = 2 # Ensure we are in execution
+                self.state["current_stage"] = 2 
                 self.state["status"] = f"Running Step {data['id']}: {data['tool']}"
                 
             elif event_type == "STEP_COMPLETE":
@@ -150,7 +142,7 @@ class EventStore:
             elif event_type == "PREDICTION":
                 self.state["prediction"] = data
                 self.state["status"] = "Prediction Generated"
-                self.state["current_stage"] = 4 # Ready for verification
+                self.state["current_stage"] = 4 
                 
             elif event_type == "CRITIC":
                 self.state["status"] = f"Critic Verdict: {data['verdict']}"
@@ -158,21 +150,18 @@ class EventStore:
                 
             elif event_type == "COMPLETE":
                 self.state["status"] = "Pipeline Completed"
-                self.state["progress"] = self.state["max_steps"] # Force complete visual
+                self.state["progress"] = self.state["max_steps"] 
 
     def get_snapshot(self, since_id=0):
         with self._lock:
             # Capture System Metrics (Optional)
             try:
                 import psutil
-                import os
                 process = psutil.Process(os.getpid())
-                # mem_mb = process.memory_info().rss / 1024 / 1024 # User requested removal
-                cpu_pct = psutil.cpu_percent(interval=None) # Non-blocking
+                cpu_pct = psutil.cpu_percent(interval=None) 
             except (ImportError, Exception):
                 pass
             
-            # Return full state but only new events to save bandwidth
             new_events = [e for e in self.events if e["id"] > int(since_id)]
             return {
                 "state": self.state,
@@ -184,9 +173,72 @@ _event_store = EventStore()
 _ui_instance = None
 _launcher_callback: Optional[Callable[[Dict], None]] = None
 
+# --- CUSTOM JSON ENCODER ---
+from enum import Enum
+import uuid
+
+class CustomJSONEncoder(json.JSONEncoder):
+    def default(self, obj):
+        if hasattr(obj, 'to_dict'):
+            return obj.to_dict()
+        if hasattr(obj, 'dict'): # Pydantic v1
+            return obj.dict()
+        if hasattr(obj, 'model_dump'): # Pydantic v2
+            return obj.model_dump()
+        if isinstance(obj, uuid.UUID):
+            return str(obj)
+        if isinstance(obj, Enum):
+            return obj.value
+        if hasattr(obj, '__dict__'):
+            return obj.__dict__
+        return super().default(obj)
+
 # --- FLASK APP ---
 app = Flask(__name__)
+app.json_encoder = CustomJSONEncoder
+# For newer Flask versions, we might need to override json.provider
+class CustomProvider(DefaultJSONProvider):
+    def default(self, obj):
+        if hasattr(obj, 'to_dict'):
+            return obj.to_dict()
+        if hasattr(obj, 'dict'):
+            return obj.dict()
+        if hasattr(obj, 'model_dump'):
+            return obj.model_dump()
+        if isinstance(obj, uuid.UUID):
+            return str(obj)
+        if isinstance(obj, Enum):
+            return obj.value
+        if hasattr(obj, '__dict__'):
+             return obj.__dict__
+        return super().default(obj)
 
+app.json = CustomProvider(app)
+@app.route('/api/inputs')
+def list_inputs():
+    p_dir = _event_store.state.get("participant_dir")
+    if not p_dir or not os.path.exists(p_dir):
+        return jsonify([])
+    
+    try:
+        files = [f for f in os.listdir(p_dir) if os.path.isfile(os.path.join(p_dir, f))]
+        return jsonify(sorted(files))
+    except Exception:
+        return jsonify([])
+
+@app.route('/api/inputs/content')
+def get_input_content():
+    filename = request.args.get('file')
+    p_dir = _event_store.state.get("participant_dir")
+    
+    if not p_dir or not os.path.exists(p_dir):
+        return "No participant data found", 404
+        
+    path = os.path.join(p_dir, filename)
+    if os.path.exists(path) and os.path.isfile(path):
+        return send_file(path)
+    return "File not found", 404
+    
 DASHBOARD_HTML = """
 <!DOCTYPE html>
 <html lang="en">
@@ -249,6 +301,28 @@ DASHBOARD_HTML = """
         .brand i { color: var(--primary); font-size: 1.2rem; }
         .brand span { opacity: 0.6; font-weight: 400; }
         
+        /* RADAR SPINNER */
+        .radar-spinner {
+            width: 60px; height: 60px; position: relative; margin: 2rem auto;
+            display: flex; justify-content: center; align-items: center;
+        }
+        .radar-ripple {
+            position: absolute; border: 2px solid var(--primary); opacity: 0; border-radius: 50%;
+            animation: ripple 2s cubic-bezier(0, 0.2, 0.8, 1) infinite;
+        }
+        .radar-ripple:nth-child(2) { animation-delay: -0.5s; }
+        .radar-core { width: 12px; height: 12px; background: var(--primary); border-radius: 50%; box-shadow: 0 0 15px var(--primary); }
+        
+        @keyframes ripple {
+            0% { width: 0; height: 0; opacity: 1; }
+            100% { width: 100%; height: 100%; opacity: 0; }
+        }
+        
+        .waiting-status { 
+            text-align: center; color: var(--text-muted); font-size: 0.9rem; margin-top: 1rem; letter-spacing: 0.05em; 
+            text-transform: uppercase; font-weight: 600;
+        }
+
         /* PIPELINE STEPPER */
         .stepper { display: flex; align-items: center; gap: 0.5rem; background: rgba(255,255,255,0.03); padding: 6px 12px; border-radius: 20px; border: 1px solid var(--border); }
         .stepper-item { 
@@ -332,47 +406,173 @@ DASHBOARD_HTML = """
         .stat-title { font-size: 0.7rem; text-transform: uppercase; color: var(--text-muted); margin-bottom: 0.3rem; letter-spacing: 0.05em; }
         .stat-value { font-size: 1.5rem; font-weight: 600; font-family: var(--font-mono); display: flex; align-items: center; gap: 0.5rem; }
         
-        /* TIMELINE */
+        /* TIMELINE & TABS */
         .timeline-wrapper {
-            background: var(--bg-card);
-            border: 1px solid var(--border);
+            background: #09090b; /* Zinc-950 */
+            border: 1px solid #27272a;
             border-radius: 12px;
-            min-height: 400px;
+            box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06);
             display: flex;
             flex-direction: column;
-            box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06);
+            overflow: hidden;
+            min-height: 500px; /* Taller default */
         }
         
-            gap: 2rem;
+        .timeline-tabs {
+            display: flex;
+            background: #121212;
+            border-bottom: 1px solid #27272a;
+            padding: 4px;
+            gap: 4px;
         }
         
         .tab-btn {
-            background: none; border: none; color: var(--text-muted); padding: 1rem 0;
-            cursor: pointer; font-size: 0.85rem; font-weight: 500;
-            border-bottom: 2px solid transparent; transition: all 0.2s;
-            display: flex; align-items: center; gap: 0.5rem;
+            flex: 1;
+            background: transparent;
+            border: none;
+            color: #71717a; /* Zinc-500 */
+            padding: 10px 16px;
+            font-size: 0.85rem;
+            font-weight: 600;
+            font-family: var(--font-main);
+            cursor: pointer;
+            border-radius: 6px;
+            transition: all 0.2s ease;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 8px;
+            text-transform: uppercase;
+            letter-spacing: 0.02em;
         }
-        .tab-btn i { font-size: 0.9rem; }
-        .tab-btn:hover { color: var(--text-main); }
-        .tab-btn.active { color: var(--primary); border-bottom-color: var(--primary); }
+        
+        .tab-btn:hover {
+            color: #e4e4e7;
+            background: rgba(255,255,255,0.03);
+        }
+        
+        .tab-btn.active {
+            color: #fff;
+            background: #27272a;
+            box-shadow: 0 1px 2px rgba(0,0,0,0.2);
+        }
+        
+        .tab-btn i { font-size: 0.9rem; opacity: 0.8; }
+        .tab-btn.active i { color: var(--primary); opacity: 1; }
 
-        .file-list { display: flex; flex-direction: column; gap: 0.5rem; margin-bottom: 1rem; }
-        .file-item { 
-            padding: 0.8rem; background: #1a1a1a; border: 1px solid #333; border-radius: 6px; 
-            cursor: pointer; display: flex; justify-content: space-between; transition: all 0.2s;
+        /* TAB CONTENT */
+        .tab-content { 
+            display: none; 
+            flex: 1;
+            opacity: 0; 
+            animation: fadeIn 0.3s forwards; 
+            position: relative;
+            background: #09090b;
         }
-        .file-item:hover { border-color: var(--primary); background: #222; }
-        .file-item.active { border-color: var(--primary); background: #222; box-shadow: 0 0 10px rgba(99,102,241,0.1); }
-        .file-content-view { 
-            background: #000; padding: 1rem; border-radius: 8px; border: 1px solid #333; 
-            font-family: var(--font-mono); font-size: 0.8rem; white-space: pre-wrap; height: 500px; overflow-y: auto; 
-        }
-
-        .tab-content { display: none; padding: 1.5rem; opacity: 0; animation: fadeIn 0.3s forwards; }
         .tab-content.active { display: block; }
+
+        /* RESULTS VIEW STYLING */
+        .results-container {
+            display: flex;
+            height: 600px; /* Fixed height for scrolling */
+            border-top: 1px solid #27272a;
+        }
+        
+        .file-list-pane {
+            width: 280px;
+            background: #0c0c0e;
+            border-right: 1px solid #27272a;
+            overflow-y: auto;
+            display: flex;
+            flex-direction: column;
+        }
+        
+        .file-list-header {
+            padding: 12px 16px;
+            font-size: 0.75rem;
+            font-weight: 700;
+            color: #52525b;
+            text-transform: uppercase;
+            letter-spacing: 0.05em;
+            border-bottom: 1px solid #27272a;
+            background: #121212;
+            position: sticky; top: 0;
+        }
+
+        .file-item { 
+            padding: 12px 16px; 
+            font-size: 0.85rem; 
+            color: #a1a1aa; 
+            border-bottom: 1px solid #18181b; 
+            cursor: pointer; 
+            display: flex; 
+            justify-content: space-between; 
+            align-items: center;
+            transition: all 0.2s; 
+        }
+        
+        .file-item:hover { 
+            background: #18181b; 
+            color: #fff; 
+            padding-left: 20px; 
+        }
+        
+        .file-item.active { 
+            background: #1d1d20; 
+            color: var(--primary); 
+            border-right: 3px solid var(--primary); 
+        }
+
+        .file-preview-pane {
+            flex: 1;
+            display: flex;
+            flex-direction: column;
+            background: #050505;
+            overflow: hidden;
+        }
+        
+        .preview-header {
+            padding: 10px 20px;
+            border-bottom: 1px solid #27272a;
+            background: #09090b;
+            color: #d4d4d8;
+            font-size: 0.85rem;
+            font-family: var(--font-mono);
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        .file-content-view { 
+            flex: 1;
+            padding: 1.5rem; 
+            
+            font-family: 'JetBrains Mono', monospace; 
+            font-size: 0.85rem; 
+            line-height: 1.6;
+            color: #d4d4d8;
+            
+            overflow-y: auto;
+            white-space: pre-wrap;
+        }
+
+        /* INSPECTOR */
+        #inspector-content {
+            padding: 2rem;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            height: 100%;
+            color: #52525b;
+        }
         
         /* STEPS */
-        .step-list { display: flex; flex-direction: column; gap: 1rem; }
+        .step-list { 
+            padding: 1.5rem;
+            display: flex; 
+            flex-direction: column; 
+            gap: 1rem; 
+        }
         
         .step {
             display: flex; gap: 1rem; 
@@ -476,14 +676,10 @@ DASHBOARD_HTML = """
 <body>
     
     <!-- SETUP MODAL (WIZARD) -->
-    <div id="setup-modal" class="modal-overlay active">
+     <div id="setup-modal" class="modal-overlay active">
         <div class="glass-panel">
-            <div class="wizard-progress">
-                <div class="wizard-dot active" id="dot-1"></div>
-                <div class="wizard-dot" id="dot-2"></div>
-            </div>
-
-            <!-- STEP 1: Mission Data -->
+            
+            <!-- STEP 1: Mission Data (Only Step) -->
             <div id="wiz-1" class="wizard-step active">
                 <i class="fas fa-satellite-dish launch-icon"></i>
                 <h2 style="font-size: 1.5rem; text-align: center; margin-bottom: 0.5rem;">Mission Data</h2>
@@ -497,43 +693,12 @@ DASHBOARD_HTML = """
                     <input type="text" id="input-target" class="form-input" placeholder="e.g. neuropsychiatric" value="neuropsychiatric">
                 </div>
                 
-                <button class="btn-launch" onclick="nextStep()">
-                    <span>Next: Configure AI</span>
-                    <i class="fas fa-arrow-right"></i>
+                <button id="btn-final-launch" class="btn-launch" onclick="launchPipeline()">
+                    <span>Launch Pipeline</span>
+                    <i class="fas fa-rocket"></i>
                 </button>
             </div>
 
-            <!-- STEP 2: AI Configuration -->
-            <div id="wiz-2" class="wizard-step">
-                <i class="fas fa-microchip launch-icon"></i>
-                <h2 style="font-size: 1.5rem; text-align: center; margin-bottom: 0.5rem;">AI Configuration</h2>
-                
-                <div style="margin-bottom: 1.5rem;">
-                    <label class="form-label">BACKEND</label>
-                    <select id="input-backend" class="form-input" onchange="toggleModelInput()">
-                        <option value="openai">OpenAI (GPT-4o/5)</option>
-                        <option value="local">Local LLM (Ollama/VLLM)</option>
-                    </select>
-                </div>
-                
-                <div id="group-model" style="display:none;">
-                     <label class="form-label">LOCAL MODEL NAME</label>
-                     <input type="text" id="input-model" class="form-input" placeholder="e.g. Qwen/Qwen2.5-0.5B-Instruct" value="Qwen/Qwen2.5-0.5B-Instruct">
-                </div>
-
-                <div>
-                     <label class="form-label">MAX TOKENS</label>
-                     <input type="number" id="input-tokens" class="form-input" value="2048">
-                </div>
-
-                <div style="display:flex; gap:10px;">
-                    <button class="btn-launch btn-secondary" style="margin-top:0" onclick="prevStep()">Back</button>
-                    <button id="btn-final-launch" class="btn-launch" style="margin-top:0" onclick="launchPipeline()">
-                        <span>Launch Pipeline</span>
-                        <i class="fas fa-rocket"></i>
-                    </button>
-                </div>
-            </div>
         </div>
     </div>
 
@@ -585,45 +750,65 @@ DASHBOARD_HTML = """
                 <div class="timeline-tabs">
                     <button class="tab-btn active" onclick="switchTab('timeline')"><i class="fas fa-stream"></i> Live Execution</button>
                     <button class="tab-btn" onclick="switchTab('results'); loadResults();"><i class="fas fa-file-alt"></i> Results</button>
-                    <button class="tab-btn" onclick="switchTab('inspector')"><i class="fas fa-code"></i> Data Inspector</button>
+                    <button class="tab-btn" onclick="switchTab('inspector'); loadInputs();"><i class="fas fa-code"></i> Data Inspector</button>
                 </div>
 
                 <!-- TAB: TIMELINE -->
-                <div id="tab-timeline" class="tab-content active">
+                <div id="tab-timeline" class="tab-content active" style="padding:0;">
                     <div class="step-list" id="steps-container">
                         <div style="text-align:center; padding: 4rem; color: var(--text-muted); opacity: 0.5;">
                             <i class="fas fa-satellite-dish" style="font-size: 3rem; margin-bottom: 1rem;"></i>
-                            <p>Waiting for mission start...</p>
+                            <p>Pipeline is ready. Launching mission...</p>
                         </div>
                     </div>
                 </div>
 
                 <!-- RESULTS TAB -->
-                <div id="tab-results" class="tab-content">
-                    <div style="display: flex; gap: 1rem; height: 100%;">
-                        <div style="width: 30%; border-right: 1px solid #333; padding-right: 1rem;">
-                             <h4 style="margin-bottom: 1rem; color: #888;">Available Output Files</h4>
-                             <div id="file-list-container" class="file-list">
-                                 <div style="color: #666; font-style: italic;">Select a participant...</div>
+                <div id="tab-results" class="tab-content" style="padding:0;">
+                    <div class="results-container">
+                        <div class="file-list-pane">
+                             <div class="file-list-header">Generated Artifacts</div>
+                             <div id="file-list-container">
+                                 <!-- JS injected -->
+                                 <div style="padding:1rem; color:#444; font-style:italic;">No files yet...</div>
                              </div>
                         </div>
-                        <div style="flex: 1;">
-                            <h4 style="margin-bottom: 1rem; color: #888; display: flex; justify-content: space-between;">
-                                <span>File Preview</span>
-                                <span id="current-file-name" style="color: var(--primary);"></span>
-                            </h4>
+                        <div class="file-preview-pane">
+                            <div class="preview-header">
+                                <span id="current-file-name">Preview</span>
+                                <span style="opacity:0.5; font-size:0.75rem;">READ-ONLY</span>
+                            </div>
                             <div id="file-preview-container" class="file-content-view">
-                                <div style="color: #444; text-align: center; margin-top: 2rem;">Select a file to view content</div>
+                                <div style="color: #333; text-align: center; margin-top: 4rem;">
+                                    <i class="fas fa-file-alt" style="font-size:2rem; margin-bottom:1rem; opacity:0.3;"></i>
+                                    <p>Select a file from the list to inspect contents.</p>
+                                </div>
                             </div>
                         </div>
                     </div>
                 </div>
 
                 <!-- TAB: INSPECTOR -->
-                <div id="tab-inspector" class="tab-content">
-                    <div id="inspector-content">
-                        <div style="text-align:center; padding: 4rem; color: var(--text-muted);">
-                            Data will be available after Aggregation phase.
+                <!-- TAB: INSPECTOR -->
+                <div id="tab-inspector" class="tab-content" style="padding:0;">
+                    <div class="results-container">
+                        <div class="file-list-pane">
+                             <div class="file-list-header">Input Data Files</div>
+                             <div id="input-list-container">
+                                 <div style="padding:1rem; color:#444; font-style:italic;">Loading...</div>
+                             </div>
+                        </div>
+                        <div class="file-preview-pane">
+                            <div class="preview-header">
+                                <span id="current-input-name">Preview</span>
+                                <span style="opacity:0.5; font-size:0.75rem;">READ-ONLY</span>
+                            </div>
+                            <div id="input-preview-container" class="file-content-view">
+                                <div style="color: #333; text-align: center; margin-top: 4rem;">
+                                    <i class="fas fa-database" style="font-size:2rem; margin-bottom:1rem; opacity:0.3;"></i>
+                                    <p>Select an input file to inspect source data.</p>
+                                </div>
+                            </div>
                         </div>
                     </div>
                 </div>
@@ -680,9 +865,11 @@ DASHBOARD_HTML = """
         async function launchPipeline() {
             const pid = document.getElementById('input-pid').value;
             const target = document.getElementById('input-target').value;
-            const backend = document.getElementById('input-backend').value;
-            const model = document.getElementById('input-model').value;
-            const tokens = document.getElementById('input-tokens').value;
+            
+            // Hardcoded defaults as requested
+            const backend = "openai";
+            const model = "gpt-5"; 
+            const tokens = 128000;
 
             if (!pid) return alert("Participant ID required");
 
@@ -729,9 +916,27 @@ DASHBOARD_HTML = """
              event.target.classList.add('active');
         }
 
-        function renderSteps(steps) {
-            if (!steps || steps.length === 0) return;
+        function renderSteps(steps, currentStage) {
             const container = document.getElementById('steps-container');
+            
+            // Special state for Orchestration (Stage 1) waiting
+            if ((!steps || steps.length === 0) && currentStage === 1) {
+                container.innerHTML = `
+                    <div class="radar-spinner">
+                        <div class="radar-ripple"></div>
+                        <div class="radar-ripple"></div>
+                        <div class="radar-core"></div>
+                    </div>
+                    <div class="waiting-status">Orchestrator creating execution plan...</div>
+                `;
+                return;
+            }
+            
+            if (!steps || steps.length === 0) {
+                 container.innerHTML = '';
+                 return; 
+            }
+
             const html = steps.map(step => `
                 <div class="step ${step.status} ${step.status === 'running' ? 'active' : ''}" id="step-${step.id}">
                     <div class="step-marker">
@@ -793,7 +998,7 @@ DASHBOARD_HTML = """
                 }
 
                 // Render Steps (Main Timeline)
-                renderSteps(state.steps);
+                renderSteps(state.steps, state.current_stage);
 
                 // Prediction Result
                 if (state.prediction) {
@@ -864,6 +1069,67 @@ DASHBOARD_HTML = """
              const res = await fetch(`/api/outputs/content?file=${filename}`);
              const text = await res.text();
              document.getElementById('file-preview-container').textContent = text;
+        }
+
+        async function loadInputs() {
+            try {
+                const res = await fetch('/api/inputs');
+                const files = await res.json();
+                
+                const container = document.getElementById('input-list-container');
+                if (files.length === 0) {
+                     container.innerHTML = '<div style="padding:1rem; color:#666">No input files found.</div>';
+                     return;
+                }
+                
+                container.innerHTML = files.map(f => `
+                    <div class="file-item" onclick="loadInputFile('${f}')">
+                        <span><i class="fas fa-table"></i> ${f}</span>
+                        <i class="fas fa-chevron-right" style="font-size:0.7rem; opacity:0.5;"></i>
+                    </div>
+                `).join('');
+                
+            } catch (e) { console.error(e); }
+        }
+
+        async function loadInputFile(filename) {
+             document.querySelectorAll('#input-list-container .file-item').forEach(el => el.classList.remove('active'));
+             event.currentTarget.classList.add('active');
+             
+             document.getElementById('current-input-name').textContent = filename;
+             document.getElementById('input-preview-container').textContent = "Loading...";
+             
+             const res = await fetch(`/api/inputs/content?file=${filename}`);
+             const text = await res.text();
+             document.getElementById('input-preview-container').textContent = text;
+        }
+
+        function simpleMarkdown(text) {
+             let html = text
+                .replace(/^# (.*$)/gim, '<h1>$1</h1>')
+                .replace(/^## (.*$)/gim, '<h2>$1</h2>')
+                .replace(/^### (.*$)/gim, '<h3>$1</h3>')
+                .replace(/^\- (.*$)/gim, '• $1')
+                .replace(/\*\*(.*)\*\*/gim, '<b>$1</b>');
+             return html;
+        }
+        
+        // Overwrite loadFile to use markdown
+        async function loadFile(filename) {
+             document.querySelectorAll('#file-list-container .file-item').forEach(el => el.classList.remove('active'));
+             event.currentTarget.classList.add('active');
+             
+             document.getElementById('current-file-name').textContent = filename;
+             document.getElementById('file-preview-container').innerHTML = "Loading...";
+             
+             const res = await fetch(`/api/outputs/content?file=${filename}`);
+             const text = await res.text();
+             
+             if (filename.endsWith('.md')) {
+                 document.getElementById('file-preview-container').innerHTML = simpleMarkdown(text);
+             } else {
+                  document.getElementById('file-preview-container').textContent = text;
+             }
         }
 
         setInterval(updateLoop, 800);
@@ -984,8 +1250,14 @@ class FlaskUI:
         if iteration is not None: data["iteration"] = iteration
         _event_store.add_event("STATUS", data)
 
-    def on_pipeline_start(self, participant_id, target):
-        _event_store.add_event("INIT", {"participant_id": participant_id, "target": target})
+    def on_pipeline_start(self, participant_id, target, participant_dir=None, max_iterations=3):
+        _event_store.add_event("INIT", {
+            "participant_id": participant_id, 
+            "target": target,
+            "max_iterations": max_iterations
+        })
+        if participant_dir:
+            _event_store.state["participant_dir"] = participant_dir
         
     def on_plan_created(self, plan_id, total_steps, domains):
         _event_store.add_event("PLAN", {"steps": total_steps, "domains": domains})

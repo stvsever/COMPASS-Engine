@@ -11,7 +11,7 @@ from pathlib import Path
 from typing import Dict, List, Optional, Any, Tuple
 
 from ..config.settings import get_settings
-from ..models.schemas import TargetCondition
+from ..data.models.schemas import TargetCondition
 
 logger = logging.getLogger("compass.validation")
 

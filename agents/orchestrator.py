@@ -7,12 +7,13 @@ Main planning agent that creates execution plans for processing participant data
 import json
 import uuid
 import logging
+import time
 from typing import Dict, Any, Optional, List
 from datetime import datetime
 
 from .base_agent import BaseAgent
 from ..config.settings import get_settings
-from ..models.execution_plan import ExecutionPlan, PlanStep, ToolName
+from ..data.models.execution_plan import ExecutionPlan, PlanStep, ToolName
 from ..utils.core.data_loader import ParticipantData
 from ..utils.validation import validate_execution_plan
 
@@ -77,7 +78,22 @@ class Orchestrator(BaseAgent):
             previous_feedback=previous_feedback
         )
         
+        # Get UI instance for granular updates
+        from ..utils.compass_ui import get_ui
+        ui = get_ui()
+        
         print(f"[Orchestrator] Participant: {participant_data.participant_id}")
+        
+        # Granular Status Updates (User requested visibility)
+        if hasattr(ui, 'enabled') and ui.enabled:
+             ui.set_status("Analyzing Domain Coverage...", stage=1)
+             time.sleep(0.5) # Slight pause for visual feedback
+             
+             ui.set_status("Synthesizing Feature Importance...", stage=1) 
+             time.sleep(0.5) 
+             
+             ui.set_status("Constructing Execution Plan...", stage=1)
+
         print(f"[Orchestrator] Target: {target_condition}")
         print(f"[Orchestrator] Available domains: {participant_data.get_available_domains()}")
         print(f"[Orchestrator] Iteration: {iteration}")

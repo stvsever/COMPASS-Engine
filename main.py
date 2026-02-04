@@ -31,8 +31,8 @@ from multi_agent_system.agents.critic import Critic
 from multi_agent_system.utils.compass_logging.execution_logger import ExecutionLogger
 from multi_agent_system.utils.compass_logging.decision_trace import DecisionTrace
 from multi_agent_system.utils.compass_logging.patient_report import PatientReportGenerator
-from multi_agent_system.models.prediction_result import Verdict
-from multi_agent_system.models.prediction_result import Verdict
+from multi_agent_system.data.models.prediction_result import Verdict
+from multi_agent_system.data.models.prediction_result import Verdict
 from multi_agent_system.utils.compass_ui import get_ui, reset_ui, start_ui_loop
 
 
@@ -66,6 +66,7 @@ def run_compass_pipeline(
         ui.on_pipeline_start(
             participant_id=participant_dir.name,
             target=target_condition,
+            participant_dir=str(participant_dir),
             max_iterations=max_iterations
         )
     else:
@@ -108,6 +109,8 @@ def run_compass_pipeline(
         print(f"{'='*70}")
         
         # Step 3: Orchestrator creates plan
+        if interactive_ui: 
+            ui.set_status("Orchestrator creating execution plan...", stage=1, iteration=iteration)
         print(f"\n[3/5] Orchestrator creating execution plan...")
         plan = orchestrator.execute(
             participant_data=participant_data,

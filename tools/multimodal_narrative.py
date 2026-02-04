@@ -76,6 +76,43 @@ class MultimodalNarrativeCreator(BaseTool):
         
         return "\n".join(prompt_parts)
     
+    def _process_output(
+        self,
+        output_data: Dict[str, Any],
+        input_data: Dict[str, Any]
+    ) -> Dict[str, Any]:
+        """Add synthesized domain info to output."""
+        # Handle inputs from previous steps (which might be fusion results themselves)
+        domains = input_data.get("input_domains", [])
+        dep_outputs = input_data.get("dependency_outputs", {})
+        
+        # Collect domain names from dependencies
+        source_domains = []
+        for out in dep_outputs.values():
+            if isinstance(out, dict) and "domain" in out:
+                source_domains.append(out["domain"])
+            elif isinstance(out, dict) and "input_domains" in out:
+                source_domains.extend(out["input_domains"])
+        
+        # If no explicit domain found, fallback to input_domains
+        if not source_domains:
+            source_domains = domains
+            
+        # Create a "Fusion" label
+        output_data["domain"] = f"Fusion:{'+'.join(sorted(list(set(source_domains))))}"
+        
+        # ALIAS KEYS FOR RECURSIVE FUSION COMPATIBILITY
+        # The tool consumes 'clinical_narrative' and 'key_abnormalities' from dependencies.
+        # But the prompt outputs 'integrated_narrative' and 'key_insights'.
+        # We must map them for the next consumer.
+        if "integrated_narrative" in output_data:
+            output_data["clinical_narrative"] = output_data["integrated_narrative"]
+            
+        if "key_insights" in output_data:
+            output_data["key_abnormalities"] = output_data["key_insights"]
+            
+        return output_data
+
     def _summarize_deviation(self, deviation: Dict[str, Any]) -> str:
         """Create brief summary of hierarchical deviation."""
         if not deviation:

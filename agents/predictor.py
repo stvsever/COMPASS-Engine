@@ -12,7 +12,7 @@ from datetime import datetime
 
 from .base_agent import BaseAgent
 from ..config.settings import get_settings
-from ..models.prediction_result import (
+from ..data.models.prediction_result import (
     PredictionResult,
     KeyFinding,
     BinaryClassification,
@@ -171,6 +171,8 @@ class Predictor(BaseAgent):
             "",
             "",
             "Provide your binary prediction, probability score, and detailed reasoning.",
+            "",
+            "SMALL NOTE: these participants are from UK Biobank which has an older biological profiles in general ; be aware of this.",
             "",
             "## OUTPUT FORMAT",
             "Return a JSON object with:",
