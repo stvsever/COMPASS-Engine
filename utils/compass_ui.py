@@ -13,7 +13,8 @@ import json
 import logging
 import webbrowser
 import queue
-from flask import Flask, render_template_string, jsonify, request
+from flask import Flask, render_template_string, jsonify, request, send_file, make_response
+import os
 from datetime import datetime
 from typing import List, Dict, Any, Optional, Callable
 
@@ -75,17 +76,31 @@ class EventStore:
                 self.state["steps"] = [] # Clear steps on new run
                 
             elif event_type == "PLAN":
-                # If existing steps from previous iteration, maybe keep them? 
-                # For now, let's append? No, usually a plan replaces. 
-                # But if iteration > 1, we might want to see history.
-                # Simplified: Replace steps for current iteration visibility.
+                # Only clear steps if it's the first iteration or a new run
+                current_iter = self.state.get("iteration", 1)
+                # We append total steps to max_steps to show cumulative progress? 
+                # Or just reset progress bar for this iteration?
+                # User wants to see history.
+                # Let's keep steps but ensure IDs are unique or grouped?
+                # IDs are usually 1, 2, 3... from Orchestrator.
+                # If we have same IDs, frontend might glitch.
+                # Orchestrator resets step IDs per plan? Yes.
+                # So we should probably archive old steps.
+                if current_iter > 1 and self.state["steps"]:
+                    # Archive current steps to history
+                    if "history" not in self.state: self.state["history"] = []
+                    self.state["history"].append({
+                        "iteration": current_iter - 1,
+                        "steps": list(self.state["steps"])
+                    })
+                
                 self.state["max_steps"] = data["steps"]
-                self.state["status"] = "Orchestrating Plan..."
+                self.state["status"] = f"Orchestrating Plan (Iteration {self.state.get('iteration', 1)})..."
                 self.state["current_stage"] = 1
-                self.state["steps"] = [] 
+                self.state["steps"] = [] # Clear for new plan steps
                 
             elif event_type == "STEP_START":
-                # Check if step exists vs new step
+                # ... (rest same)
                 existing = next((s for s in self.state["steps"] if s["id"] == data["id"]), None)
                 if not existing:
                     self.state["steps"].append({
@@ -95,7 +110,8 @@ class EventStore:
                         "status": "running",
                         "tokens": 0,
                         "startTime": time.time(),
-                        "duration": 0
+                        "duration": 0,
+                        "iteration": self.state.get("iteration", 1)
                     })
                 self.state["current_stage"] = 2 # Ensure we are in execution
                 self.state["status"] = f"Running Step {data['id']}: {data['tool']}"
@@ -327,10 +343,6 @@ DASHBOARD_HTML = """
             box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06);
         }
         
-        .timeline-tabs {
-            padding: 0 1.5rem;
-            border-bottom: 1px solid var(--border);
-            display: flex;
             gap: 2rem;
         }
         
@@ -343,6 +355,18 @@ DASHBOARD_HTML = """
         .tab-btn i { font-size: 0.9rem; }
         .tab-btn:hover { color: var(--text-main); }
         .tab-btn.active { color: var(--primary); border-bottom-color: var(--primary); }
+
+        .file-list { display: flex; flex-direction: column; gap: 0.5rem; margin-bottom: 1rem; }
+        .file-item { 
+            padding: 0.8rem; background: #1a1a1a; border: 1px solid #333; border-radius: 6px; 
+            cursor: pointer; display: flex; justify-content: space-between; transition: all 0.2s;
+        }
+        .file-item:hover { border-color: var(--primary); background: #222; }
+        .file-item.active { border-color: var(--primary); background: #222; box-shadow: 0 0 10px rgba(99,102,241,0.1); }
+        .file-content-view { 
+            background: #000; padding: 1rem; border-radius: 8px; border: 1px solid #333; 
+            font-family: var(--font-mono); font-size: 0.8rem; white-space: pre-wrap; height: 500px; overflow-y: auto; 
+        }
 
         .tab-content { display: none; padding: 1.5rem; opacity: 0; animation: fadeIn 0.3s forwards; }
         .tab-content.active { display: block; }
@@ -560,6 +584,7 @@ DASHBOARD_HTML = """
             <div class="timeline-wrapper">
                 <div class="timeline-tabs">
                     <button class="tab-btn active" onclick="switchTab('timeline')"><i class="fas fa-stream"></i> Live Execution</button>
+                    <button class="tab-btn" onclick="switchTab('results'); loadResults();"><i class="fas fa-file-alt"></i> Results</button>
                     <button class="tab-btn" onclick="switchTab('inspector')"><i class="fas fa-code"></i> Data Inspector</button>
                 </div>
 
@@ -569,6 +594,27 @@ DASHBOARD_HTML = """
                         <div style="text-align:center; padding: 4rem; color: var(--text-muted); opacity: 0.5;">
                             <i class="fas fa-satellite-dish" style="font-size: 3rem; margin-bottom: 1rem;"></i>
                             <p>Waiting for mission start...</p>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- RESULTS TAB -->
+                <div id="tab-results" class="tab-content">
+                    <div style="display: flex; gap: 1rem; height: 100%;">
+                        <div style="width: 30%; border-right: 1px solid #333; padding-right: 1rem;">
+                             <h4 style="margin-bottom: 1rem; color: #888;">Available Output Files</h4>
+                             <div id="file-list-container" class="file-list">
+                                 <div style="color: #666; font-style: italic;">Select a participant...</div>
+                             </div>
+                        </div>
+                        <div style="flex: 1;">
+                            <h4 style="margin-bottom: 1rem; color: #888; display: flex; justify-content: space-between;">
+                                <span>File Preview</span>
+                                <span id="current-file-name" style="color: var(--primary);"></span>
+                            </h4>
+                            <div id="file-preview-container" class="file-content-view">
+                                <div style="color: #444; text-align: center; margin-top: 2rem;">Select a file to view content</div>
+                            </div>
                         </div>
                     </div>
                 </div>
@@ -777,11 +823,49 @@ DASHBOARD_HTML = """
                 // Auto scroll main timeline
                 if (isRunning && state.steps.length > 0) {
                      const activeStep = document.querySelector('.step.active');
-                     if (activeStep) activeStep.scrollIntoView({behavior: "smooth", block: "nearest"});
+                     if (activeStep && !document.getElementById('tab-results').classList.contains('active')) {
+                         activeStep.scrollIntoView({behavior: "smooth", block: "nearest"});
+                     }
                 }
 
             } catch (err) { console.error(err); }
         }
+        
+        async function loadResults() {
+            try {
+                // Get participant ID from state or input
+                // It is safer to ask API for output directory content
+                const res = await fetch('/api/outputs');
+                const files = await res.json();
+                
+                const container = document.getElementById('file-list-container');
+                if (files.length === 0) {
+                     container.innerHTML = '<div style="color:#666">No output files found.</div>';
+                     return;
+                }
+                
+                container.innerHTML = files.map(f => `
+                    <div class="file-item" onclick="loadFile('${f}')">
+                        <span><i class="fas fa-file-code"></i> ${f}</span>
+                        <i class="fas fa-chevron-right" style="font-size:0.7rem; opacity:0.5;"></i>
+                    </div>
+                `).join('');
+                
+            } catch (e) { console.error(e); }
+        }
+        
+        async function loadFile(filename) {
+             document.querySelectorAll('.file-item').forEach(el => el.classList.remove('active'));
+             event.currentTarget.classList.add('active');
+             
+             document.getElementById('current-file-name').textContent = filename;
+             document.getElementById('file-preview-container').textContent = "Loading...";
+             
+             const res = await fetch(`/api/outputs/content?file=${filename}`);
+             const text = await res.text();
+             document.getElementById('file-preview-container').textContent = text;
+        }
+
         setInterval(updateLoop, 800);
     </script>
 </body>
@@ -815,6 +899,62 @@ def launch():
         threading.Thread(target=_launcher_callback, args=(config,), daemon=True).start()
         return jsonify({"status": "started"})
     return jsonify({"status": "no_callback"}), 500
+
+@app.route('/api/outputs')
+def list_outputs():
+    # List all files in results/participant_{id} if we can know participant ID
+    # Or just list all recent outputs?
+    # Better: List files for the CURRENT participant based on EventStore
+    pid = _event_store.state.get("participant_id")
+    if not pid or pid == "Unknown":
+        return jsonify([])
+        
+    # Locate results dir
+    # From settings: ../../results
+    base = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+    # Navigate to results (sibling of project root in original structure, or ../results in new?)
+    # Based on batch_run.py: PROJECT_ROOT.parent / "results"
+    # Current file is in utils/, so root is ../
+    # results is ../../results
+    
+    results_dir = os.path.join(os.path.dirname(base), "results")
+    
+    # Try finding folder
+    target_dir = None
+    possible_names = [f"participant_{pid}", f"participant_ID{pid}", pid, f"ID{pid}"]
+    for name in possible_names:
+        path = os.path.join(results_dir, name)
+        if os.path.exists(path):
+            target_dir = path
+            break
+            
+    if not target_dir:
+        return jsonify([])
+        
+    files = [f for f in os.listdir(target_dir) if f.endswith('.md') or f.endswith('.json') or f.endswith('.txt')]
+    return jsonify(sorted(files))
+
+@app.route('/api/outputs/content')
+def get_output_content():
+    filename = request.args.get('file')
+    pid = _event_store.state.get("participant_id")
+    if not pid : return "No participant active", 400
+    
+    base = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+    results_dir = os.path.join(os.path.dirname(base), "results")
+    
+    # Same logic to find dir
+    target_dir = None
+    possible_names = [f"participant_{pid}", f"participant_ID{pid}", pid, f"ID{pid}"]
+    for name in possible_names:
+        path = os.path.join(results_dir, name)
+        if os.path.exists(path):
+            target_dir = path
+            break
+            
+    if target_dir:
+        return send_file(os.path.join(target_dir, filename))
+    return "File not found", 404
 
 class FlaskUI:
     """Interface exposed to the pipeline."""

@@ -79,14 +79,14 @@ jupyter notebook COMPASS_demo.ipynb
 
 ```text
 multi_agent_system/
-├── agents/             # Autonomous agent definitions (Orchestrator, Predictor, etc.)
-├── core/               # Core engine logic (Fusion Layer, Data Loading)
-├── tools/              # Clinical analysis tools
-├── utils/              # Utilities (Embeddings, UI, Validation)
-├── compass_logging/    # Structured logging & reporting
-├── data/pseudo_data/   # Synthetic data for testing/demo
+├── agents/             # Autonomous agent definitions (Orchestrator, Predictor, etc.) and prompts
+├── tools/              # Clinical analysis tools and prompts
+├── utils/              # Utilities (Core Engine, Logging, Embeddings, UI)
+├── config/             # Configuration settings
+├── models/             # Pydantic data models
+├── data/               # Data loaders and schemas
 ├── main.py             # CLI Entry Point
-└── COMPASS_demo.ipynb  # Interactive Tutorial
+└── requirements.txt    # Project dependencies
 ```
 
 ## 🎓 Project Context
