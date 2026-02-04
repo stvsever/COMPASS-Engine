@@ -1,18 +1,10 @@
-# COMPASS Engine
-### Clinical Orchestrated Multi-modal Predictive Agentic Support System
+# COMPASS: Clinical Orchestrated Multi-modal Predictive Agentic Support System
 
 <div align="center">
-  <img src="/Users/stijnvanseveren/PythonProjects/IIS_BIOBIZKAIA/INFERENCE_PIPELINE/multi_agent_system/overview/logo/COMPASS_logo_2.png" alt="COMPASS Logo" width="150" />
+  <img src="overview/logo/COMPASS_logo_2.png" alt="COMPASS Logo" width="150" />
 </div>
 
-
-> [!NOTE]
-> **CURRENT SCOPE**
-> The current version of the COMPASS engine is optimized specifically for **Neuropsychiatric Disorders** (e.g., Major Depressive Disorder, Schizophrenia). Future updates will expand capabilities to broader Neurologic and Systemic conditions.
-
----
-
-**COMPASS** is an advanced AI-driven inference engine designed for complex clinical diagnostics. By orchestrating a team of specialized autonomous agents, COMPASS ingests multi-modal patient data—ranging from genomic files and brain MRI neuroimaging to unstructured clinical notes and biological assays—to generate precise, evidence-based diagnostic predictions.
+**COMPASS** is an advanced multi-agent orchestrator for clinical decision support, enabling precise phenotypic prediction by integrating (hierarchical) multi-modal deviation maps and non-tabular electronic health information. Our current system is optimized for neuropsychiatric phenotyping with data from the UK Biobank—developed as part of an internship project.
 
 ## 🚀 Key Features
 
