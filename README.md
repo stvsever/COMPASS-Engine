@@ -53,29 +53,14 @@ Run the pipeline on a participant folder:
 python main.py data/pseudo_data/SUBJ_001_PSEUDO --target "Major Depressive Disorder" --backend local
 ```
 
-> [!IMPORTANT]
-> **Understanding "CASE" vs "CONTROL"**
-> The COMPASS engine performs binary classification against a specific **Target Condition**.
-> - **CASE**: The participant has the request Target Condition (e.g., "Major Depressive Disorder").
-> - **CONTROL**: The participant strictly refers to **"Brain-implicated pathology, but NON-psychiatric"**.
-> This is a methodological design choice for a research paper that is under development.
-
-> 
-> *Note: Do not include "CASE" or "CONTROL" in the `--target` string. Simply provide the condition name.*
-
-**Options:**
-- `--target`: The specific condition to predict (e.g., "Major Depressive Disorder").
-- `--backend`: Choose `openai` (default) or `local`.
-- `--model`: Model ID for local backend (default: `Qwen/Qwen2.5-0.5B-Instruct`).
-- `--ui`: Launches the real-time web dashboard.
-- `--detailed_log`: Enables full raw I/O logging for debugging.
-
-### Batch Processing
-To process multiple participants sequentially (e.g., for validation studies):
-
-```bash
-python batch_run.py --backend openai --model gpt-5-nano
+Each participant folder must contain four core input files (see data/pseudo_data/):
+```text
+- data_overview.json
+- hierarchical_deviation_map.json
+- multimodal_data.json
+- non_numerical_data.txt
 ```
+The first three JSON files are ontology-based structured feature maps created during pre-processing
 
 > [!NOTE]
 > **Batch Configuration**
@@ -129,7 +114,7 @@ This project is licensed under the MIT License ; see the [LICENSE](LICENSE) file
 >
 > - **Automated Explainability of Token-Driven Predictions**  
 >   We are developing an integrated evaluation layer to automatically quantify which **feature-based token sets** most strongly drive each clinical prediction.  
->   This builds directly on prior work in *TokenSHAP-style attribution* (see: https://github.com/stvsever/aHFR_TokenSHAP), enabling transparent post-hoc interpretability across hierarchical and multi-modal inputs.
+>   This builds directly on prior work in *Hierarchical TokenSHAP-style attribution* (see: https://github.com/stvsever/aHFR_TokenSHAP), enabling transparent post-hoc interpretability across hierarchical and multi-modal inputs.
 >
 > - **Improved Frontend & Clinical Usability**  
 >   Ongoing work focuses on expanding the interactive dashboard into a more user-friendly clinical frontend, simplifying workflow monitoring, interpretation, and report exploration.
