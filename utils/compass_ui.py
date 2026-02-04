@@ -136,19 +136,24 @@ class EventStore:
                 self.state["progress"] = self.state["max_steps"] # Force complete visual
 
     def get_snapshot(self, since_id=0):
-        import psutil
-        import os
-        
         with self._lock:
-            # Capture System Metrics
-            process = psutil.Process(os.getpid())
-            mem_mb = process.memory_info().rss / 1024 / 1024
-            cpu_pct = psutil.cpu_percent(interval=None) # Non-blocking
-            
-            self.state["system"] = {
-                "memory_mb": round(mem_mb, 1),
-                "cpu_percent": round(cpu_pct, 1)
-            }
+            # Capture System Metrics (Optional)
+            try:
+                import psutil
+                import os
+                process = psutil.Process(os.getpid())
+                mem_mb = process.memory_info().rss / 1024 / 1024
+                cpu_pct = psutil.cpu_percent(interval=None) # Non-blocking
+                
+                self.state["system"] = {
+                    "memory_mb": round(mem_mb, 1),
+                    "cpu_percent": round(cpu_pct, 1)
+                }
+            except (ImportError, Exception):
+                self.state["system"] = {
+                    "memory_mb": 0,
+                    "cpu_percent": 0
+                }
             
             # Return full state but only new events to save bandwidth
             new_events = [e for e in self.events if e["id"] > int(since_id)]

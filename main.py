@@ -9,6 +9,8 @@ Main entry point for running the COMPASS pipeline on participant data.
 
 import argparse
 import sys
+import threading
+import time
 from pathlib import Path
 from datetime import datetime
 from typing import Optional
@@ -474,6 +476,17 @@ Examples:
                 )
 
             print("Launching COMPASS Dashboard...")
+            
+            # Auto-trigger if path provided via CLI
+            if args.participant_dir and args.participant_dir.exists():
+                participant_id = args.participant_dir.name
+                target_condition = args.target or "neuropsychiatric"
+                # Small delay to ensure server is up before first event
+                def auto_launch():
+                    time.sleep(2)
+                    launch_wrapper(participant_id, target_condition)
+                threading.Thread(target=auto_launch, daemon=True).start()
+
             start_ui_loop(launch_wrapper)
             print("\nPipeline complete. Closing dashboard server...")
         else:
