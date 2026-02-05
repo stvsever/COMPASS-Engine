@@ -130,8 +130,9 @@ Key future development directions include:
   COMPASS is currently an active research prototype under rapid development. While the core architecture is functional, intermittent edge-case inconsistencies may arise. We are continuously refining the multi-agent logic to enhance system-wide robustness and predictable behavioral stability.
 
 - **Automated Explainability of Token-Driven Predictions**  
-  We are developing an integrated evaluation layer to automatically quantify which **feature-based token sets** most strongly drive each clinical prediction.  
-  This builds directly on prior work in *Hierarchical TokenSHAP-style attribution* (see: https://github.com/stvsever/aHFR_TokenSHAP), enabling transparent post-hoc interpretability across hierarchical and multi-modal inputs.
+  We are developing an integrated evaluation layer to automatically quantify which **feature-based token sets** most strongly drive each clinical prediction (e.g., TokenSHAP-style methods, Integrated Gradients, LLM-select attribution, etc.) 
+
+  This builds directly on prior work in *Hierarchical TokenSHAP-style attribution* (see: https://github.com/stvsever/aHFR_TokenSHAP), enabling transparent post-hoc interpretability across hierarchical feature spaces.
   
 - **Improved Frontend & Clinical Usability**  
   Ongoing work focuses on expanding the interactive dashboard into a more user-friendly clinical frontend, simplifying workflow monitoring, interpretation, and report exploration.
