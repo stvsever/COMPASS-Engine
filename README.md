@@ -95,18 +95,18 @@ jupyter notebook COMPASS_demo.ipynb
 multi_agent_system/
 ├── agents/             # Autonomous agent definitions (Orchestrator, Predictor, Critic, etc.) and prompts
 ├── tools/              # Clinical analysis tools (COMPASS Core Tools) and prompt templates
-├── frontend/           # Interactive Web UI (FastAPI backend + JavaScript/CSS frontend)
+├── frontend/           # Interactive Web UI (Flask backend + HTML/CSS/JS frontend)
 ├── utils/              # System utilities (Core Engine, Logging, Embeddings, Logic)
 ├── data/               # Data package
 │   ├── models/         # Pydantic data models & execution plan schemas
-│   └── pseudo_data/    # Synthetic clinical data for validation
+│   └── pseudo_data/    # Synthetic clinical data for demonstration
 ├── config/             # Environment & system-wide settings
 └── main.py             # CLI Entry Point
 ```
 
 ## 🎓 Project Context
 
-This Multi-Agent System is being) developed in the context of a **Master's Internship in Theoretical and Experimental Psychology (Neuroscience)** at **Ghent University** (Belgium).
+This Multi-Agent System is being developed in the context of a **Master's Internship in Theoretical and Experimental Psychology (with Specialization in Neuroscience)** at **Ghent University** (Belgium).
 
 The research was conducted at the **Computational Neuroscience Lab** of **[IIS Biobizkaia](https://compneurobilbao.eus)** (Bilbao, Spain).
 
@@ -127,12 +127,14 @@ This project is licensed under the MIT License ; see the [LICENSE](LICENSE) file
 
 Key future development directions include:
 - **Continuous Engine Optimization & Stability Refinement**  
-  COMPASS is currently an active research prototype under rapid development. While the core architecture is functional, intermittent edge-case inconsistencies may arise. We are continuously refining the multi-agent logic to enhance system-wide robustness and predictable behavioral stability.
+  COMPASS is currently an active research prototype under rapid development. While the core architecture is functional, intermittent edge-case inconsistencies and overall suboptimal performance may arise. 
+  
+  We are continuously refining the multi-agent logic to enhance system-wide robustness and predictable behavioral stability.
 
 - **Automated Explainability of Token-Driven Predictions**  
   We are developing an integrated evaluation layer to automatically quantify which **feature-based token sets** most strongly drive each clinical prediction (e.g., TokenSHAP-style methods, Integrated Gradients, LLM-select attribution, etc.) 
 
-  This builds directly on prior work in *Hierarchical TokenSHAP-style attribution* (see: https://github.com/stvsever/aHFR_TokenSHAP), enabling transparent post-hoc interpretability across hierarchical feature spaces.
+  This builds directly on our prior work in *Hierarchical TokenSHAP-style attribution* (see: https://github.com/stvsever/aHFR_TokenSHAP), enabling transparent post-hoc interpretability across hierarchical feature spaces.
   
 - **Improved Frontend & Clinical Usability**  
   Ongoing work focuses on expanding the interactive dashboard into a more user-friendly clinical frontend, simplifying workflow monitoring, interpretation, and report exploration.
