@@ -51,6 +51,8 @@ overview/*
 !overview/main.tex
 !overview/uml_diagram.py
 !overview/compass_flowchart.png
+!overview/user_interface/
+!overview/user_interface/COMPASS_UI_1.png
 
 # Ignore data by default but whitelist specific folders
 data/*
