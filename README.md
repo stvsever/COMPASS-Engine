@@ -1,8 +1,10 @@
 # COMPASS: Clinical Orchestrated Multi-modal Predictive Agentic Support System
 
+<!--
 <div align="center">
   <img src="overview/logo/COMPASS_logo_2.png" alt="COMPASS Logo" width="300" />
 </div>
+-->
 
 **COMPASS** is an advanced multi-agent orchestrator for clinical decision support, enabling precise phenotypic prediction by integrating (hierarchical) multi-modal deviation maps and non-tabular electronic health information. Our current system is customized for neuropsychiatric phenotyping with data from the UK Biobank ; developed as part of an internship project @ IIS BioBizkaia.
 
