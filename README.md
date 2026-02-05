@@ -110,11 +110,11 @@ This Multi-Agent System is being developed in the context of a **Master's Intern
 
 The research is being conducted at the **Computational Neuroscience Lab** of **[IIS Biobizkaia](https://compneurobilbao.eus)** (Bilbao, Spain).
 
-**Author**: Stijn Van Severen
+**Author**: Stijn Van Severen (email: stijn.vanseveren@ugent.be)
 
 **Supervisors**: 
-*   **Ibai Díez Palacio** (Computational Neuroimaging Lab @ IIS Biobizkaia & Dept. of Radiology; Harvard Medical School)
-*   **Jesús M. Cortés** (Computational Neuroimaging Lab @ IIS Biobizkaia)
+- **Ibai Díez Palacio** (Computational Neuroimaging Lab @ IIS Biobizkaia & Dept. of Radiology; Harvard Medical School)
+- **Jesús M. Cortés** (Computational Neuroimaging Lab @ IIS Biobizkaia)
 
 **Lab**: [Computational Neuroscience Group](https://compneurobilbao.eus)
 
