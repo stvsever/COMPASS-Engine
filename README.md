@@ -126,6 +126,9 @@ This project is licensed under the MIT License ; see the [LICENSE](LICENSE) file
 ## 📈 Future Work
 
 Key future development directions include:
+- **Continuous Engine Optimization & Stability Refinement**  
+  COMPASS is currently an active research prototype under rapid development. While the core architecture is functional, intermittent edge-case inconsistencies may arise. We are continuously refining the multi-agent logic to enhance system-wide robustness and predictable behavioral stability.
+
 - **Automated Explainability of Token-Driven Predictions**  
   We are developing an integrated evaluation layer to automatically quantify which **feature-based token sets** most strongly drive each clinical prediction.  
   This builds directly on prior work in *Hierarchical TokenSHAP-style attribution* (see: https://github.com/stvsever/aHFR_TokenSHAP), enabling transparent post-hoc interpretability across hierarchical and multi-modal inputs.
