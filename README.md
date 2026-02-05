@@ -108,11 +108,12 @@ multi_agent_system/
 
 This Multi-Agent System is being developed in the context of a **Master's Internship in Theoretical and Experimental Psychology (with Specialization in Neuroscience)** at **Ghent University** (Belgium).
 
-The research was conducted at the **Computational Neuroscience Lab** of **[IIS Biobizkaia](https://compneurobilbao.eus)** (Bilbao, Spain).
+The research is being conducted at the **Computational Neuroscience Lab** of **[IIS Biobizkaia](https://compneurobilbao.eus)** (Bilbao, Spain).
 
 **Author**: Stijn Van Severen
+
 **Supervisors**: 
-*   **Ibai Díez Palacio** (omputational Neuroimaging Lab @ IIS Biobizkaia & Dept. of Radiology; Harvard Medical School)
+*   **Ibai Díez Palacio** (Computational Neuroimaging Lab @ IIS Biobizkaia & Dept. of Radiology; Harvard Medical School)
 *   **Jesús M. Cortés** (Computational Neuroimaging Lab @ IIS Biobizkaia)
 
 **Lab**: [Computational Neuroscience Group](https://compneurobilbao.eus)
