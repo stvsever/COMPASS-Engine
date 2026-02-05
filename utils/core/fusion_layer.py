@@ -425,7 +425,7 @@ Please fuse these outputs into a unified representation. PRESERVE all clinical n
                 # Raw Data
                 "hierarchical_deviation_raw": hierarchical_deviation,
                 "non_numerical_data_raw": non_numerical_data,
-                "unprocessed_multimodal_data_raw": fusion_result.raw_multimodal_data,
+                "multimodal_context_boost": fusion_result.raw_multimodal_data,
                 
                 # Tool Outputs (preserved)
                 "tool_findings": fusion_result.key_findings,
@@ -455,7 +455,7 @@ Please fuse these outputs into a unified representation. PRESERVE all clinical n
                 
                 # Note: No multimodal raw in this mode as it was too big
                 # UNLESS: We performed Post-Fusion Backfill
-                "backfilled_multimodal_context": fusion_result.raw_multimodal_data
+                "multimodal_context_boost": fusion_result.raw_multimodal_data
             }
         
         print(f"[FusionLayer] ✓ Final predictor input ready")
@@ -510,15 +510,19 @@ Please fuse these outputs into a unified representation. PRESERVE all clinical n
         added_domains = []
         
         if not processed_domains:
+            print(f"  > RAG: No processed domains to backfill.")
             return filled_multimodal
             
+        print(f"  > RAG: Checking {len(processed_domains)} processed domains for backfill candidates...")
         try:
             # 1. Prepare candidate chunks (Granular Feature Level)
             candidates = []
             for domain in processed_domains:
                 if domain in multimodal_data:
+                    print(f"  > RAG: Flattening domain: {domain}")
                     # Extract all leaf features with breadcrumbs
                     features_with_keys = self._flatten_multimodal_features(multimodal_data[domain], parents=[domain])
+                    print(f"  > RAG: Found {len(features_with_keys)} candidate features in {domain}")
                     
                     for feat, cache_key in features_with_keys:
                         # Create candidate entry
@@ -580,25 +584,39 @@ Please fuse these outputs into a unified representation. PRESERVE all clinical n
 
     def _flatten_multimodal_features(self, subdomain_data: Any, parents: List[str] = None) -> List[Tuple[Dict, str]]:
         """
-        Recursively extract all '_leaves' lists from nested multimodal dictionary structure.
-        Returns a list of tuples: (feature_dict, breadcrumb_string_for_embedding).
-        Breadcrumb format: feature <- parent_last <- parent_prev <- parent_prev_prev
+        Recursively extract all feature dicts.
+        Handles both raw nested UKB format and DataLoader's flattened format.
         """
         if parents is None:
             parents = []
             
         features = []
         if isinstance(subdomain_data, dict):
+            # Check if this IS a feature dict (DataLoader style)
+            feat_name = subdomain_data.get("feature") or subdomain_data.get("field_name")
+            if feat_name:
+                # Use provided path if available, otherwise use parents
+                hierarchy = subdomain_data.get("path_in_hierarchy") or parents
+                context_parents = hierarchy[-2:][::-1]
+                parts = [feat_name]
+                parts.extend(context_parents)
+                cache_key = " <- ".join(parts)
+                features.append((subdomain_data, cache_key))
+                return features
+
+            # UKB nested logic (search for _leaves)
             if "_leaves" in subdomain_data and isinstance(subdomain_data["_leaves"], list):
                 for leaf in subdomain_data["_leaves"]:
-                    if isinstance(leaf, dict) and "feature" in leaf:
-                        # Construct breadcrumb
-                        context_parents = parents[-3:][::-1]
-                        parts = [leaf["feature"]]
-                        parts.extend(context_parents)
-                        cache_key = " <- ".join(parts)
-                        features.append((leaf, cache_key))
+                    if isinstance(leaf, dict):
+                        l_name = leaf.get("feature") or leaf.get("field_name")
+                        if l_name:
+                            context_parents = parents[-2:][::-1]
+                            parts = [l_name]
+                            parts.extend(context_parents)
+                            cache_key = " <- ".join(parts)
+                            features.append((leaf, cache_key))
             
+            # Recurse
             for key, value in subdomain_data.items():
                 if key != "_leaves" and isinstance(value, (dict, list)):
                     new_parents = parents + [key]
@@ -606,14 +624,6 @@ Please fuse these outputs into a unified representation. PRESERVE all clinical n
         
         elif isinstance(subdomain_data, list):
              for item in subdomain_data:
-                if isinstance(item, dict) and "feature" in item: 
-                     context_parents = parents[-3:][::-1]
-                     parts = [item["feature"]]
-                     parts.extend(context_parents)
-                     cache_key = " <- ".join(parts)
-                     features.append((item, cache_key))
-                else: 
-                     # Recurse if list contains non-feature logic (though unusual for this schema)
-                     features.extend(self._flatten_multimodal_features(item, parents))
+                 features.extend(self._flatten_multimodal_features(item, parents))
                     
         return features

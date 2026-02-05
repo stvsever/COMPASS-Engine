@@ -1168,13 +1168,13 @@
 
         function toggleLogScroll() {
             autoScrollLogs = !autoScrollLogs;
-            document.getElementById('btn-log-scroll').textContent = autoScrollLogs ? 'AUTO: ON' : 'AUTO: OFF';
+            document.getElementById('btn-log-scroll').textContent = autoScrollLogs ? 'AUTO: OFF' : 'AUTO: ON';
         }
 
         function toggleTimelineScroll() {
             autoScrollTimeline = !autoScrollTimeline;
             const btn = document.getElementById('btn-timeline-scroll');
-            btn.textContent = autoScrollTimeline ? 'AUTO-FOLLOW: ON' : 'AUTO-FOLLOW: OFF';
+            btn.textContent = autoScrollTimeline ? 'AUTO-FOLLOW: OFF' : 'AUTO-FOLLOW: ON';
             btn.style.opacity = autoScrollTimeline ? '1' : '0.5';
         }
 

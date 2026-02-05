@@ -1,4 +1,3 @@
-
 import sys
 import os
 import subprocess
@@ -13,18 +12,18 @@ DATA_ROOT = PROJECT_ROOT.parent / "data" / "__FEATURES__" / "COMPASS_data"
 MAIN_SCRIPT = PROJECT_ROOT / "main.py"
 RESULTS_DIR = PROJECT_ROOT.parent / "results"
 
-# To be processed participants (both fake and real targets)
+# To be processed participants (Requested by user)
 PARTICIPANTS = [
-    {"id": "5755396", "expected": "CASE", "target_str": "ANXIETY_DISORDERS | F419:Anxiety disorder, unspecified"},
-    {"id": "1452610", "expected": "CONTROL", "target_str": "MAJOR_DEPRESSIVE_DISORDER"},
-    {"id": "4072571", "expected": "CONTROL", "target_str": "ANXIETY_DISORDERS"},
-    {"id": "5180280", "expected": "CASE", "target_str": "SUBSTANCE_USE_DISORDERS | F171:F17.1 Harmful use"},
-    {"id": "1491991", "expected": "CASE", "target_str": "MAJOR_DEPRESSIVE_DISORDER | F329:Major depressive disorder, single episode, unspecified"},
-    {"id": "3135697", "expected": "CASE", "target_str": "ANXIETY_DISORDERS | F411:Generalized anxiety disorder"},
-    {"id": "5165165", "expected": "CONTROL", "target_str": "ANXIETY_DISORDERS"},
-    {"id": "4528012", "expected": "CONTROL", "target_str": "ANXIETY_DISORDERS"},
-    {"id": "5545315", "expected": "CASE", "target_str": "ANXIETY_DISORDERS | F410:Panic disorder [episodic paroxysmal anxiety]"},
-    {"id": "1719479", "expected": "CONTROL", "target_str": "MAJOR_DEPRESSIVE_DISORDER"}
+    {"id": "1386427", "expected": "CASE", "target_str": "ANXIETY_DISORDERS | F419:Anxiety disorder, unspecified"},
+    {"id": "4414177", "expected": "CASE", "target_str": "MAJOR_DEPRESSIVE_DISORDER | F329:Major depressive disorder, single episode, unspecified"},
+    {"id": "4073873", "expected": "CASE", "target_str": "MAJOR_DEPRESSIVE_DISORDER | F329:Major depressive disorder, single episode, unspecified"},
+    {"id": "2636640", "expected": "CONTROL", "target_str": "ANXIETY_DISORDERS"},
+    {"id": "5022191", "expected": "CONTROL", "target_str": "ANXIETY_DISORDERS"},
+    {"id": "3759408", "expected": "CONTROL", "target_str": "BIPOLAR_AND_MANIC_DISORDERS"},
+    {"id": "1385600", "expected": "CONTROL", "target_str": "MAJOR_DEPRESSIVE_DISORDER"},
+    {"id": "1364077", "expected": "CONTROL", "target_str": "MAJOR_DEPRESSIVE_DISORDER"},
+    {"id": "3026819", "expected": "CONTROL", "target_str": "MAJOR_DEPRESSIVE_DISORDER"},
+    {"id": "2546474", "expected": "CONTROL", "target_str": "SLEEP_WAKE_DISORDERS"}
 ]
 
 def run_participant(pid_info):
@@ -48,12 +47,11 @@ def run_participant(pid_info):
     results_dir.mkdir(parents=True, exist_ok=True)
     out_file_path = results_dir / f"batch_out_{pid}.txt"
     out_file = open(out_file_path, "w")
-    print(f"DEBUG: Created log file at {out_file_path}")
     
     cmd = [
-        "python3.11",  # FORCE Python 3.11 for Local LLM compatibility
-        MAIN_SCRIPT, 
-        path, 
+        "python",
+        str(MAIN_SCRIPT), 
+        str(path), 
         "--target", target_str,  # Pass the dynamic target string
         "--detailed_log",
         "--quiet"
@@ -68,7 +66,6 @@ def run_participant(pid_info):
     
     print(f"Launching {pid}...")
     print(f"  > Target: {target_str[:50]}...")
-    # Clean up previous log if exists
     # Use Popen with file stdout AND stderr merged
     proc = subprocess.Popen(cmd, stdout=out_file, stderr=subprocess.STDOUT, text=True)
     return proc, pid, out_file, out_file_path
@@ -79,13 +76,11 @@ def main():
     import argparse
     parser = argparse.ArgumentParser()
     parser.add_argument("--backend", choices=["openai", "local"], default="openai")
-    parser.add_argument("--model", type=str, default="gpt-5-nano")
+    parser.add_argument("--model", type=str, default="gpt-5-mini")
     args = parser.parse_args()
     
     BATCH_ARGS["backend"] = args.backend
     BATCH_ARGS["model"] = args.model
-    
-    procs = []
     
     print(f"Found {len(PARTICIPANTS)} participants to run.")
     results = {}
@@ -95,7 +90,7 @@ def main():
         proc, pid, out_file, out_path = run_participant(p)
         
         # Wait for this one to finish immediately
-        _, stderr = proc.communicate()
+        proc.wait()
         out_file.close()
 
         if proc.returncode != 0:
@@ -104,9 +99,6 @@ def main():
         else:
             print(f"Finished {pid}")
             results[pid] = "DONE" # Default
-
-    print("\n" + "="*50)
-
 
     print("\n" + "="*50)
     print("BATCH SUMMARY")
@@ -130,8 +122,6 @@ def main():
                     actual = "CASE"
                 elif "**Classification**: CONTROL" in content:
                     actual = "CONTROL"
-        else:
-             print(f"Report not found for {pid} at {report_path}")
         
         # Score
         is_correct = (actual == expected)
@@ -143,7 +133,7 @@ def main():
         elif expected == "CONTROL" and actual == "CASE": confusion["FP"] += 1
         elif expected == "CASE" and actual == "CONTROL": confusion["FN"] += 1
         
-        print(f"{pid}: Expected {expected} -> Actual {actual} [{'checkmark' if is_correct else 'X'}]")
+        print(f"{pid}: Expected {expected} -> Actual {actual} [{'DONE' if is_correct else 'FAIL'}]")
 
     print("\nCONFUSION MATRIX:")
     print(f"TP: {confusion['TP']}  FN: {confusion['FN']}")

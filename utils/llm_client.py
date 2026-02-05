@@ -166,6 +166,7 @@ class LLMClient:
             if response_format:
                 kwargs["response_format"] = response_format
             
+            print(f"[LLMClient] Sending request to {model} (max_completion_tokens={max_tokens})...")
             response = self.client.chat.completions.create(**kwargs)
             
             latency_ms = int((time.time() - start_time) * 1000)
