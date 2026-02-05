@@ -43,6 +43,10 @@ class EventStore:
             "steps": [],
             "history": [], # Archive of steps from previous iterations
             "prediction": None,
+            "critic": None,
+            "critic_summary": None,
+            "completed": False,
+            "completion": None,
             "latest_update_id": 0,
             "current_stage": -1, # -1: Setup, 0:Init, 1:Plan, 2:Exec, 3:Predict, 4:Evaluate
             "stages": ["Initialization", "Orchestration", "Execution", "Integration", "Prediction", "Evaluation"],
@@ -81,6 +85,13 @@ class EventStore:
                 self.state["steps"] = [] 
                 self.state["history"] = []
                 self.state["plans"] = {} # Store plans by iteration
+                self.state["prediction"] = None
+                self.state["critic"] = None
+                self.state["critic_summary"] = None
+                self.state["total_tokens"] = 0
+                self.state["progress"] = 0
+                self.state["completed"] = False
+                self.state["completion"] = None
                 
             elif event_type == "PLAN":
                 current_iter = self.state.get("iteration", 1)
@@ -103,6 +114,8 @@ class EventStore:
                 # Clear previous results to prevent stale modal
                 self.state["prediction"] = None
                 self.state["critic_summary"] = None
+                self.state["critic"] = None
+                self.state["progress"] = 0
                 
             elif event_type == "STEP_START":
                 existing = next((s for s in self.state["steps"] if s["id"] == data["id"]), None)
@@ -156,21 +169,31 @@ class EventStore:
                 self.state["prediction"] = data
                 self.state["status"] = "Prediction Generated"
                 self.state["current_stage"] = 4 
-                # Add virtual step for Predictor
-                self.state["steps"].append({
-                    "id": 910 + self.state["iteration"],
-                    "tool": "Predictor Agent",
-                    "desc": f"Generated prediction: {data.get('result', 'Unknown')} ({data.get('prob', 0):.1%})",
-                    "status": "complete",
-                    "tokens": 0,
-                    "startTime": time.time(),
-                    "duration": 0.5,
-                    "iteration": self.state.get("iteration", 1)
-                })
+                # Add or update virtual step for Predictor
+                pred_id = 910 + self.state.get("iteration", 1)
+                existing = next((s for s in self.state["steps"] if s["id"] == pred_id), None)
+                if existing:
+                    existing["status"] = "complete"
+                    existing["tokens"] = 0
+                    existing["desc"] = f"Generated prediction: {data.get('result', 'Unknown')} ({data.get('prob', 0):.1%})"
+                    if "startTime" in existing:
+                        existing["duration"] = round(time.time() - existing["startTime"], 2)
+                else:
+                    self.state["steps"].append({
+                        "id": pred_id,
+                        "tool": "Predictor Agent",
+                        "desc": f"Generated prediction: {data.get('result', 'Unknown')} ({data.get('prob', 0):.1%})",
+                        "status": "complete",
+                        "tokens": 0,
+                        "startTime": time.time(),
+                        "duration": 0.5,
+                        "iteration": self.state.get("iteration", 1)
+                    })
 
             elif event_type == "CRITIC":
                 self.state["status"] = f"Critic Verdict: {data['verdict']}"
                 self.state["critic_summary"] = data.get("summary", "") 
+                self.state["critic"] = data
                 self.state["current_stage"] = 5
                 
                 # Determine status based on verdict
@@ -195,6 +218,9 @@ class EventStore:
                 # Ensure we don't duplicate logic, just set status
                 self.state["status"] = "Pipeline Completed"
                 self.state["progress"] = self.state["max_steps"] 
+                self.state["current_stage"] = 5
+                self.state["completed"] = True
+                self.state["completion"] = data
 
     def get_snapshot(self, since_id=0):
         with self._lock:
@@ -451,19 +477,61 @@ class FlaskUI:
         _event_store.add_event("FUSION", fusion_data)
 
     def on_prediction(self, classification, probability, confidence):
-        _event_store.add_event("PREDICTION", {"result": classification, "prob": probability})
-        self.set_status(f"Predictor Assessment: {classification} ({probability:.1%})", stage=3)
-        
-    def on_critic_verdict(self, verdict, confidence, checklist_passed, checklist_total, summary=""):
-        _event_store.add_event("CRITIC", {
-            "verdict": verdict, 
-            "passed": checklist_passed,
-            "summary": summary
+        # Normalize label for UI (CASE/CONTROL)
+        label = "UNKNOWN"
+        if isinstance(classification, str):
+            upper = classification.upper()
+            if "CONTROL" in upper:
+                label = "CONTROL"
+            elif "CASE" in upper:
+                label = "CASE"
+        _event_store.add_event("PREDICTION", {
+            "result": classification,
+            "label": label,
+            "prob": probability,
+            "confidence": confidence
         })
-        self.set_status(f"Critic Evaluation: {verdict}", stage=4)
+        self.set_status(f"Predictor Assessment: {label} ({probability:.1%})", stage=4)
+        
+    def on_critic_verdict(
+        self,
+        verdict,
+        confidence,
+        checklist_passed,
+        checklist_total,
+        summary="",
+        checklist=None,
+        weaknesses=None,
+        improvement_suggestions=None,
+        domains_missed=None,
+        composite_score=None,
+        score_breakdown=None,
+        iteration=None
+    ):
+        _event_store.add_event("CRITIC", {
+            "verdict": verdict,
+            "confidence": confidence,
+            "passed": checklist_passed,
+            "total": checklist_total,
+            "summary": summary,
+            "checklist": checklist or {},
+            "weaknesses": weaknesses or [],
+            "improvement_suggestions": improvement_suggestions or [],
+            "domains_missed": domains_missed or [],
+            "composite_score": composite_score,
+            "score_breakdown": score_breakdown or {},
+            "iteration": iteration
+        })
+        self.set_status(f"Critic Evaluation: {verdict}", stage=5)
         
     def on_pipeline_complete(self, result, probability, iterations, total_duration_secs, total_tokens):
-        _event_store.add_event("COMPLETE", {"result": result})
+        _event_store.add_event("COMPLETE", {
+            "result": result,
+            "probability": probability,
+            "iterations": iterations,
+            "duration": total_duration_secs,
+            "tokens": total_tokens
+        })
 
 def get_ui(enabled=True):
     global _ui_instance

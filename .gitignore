@@ -68,6 +68,8 @@ __init__.py
 
 # Tests
 tests/
+!tests/
+!tests/*.py
 
 # Outputs
 outputs/

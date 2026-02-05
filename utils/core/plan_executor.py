@@ -6,7 +6,7 @@ Executes orchestrator-generated plans step by step.
 
 import time
 import logging
-from typing import Dict, Any, Optional, List
+from typing import Dict, Any, Optional, List, Tuple
 from dataclasses import dataclass
 
 from ...config.settings import get_settings
@@ -22,6 +22,7 @@ from .auto_repair import AutoRepair
 # Removed duplicate import
 from .token_manager import TokenManager
 from ...frontend.compass_ui import get_ui
+from ..path_utils import split_node_path, resolve_requested_subtree, path_is_prefix
 
 logger = logging.getLogger("compass.plan_executor")
 
@@ -259,6 +260,15 @@ class PlanExecutor:
                 output_data = tool_output.to_dict()
                 if detailed_info:
                     output_data["_detailed_log"] = detailed_info
+
+                # Attach execution metadata for downstream fusion (subtree-aware processing).
+                output_data["_step_meta"] = {
+                    "step_id": step.step_id,
+                    "tool_name": step.tool_name.value,
+                    "input_domains": list((tool_input.get("input_domains") or step.input_domains or [])),
+                    "parameters": dict(step.parameters or {}),
+                    "depends_on": list(step.depends_on or []),
+                }
                 
                 return StepResult(
                     step_id=step.step_id,
@@ -299,10 +309,15 @@ class PlanExecutor:
         # Truncate large inputs to fit within context limits
         # FeatureSynthesizer and UnimodalCompressor need more data density
         tool_canonical = step.tool_name.value
-        is_high_density = tool_canonical in ["FeatureSynthesizer", "UnimodalCompressor"]
+        is_high_density = tool_canonical in [
+            "FeatureSynthesizer",
+            "UnimodalCompressor",
+            "AnomalyNarrativeBuilder",
+            "ClinicalRelevanceRanker",
+        ]
         
-        max_depth = 8 if is_high_density else 3
-        max_children = 2000 if is_high_density else 5
+        max_depth = 10 if is_high_density else 6
+        max_children = 2000 if is_high_density else 200
 
         hierarchical_deviation = self._truncate_for_context(
             context.get("hierarchical_deviation"),
@@ -310,11 +325,27 @@ class PlanExecutor:
             max_children=max_children
         )
         
+        raw_input_domains = list(step.input_domains or [])
+        normalized_domains: List[str] = []
+        inline_node_paths: List[Any] = []
+        for dom in raw_input_domains:
+            if not isinstance(dom, str):
+                normalized_domains.append(dom)
+                continue
+            segs = split_node_path(dom)
+            if not segs:
+                normalized_domains.append(dom)
+                continue
+            normalized_domains.append(segs[0])
+            if len(segs) > 1:
+                # Treat inline path (e.g., "BRAIN_MRI|structural|morphology") as a node_path.
+                inline_node_paths.append("|".join(segs))
+
         tool_input = {
             "step_id": step.step_id,
             "tool_name": step.tool_name.value,
             "parameters": step.parameters.copy(),
-            "input_domains": step.input_domains,
+            "input_domains": normalized_domains if normalized_domains else raw_input_domains,
             
             # Always include these (truncated for context limits)
             "hierarchical_deviation": hierarchical_deviation,
@@ -324,7 +355,7 @@ class PlanExecutor:
         }
         
         # Add domain-specific data if specified (truncated)
-        if step.input_domains:
+        if raw_input_domains:
             multimodal_data = context.get("multimodal_data", {})
             domain_data = {}
             
@@ -334,8 +365,10 @@ class PlanExecutor:
             if not node_paths and "node_path" in step.parameters:
                 single = step.parameters["node_path"]
                 node_paths = [single] if isinstance(single, list) else [single]
+            if inline_node_paths:
+                node_paths = list(node_paths or []) + inline_node_paths
             
-            for domain in step.input_domains:
+            for domain in (normalized_domains if normalized_domains else raw_input_domains):
                 if domain in multimodal_data:
                     source_data = multimodal_data[domain]
                     
@@ -344,24 +377,34 @@ class PlanExecutor:
                         sliced_data = self._extract_subtrees_robust(source_data, domain, node_paths)
                         if sliced_data:
                             source_data = sliced_data
-                    
-                    truncated_domain = self._truncate_for_context(
-                        source_data,
-                        max_depth=5,     # Increased depth for sliced data
-                        max_children=20  # Increased (was 10)
-                    )
+
+                    # If the orchestrator selected explicit subtrees, preserve them as fully as possible.
+                    # Per user requirement: do not accidentally drop leaf-level details for selected subtrees.
+                    if node_paths:
+                        truncated_domain = self._truncate_for_context(
+                            source_data,
+                            max_depth=32,
+                            max_children=2000,
+                        )
+                    else:
+                        truncated_domain = self._truncate_for_context(
+                            source_data,
+                            max_depth=8 if tool_canonical == "UnimodalCompressor" else 5,
+                            max_children=2000 if tool_canonical == "UnimodalCompressor" else 200,
+                        )
                     domain_data[domain] = truncated_domain
             tool_input["domain_data"] = domain_data
         
         # Add outputs from dependent steps (truncated)
         if step.depends_on:
             dependency_outputs = {}
+            is_narrative_fusion = tool_canonical in ["MultimodalNarrativeCreator"]
             for dep_id in step.depends_on:
                 if dep_id in previous_outputs:
                     truncated_output = self._truncate_for_context(
                         previous_outputs[dep_id],
-                        max_depth=3,
-                        max_children=20
+                        max_depth=16 if is_narrative_fusion else 5,
+                        max_children=2000 if is_narrative_fusion else 200,
                     )
                     dependency_outputs[f"step_{dep_id}"] = truncated_output
             tool_input["dependency_outputs"] = dependency_outputs
@@ -375,6 +418,10 @@ class PlanExecutor:
         """
         if not paths:
             return data
+
+        # Fast path: flattened UKB features (list of dicts with path_in_hierarchy).
+        if isinstance(data, list) and any(isinstance(x, dict) and "path_in_hierarchy" in x for x in data):
+            return self._extract_subtrees_from_flat_features(data, domain_name, paths)
             
         merged_result = {}
         found_any = False
@@ -382,9 +429,12 @@ class PlanExecutor:
         for raw_path in paths:
             # Normalize path to list of segments
             if isinstance(raw_path, str):
-                segments = raw_path.split(":") 
+                segments = split_node_path(raw_path)
             elif isinstance(raw_path, list):
-                segments = raw_path
+                # Allow callers to pass lists like ["BRAIN_MRI", "structural", "hippocampus"].
+                segments = []
+                for s in raw_path:
+                    segments.extend(split_node_path(s))
             else:
                 continue
                 
@@ -426,6 +476,82 @@ class PlanExecutor:
                 current_level[last_seg] = subtree
         
         return merged_result if found_any else data
+
+    def _extract_subtrees_from_flat_features(self, flat: List[dict], domain_name: str, paths: List[Any]) -> Any:
+        """
+        Extract subtree(s) from DataLoader-flattened UKB features using `path_in_hierarchy`.
+
+        Output is a nested dict with `_leaves` lists to preserve hierarchy losslessly.
+        """
+        resolved_prefixes: List[Tuple[str, ...]] = []
+
+        for raw_path in paths:
+            if isinstance(raw_path, list):
+                segs = []
+                for s in raw_path:
+                    segs.extend(split_node_path(s))
+            else:
+                segs = split_node_path(raw_path)
+            segs = [s for s in segs if s]
+            if not segs:
+                continue
+
+            # Strip domain prefix if present.
+            if segs and segs[0].lower() == str(domain_name).lower():
+                segs = segs[1:]
+
+            # Empty => full domain.
+            if not segs:
+                return flat
+
+            resolved = resolve_requested_subtree(flat, domain_name, segs, cutoff=0.60)
+            if resolved is None:
+                continue
+
+            _dom, prefix = resolved
+            resolved_prefixes.append(prefix)
+
+        if not resolved_prefixes:
+            return flat
+
+        # Filter and de-duplicate features across selected prefixes.
+        selected: List[dict] = []
+        seen = set()
+        for feat in flat:
+            if not isinstance(feat, dict):
+                continue
+            path = feat.get("path_in_hierarchy") or []
+            if not isinstance(path, list):
+                continue
+
+            if any(path_is_prefix(prefix, path) for prefix in resolved_prefixes):
+                key = (feat.get("feature_id") or feat.get("field_name") or feat.get("feature"), tuple(path))
+                if key in seen:
+                    continue
+                seen.add(key)
+                selected.append(feat)
+
+        if not selected:
+            # Fail-safe: never return empty slices.
+            return flat
+
+        # Rebuild nested structure to preserve hierarchy.
+        root: Dict[str, Any] = {}
+        for feat in selected:
+            path = feat.get("path_in_hierarchy") or []
+            cur = root
+            for seg in path:
+                if seg is None:
+                    continue
+                seg_s = str(seg)
+                if not seg_s:
+                    continue
+                if seg_s not in cur or not isinstance(cur.get(seg_s), dict):
+                    cur[seg_s] = {}
+                cur = cur[seg_s]
+            cur.setdefault("_leaves", []).append(feat)
+
+        return root
 
     def _extract_single_path_case_insensitive(self, data: Any, path: List[str]) -> Any:
         """Traverse data using path segments with case-insensitive matching."""
@@ -530,8 +656,8 @@ class PlanExecutor:
             ]
         
         # Truncate long strings
-        if isinstance(data, str) and len(data) > 500:
-            return data[:500] + "...[truncated]"
+        if isinstance(data, str) and len(data) > 5000:
+            return data[:5000] + "...[truncated]"
         
         return data
     

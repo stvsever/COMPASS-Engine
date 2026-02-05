@@ -8,6 +8,8 @@ import json
 from typing import Dict, Any, Optional, List
 
 from .base_tool import BaseTool
+from multi_agent_system.utils.toon import json_to_toon
+from multi_agent_system.utils.token_packer import truncate_text_by_tokens
 
 
 class MultimodalNarrativeCreator(BaseTool):
@@ -39,6 +41,7 @@ class MultimodalNarrativeCreator(BaseTool):
         
         # Get dependency outputs (from previous unimodal compression)
         dep_outputs = input_data.get("dependency_outputs", {})
+        domain_data = input_data.get("domain_data", {}) or {}
         
         # Get hierarchical deviation and non-numerical data (always passed)
         hierarchical_deviation = input_data.get("hierarchical_deviation", {})
@@ -59,14 +62,27 @@ class MultimodalNarrativeCreator(BaseTool):
                 
                 prompt_parts.append(f"\n### {domain}")
                 prompt_parts.append(f"Narrative: {narrative}")
-                prompt_parts.append(f"Key abnormalities: {json.dumps(abnormalities)[:500]}")
+                abn_text = json.dumps(abnormalities, indent=2, default=str)
+                abn_text = truncate_text_by_tokens(abn_text, 800, model_hint="gpt-5")
+                prompt_parts.append(f"Key abnormalities (evidence):\n```json\n{abn_text}\n```")
+
+        # Include raw domain_data if the orchestrator passed subtrees directly.
+        if domain_data:
+            prompt_parts.append(f"\n## RAW MULTIMODAL SUBTREES (IF PROVIDED)")
+            for dom in domains:
+                if dom not in domain_data:
+                    continue
+                toon = json_to_toon(domain_data[dom])
+                toon = truncate_text_by_tokens(toon, 2500, model_hint="gpt-5")
+                prompt_parts.append(f"\n### {dom} (TOON)")
+                prompt_parts.append(f"```text\n{toon}\n```")
         
         prompt_parts.extend([
             f"\n## HIERARCHICAL DEVIATION PROFILE (ALWAYS INCLUDED)",
             self._summarize_deviation(hierarchical_deviation),
             
             f"\n## NON-NUMERICAL DATA (ALWAYS INCLUDED)",
-            non_numerical_data[:1500] if non_numerical_data else "No non-numerical data",
+            truncate_text_by_tokens(non_numerical_data or "No non-numerical data", 2000, model_hint="gpt-5"),
             
             "\n## TASK",
             f"Create an integrated narrative across {', '.join(domains)}.",

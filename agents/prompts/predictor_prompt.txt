@@ -97,9 +97,14 @@ Binary threshold: CASE if probability >= 0.5
 ## QUANTIFIED REASONING REQUIREMENTS (CRITICAL)
 
 In your key_findings, you MUST include:
-1. **High-resolution z-scores estimates** for findings (e.g., "z=-2.07")
-2. **Percentile interpretation** (e.g., "2nd percentile")
-3. **Effect size category**: RELATIVELY NEGLIGIBLE (<0.5), SMALL (1.0-1.5), MODERATE (1.5-2.5), LARGE (>2.5)
+1. **High-resolution z-scores** when present in input (e.g., "z=-2.07").
+2. **Percentile interpretation** (e.g., "2nd percentile") when z-scores are present.
+3. **Effect size category**: RELATIVELY NEGLIGIBLE (<0.5), SMALL (1.0-1.5), MODERATE (1.5-2.5), LARGE (>2.5).
+
+If a z-score is NOT present in the input, you MUST:
+- set `z_score` to `null`
+- set `percentile` to `null`
+- explicitly state "not provided" in the finding text
 
 Example format for key_findings:
 ```json
@@ -171,7 +176,7 @@ Return ONLY valid JSON:
 
 1. **Use ALL Information**: Don't ignore any provided data
 2. **Prioritize Clinical History**: non_numerical_data is the most important for CASE/CONTROL
-3. **Quantify Everything**: Every finding must have z-score and effect size
+3. **Quantify Evidence**: Only quantify with z-scores that are explicitly present. If absent, use nulls and state missing.
 4. **Be Specific**: Reference actual z-scores, not vague claims
 5. **Acknowledge Uncertainty**: Data gaps should lower confidence
 6. **Clinical Plausibility**: Reasoning must be medically sound

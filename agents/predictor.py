@@ -12,6 +12,8 @@ from datetime import datetime
 
 from .base_agent import BaseAgent
 from ..config.settings import get_settings
+from ..utils.toon import json_to_toon
+from ..utils.token_packer import truncate_text_by_tokens
 from ..data.models.prediction_result import (
     PredictionResult,
     KeyFinding,
@@ -108,6 +110,13 @@ class Predictor(BaseAgent):
     ) -> str:
         """Build user prompt with all fused data."""
         predictor_input = executor_output.get("predictor_input", {})
+
+        # Token-aware section truncation (prompt budget heuristic).
+        max_in = int(getattr(self.settings.token_budget, "max_agent_input_tokens", 20000) or 20000)
+        tool_budget = int(max_in * 0.35)
+        dev_budget = int(max_in * 0.30)
+        mm_budget = int(max_in * 0.45)
+        notes_budget = int(max_in * 0.35)
         
         prompt_parts = [
             "## FUSED ANALYSIS OUTPUTS",
@@ -134,25 +143,53 @@ class Predictor(BaseAgent):
         # Inject RAW TOOL OUTPUTS if available (User Request for transparency)
         raw_tool_outputs = predictor_input.get("tool_outputs_raw")
         if raw_tool_outputs:
+            tool_text = json.dumps(raw_tool_outputs, indent=2, default=str)
+            tool_text = truncate_text_by_tokens(tool_text, tool_budget, model_hint="gpt-5")
             prompt_parts.extend([
                 f"\n## DETAILED TOOL OUTPUTS (RAW - UNFILTERED)",
                 f"Use this raw data to confirm findings. Note: Truncated to fit context if very large.",
-                json.dumps(raw_tool_outputs, indent=2, default=str)[:60000]
+                tool_text
             ])
             
+        dev_raw = predictor_input.get("hierarchical_deviation_raw", predictor_input.get("hierarchical_deviation_summary", "Not available"))
+        dev_text = json_to_toon(dev_raw) if isinstance(dev_raw, (dict, list)) else str(dev_raw)
+        dev_text = truncate_text_by_tokens(dev_text, dev_budget, model_hint="gpt-5")
+
+        mm_raw = (
+            predictor_input.get("multimodal_unprocessed_raw")
+            or predictor_input.get("multimodal_context_boost")
+            or predictor_input.get("unprocessed_multimodal_data_raw")
+        )
+        mm_text = json_to_toon(mm_raw) if isinstance(mm_raw, (dict, list)) else str(mm_raw or "Not available")
+        mm_text = truncate_text_by_tokens(mm_text, mm_budget, model_hint="gpt-5")
+
+        notes_raw = predictor_input.get("non_numerical_data_raw", predictor_input.get("non_numerical_summary", "Not available"))
+        notes_text = truncate_text_by_tokens(str(notes_raw), notes_budget, model_hint="gpt-5")
+
+        data_overview = executor_output.get("data_overview")
+        overview_text = ""
+        if data_overview:
+            overview_text = truncate_text_by_tokens(
+                json.dumps(data_overview, indent=2, default=str),
+                int(max_in * 0.15),
+                model_hint="gpt-5",
+            )
+
         prompt_parts.extend([
+            f"\n## DATA OVERVIEW (COVERAGE / TOKENS)",
+            overview_text or "Not available",
+
             f"\n## HIERARCHICAL DEVIATION PROFILE (RAW DATA)",
             # Try raw key first, fall back to summary
-            str(predictor_input.get("hierarchical_deviation_raw", predictor_input.get("hierarchical_deviation_summary", "Not available")))[:20000],
+            dev_text,
             
             f"\n## MULTIMODAL DATA (CONTEXT - RAW)",
-            # Use the "unprocessed_multimodal_data_raw" key which now contains FILLED data
-            str(predictor_input.get("unprocessed_multimodal_data_raw", "Not available"))[:50000], 
+            mm_text,
 
             
             f"\n## NON-NUMERICAL DATA (CLINICAL NOTES - CRITICAL)",
             # Try raw key first, fall back to summary
-            str(predictor_input.get("non_numerical_data_raw", predictor_input.get("non_numerical_summary", "Not available"))),
+            notes_text,
             
             f"\n## TARGET (neuropsychiatric) CONDITION",
             f"Predict: {target_condition}",

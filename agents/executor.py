@@ -56,6 +56,7 @@ class Executor(BaseAgent):
         
         # Build execution context
         context = self._build_context(participant_data, target_condition)
+        context["iteration"] = getattr(plan, "iteration", 1)
         
         print(f"[Executor] Plan ID: {plan.plan_id}")
         print(f"[Executor] Total steps: {plan.total_steps}")
@@ -125,6 +126,7 @@ class Executor(BaseAgent):
             "step_outputs": execution_result.step_outputs,
             
             # Always include these
+            "data_overview": context.get("data_overview"),
             "hierarchical_deviation": context.get("hierarchical_deviation"),
             "non_numerical_data": context.get("non_numerical_data"),
             
@@ -164,7 +166,29 @@ class Executor(BaseAgent):
         # Get multimodal data as dict
         multimodal_dict = {}
         if hasattr(participant_data.multimodal_data, 'features'):
-            multimodal_dict = participant_data.multimodal_data.features
+            # `MultimodalData.features` may contain Pydantic FeatureValue objects.
+            # Downstream logic (subtree slicing, RAG, JSON serialization) expects plain dicts.
+            features_by_domain = participant_data.multimodal_data.features or {}
+            for domain_name, domain_features in features_by_domain.items():
+                # Legacy formats may already store nested dicts; preserve them.
+                if not isinstance(domain_features, list):
+                    multimodal_dict[domain_name] = domain_features
+                    continue
+
+                serial: list = []
+                for feat in domain_features:
+                    if isinstance(feat, dict):
+                        serial.append(feat)
+                    elif hasattr(feat, "model_dump"):  # Pydantic v2
+                        serial.append(feat.model_dump())
+                    elif hasattr(feat, "dict"):  # Pydantic v1
+                        serial.append(feat.dict())
+                    elif hasattr(feat, "__dict__"):
+                        serial.append(dict(feat.__dict__))
+                    else:
+                        serial.append({"value": str(feat)})
+
+                multimodal_dict[domain_name] = serial
         
         context = {
             "participant_id": participant_data.participant_id,

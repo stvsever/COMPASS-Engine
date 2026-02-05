@@ -9,6 +9,8 @@ from typing import Dict, Any, Optional, List
 
 from .base_tool import BaseTool
 from multi_agent_system.utils.toon import json_to_toon
+from multi_agent_system.utils.path_utils import split_node_path, normalize_segment
+from multi_agent_system.utils.token_packer import truncate_text_by_tokens
 
 
 class UnimodalCompressor(BaseTool):
@@ -41,16 +43,18 @@ class UnimodalCompressor(BaseTool):
         target = input_data.get("target_condition", "neuropsychiatric")
         parameters = input_data.get("parameters", {})
         compression_ratio = parameters.get("compression_ratio", 5)
-        node_paths = input_data.get("parameters", {}).get("node_paths", [])
+        node_paths = (parameters.get("node_paths") or []) or []
         # Backward compatibility for single node_path
-        if not node_paths and "node_path" in input_data.get("parameters", {}):
-            single_path = input_data.get("parameters", {}).get("node_path")
+        if not node_paths and "node_path" in parameters:
+            single_path = parameters.get("node_path")
             if single_path:
                 node_paths = [single_path] if isinstance(single_path, str) else single_path
 
         domain_label = f"{domain}"
         if node_paths:
-            paths_str = ", ".join(["_".join(p) if isinstance(p, list) else str(p) for p in node_paths])
+            paths_str = ", ".join(
+                ["|".join(split_node_path(p)) if not isinstance(p, list) else "|".join(split_node_path(p)) for p in node_paths]
+            )
             domain_label = f"{domain} (Focus: {paths_str})"
         
         # Get domain data
@@ -87,6 +91,24 @@ class UnimodalCompressor(BaseTool):
         domain_data_toon = json_to_toon(serializable_domain_data)
         deviation_toon = json_to_toon(serializable_deviation)
 
+        # Token-aware packing (avoid blunt character slicing).
+        from multi_agent_system.config.settings import LLMBackend
+        if self.settings.models.backend == LLMBackend.LOCAL:
+            ctx_max = int(self.settings.models.local_max_tokens or 2048)
+            prompt_budget = max(512, int(ctx_max * 0.6))
+        else:
+            ctx_max = 128000
+
+            # Reserve space for the model completion + headers.
+            overhead = 4000
+            completion_reserve = int(self.settings.models.tool_max_tokens or 24000)
+            prompt_budget = max(4000, int(ctx_max * 0.9) - overhead - min(completion_reserve, int(ctx_max * 0.3)))
+        domain_budget = int(prompt_budget * 0.6)
+        deviation_budget = int(prompt_budget * 0.35)
+
+        domain_data_toon = truncate_text_by_tokens(domain_data_toon, domain_budget, model_hint="gpt-5")
+        deviation_toon = truncate_text_by_tokens(deviation_toon, deviation_budget, model_hint="gpt-5")
+
         prompt_parts = [
             f"## DOMAIN TO COMPRESS: {domain_label}",
             f"\n## TARGET CONDITION: {target}",
@@ -95,10 +117,10 @@ class UnimodalCompressor(BaseTool):
             f"\n## DOMAIN DATA (TOON Format)",
             f"Note: Values are GAMLSS-normalized Z-scores (Mean=0, SD=1).",
             f"Interpretation: |Z| > 0.5 is Deviant. |Z| > 2.0 is Abnormal.",
-            f"```text\n{domain_data_toon[:32000]}\n```",
+            f"```text\n{domain_data_toon}\n```",
             
             f"\n## HIERARCHICAL DEVIATION FOR THIS DOMAIN (TOON Format)",
-            f"```text\n{deviation_toon[:32000]}\n```",
+            f"```text\n{deviation_toon}\n```",
             
             "\n## TASK",
             f"Compress the {domain} domain data into a token-efficient clinical summary.",
@@ -167,9 +189,9 @@ class UnimodalCompressor(BaseTool):
             if not segments:
                 return current_node
             
-            target = segments[0].upper()
+            target = normalize_segment(segments[0])
             children = current_node.get("children", [])
-            child_map = {c.get("node_name", "").upper(): c for c in children}
+            child_map = {normalize_segment(c.get("node_name", "")): c for c in children}
             
             # Try exact match
             if target in child_map:
@@ -183,7 +205,7 @@ class UnimodalCompressor(BaseTool):
             # FALLBACK: Try search in ALL descendants if it's a leaf segment
             if len(segments) == 1:
                 def deep_search(node, name):
-                    if node.get("node_name", "").upper() == name:
+                    if normalize_segment(node.get("node_name", "")) == name:
                         return node
                     for c in node.get("children", []):
                         found = deep_search(c, name)
@@ -197,7 +219,7 @@ class UnimodalCompressor(BaseTool):
                 # Try fuzzy deep search (flatten names)
                 all_node_names = {}
                 def collect_names(node):
-                    name = node.get("node_name", "").upper()
+                    name = normalize_segment(node.get("node_name", ""))
                     if name: all_node_names[name] = node
                     for c in node.get("children", []): collect_names(c)
                 
@@ -211,10 +233,10 @@ class UnimodalCompressor(BaseTool):
         # Process each requested path
         added_nodes = set()
         for path in node_paths:
-            segments = path if isinstance(path, list) else str(path).split(":")
+            segments = path if isinstance(path, list) else split_node_path(path)
             
             # Remove domain name from start if present
-            if segments and segments[0].upper() == domain.upper():
+            if segments and normalize_segment(segments[0]) == normalize_segment(domain):
                 segments = segments[1:]
             
             match = fuzzy_find_node(domain_root, segments)
@@ -252,9 +274,9 @@ class UnimodalCompressor(BaseTool):
             # Extract last segment of each path
             labels = []
             for p in node_paths:
-                segments = p if isinstance(p, list) else str(p).split(":")
+                segments = p if isinstance(p, list) else split_node_path(p)
                 # If segment[0] is domain, skip it
-                if segments and segments[0].upper() == domain.upper():
+                if segments and normalize_segment(segments[0]) == normalize_segment(domain):
                     segments = segments[1:]
                 if segments:
                     labels.append(segments[-1]) # Use leaf name

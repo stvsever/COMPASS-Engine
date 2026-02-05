@@ -22,6 +22,7 @@ from ..data.models.prediction_result import (
 )
 from ..data.models.execution_plan import PlanExecutionResult
 from ..utils.json_parser import parse_json_response
+from ..utils.token_packer import truncate_text_by_tokens
 
 logger = logging.getLogger("compass.critic")
 
@@ -111,6 +112,11 @@ class Critic(BaseAgent):
         non_numerical_data: str = None
     ) -> str:
         """Build user prompt for critic evaluation."""
+
+        max_in = int(getattr(self.settings.token_budget, "max_agent_input_tokens", 20000) or 20000)
+        pred_input_budget = int(max_in * 0.45)
+        dev_budget = int(max_in * 0.30)
+        notes_budget = int(max_in * 0.25)
         
         # Format prediction summary
         prediction_summary = {
@@ -160,14 +166,27 @@ class Critic(BaseAgent):
         
         for domain, cov in coverage_summary.items():
             prompt_parts.append(f"  - {domain}: {cov['coverage']:.1f}%")
+
+        # Provide the Critic with the actual fused input used by the Predictor (evidence traceability).
+        predictor_input = executor_output.get("predictor_input", {}) or {}
+        predictor_input_text = truncate_text_by_tokens(
+            json.dumps(predictor_input, indent=2, default=str),
+            pred_input_budget,
+            model_hint="gpt-5",
+        )
+        prompt_parts.extend([
+            f"\n## PREDICTOR INPUT (EVIDENCE SNAPSHOT)",
+            f"Use this to verify whether cited findings are present in the provided context.",
+            f"```json\n{predictor_input_text}\n```",
+        ])
         
         prompt_parts.extend([
             f"\n## HIERARCHICAL DEVIATION PROFILE (INPUT DATA)",
             f"Note: This is the mean aggregated hierarchy of the multi-modal data. Use this to verify if cited findings exist.",
-            str(hierarchical_deviation)[:4000] + "..." if hierarchical_deviation else "Not provided",
+            truncate_text_by_tokens(str(hierarchical_deviation) if hierarchical_deviation else "Not provided", dev_budget, model_hint="gpt-5"),
             
             f"\n## NON-NUMERICAL CLINICAL NOTES",
-            str(non_numerical_data)[:3000] + "..." if non_numerical_data else "Not provided",
+            truncate_text_by_tokens(str(non_numerical_data) if non_numerical_data else "Not provided", notes_budget, model_hint="gpt-5"),
             
             f"\n## TARGET CONDITION",
             prediction.target_condition,
@@ -335,4 +354,3 @@ class Critic(BaseAgent):
 
 
 from ..config.settings import get_settings
-

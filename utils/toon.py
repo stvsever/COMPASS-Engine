@@ -41,14 +41,20 @@ def json_to_toon(data: Any, indent_level: int = 0, indent_str: str = "  ") -> st
                 val_str = f"[{', '.join(str(v) for v in value)}]"
                 lines.append(f"{current_indent}{key}: {val_str}")
                 
-            # Special case for COMPASS 'FeatureValue' objects (common in our schemas)
-            elif isinstance(value, list) and all(isinstance(x, dict) and 'feature' in x and 'z_score' in x for x in value):
+            # Special case for COMPASS feature leaf objects
+            # - raw UKB leaves: {'feature': ..., 'z_score': ...}
+            # - DataLoader flattened: {'field_name': ..., 'z_score': ...}
+            elif isinstance(value, list) and all(
+                isinstance(x, dict) and ('feature' in x or 'field_name' in x) and 'z_score' in x
+                for x in value
+            ):
                 # Serialize feature list compactly:
                 # FeatureName: 1.23, FeatureTwo: -0.5
                 lines.append(f"{current_indent}{key}:")
                 item_strs = []
                 for item in value:
-                    v_str = f"{item['feature']}: {item['z_score']}"
+                    feat_name = item.get("feature") or item.get("field_name") or "unknown"
+                    v_str = f"{feat_name}: {item.get('z_score')}"
                     item_strs.append(v_str)
                 
                 # Split into multi-line if too long

@@ -23,6 +23,12 @@
             --success-glow: rgba(16, 185, 129, 0.2);
             --warning: #f59e0b;
             --danger: #ef4444;
+            --case: #f59e0b;
+            --control: #38bdf8;
+            --verdict_ok: #60a5fa;
+            --verdict_ok_glow: rgba(96, 165, 250, 0.22);
+            --verdict_bad: #f59e0b;
+            --verdict_bad_glow: rgba(245, 158, 11, 0.20);
             --text-main: #fafafa;
             --text-muted: #a1a1aa;
             --font-main: 'Inter', sans-serif;
@@ -791,6 +797,175 @@
             }
         }
 
+        /* VERDICT PANEL */
+        .prediction-hero {
+            background: #0d0d12;
+            border: 1px solid #27272a;
+            border-radius: 12px;
+            padding: 1.5rem;
+            margin-top: 20px;
+            position: relative;
+            overflow: hidden;
+        }
+
+        .verdict-grid {
+            display: grid;
+            grid-template-columns: repeat(2, minmax(0, 1fr));
+            gap: 1rem;
+        }
+
+        .verdict-card {
+            background: #121218;
+            border: 1px solid #27272a;
+            border-radius: 10px;
+            padding: 1rem 1.1rem;
+        }
+
+        .verdict-title {
+            font-size: 0.7rem;
+            text-transform: uppercase;
+            letter-spacing: 0.08em;
+            color: var(--text-muted);
+            margin-bottom: 0.5rem;
+            font-weight: 600;
+        }
+
+        .verdict-value {
+            font-size: 1.6rem;
+            font-weight: 700;
+            margin-bottom: 0.4rem;
+        }
+
+        .verdict-sub {
+            font-size: 0.85rem;
+            color: var(--text-muted);
+            line-height: 1.4;
+        }
+
+        .verdict-badge {
+            display: inline-flex;
+            align-items: center;
+            gap: 6px;
+            padding: 3px 8px;
+            border-radius: 999px;
+            font-size: 0.65rem;
+            font-weight: 700;
+            letter-spacing: 0.08em;
+            text-transform: uppercase;
+            border: 1px solid #333;
+            color: #d4d4d8;
+            background: #0b0b10;
+        }
+
+        .verdict-badge.good {
+            border-color: var(--verdict_ok);
+            color: var(--verdict_ok);
+            box-shadow: 0 0 12px var(--verdict_ok_glow);
+        }
+
+        .verdict-badge.bad {
+            border-color: var(--verdict_bad);
+            color: var(--verdict_bad);
+            box-shadow: 0 0 12px var(--verdict_bad_glow);
+        }
+
+        .verdict-checklist {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 6px;
+            margin-top: 0.6rem;
+        }
+
+        .check-pill {
+            font-size: 0.65rem;
+            padding: 2px 7px;
+            border-radius: 999px;
+            border: 1px solid #333;
+            color: #a1a1aa;
+            background: #0a0a0c;
+        }
+
+        .check-pill.pass {
+            border-color: var(--success);
+            color: var(--success);
+            background: rgba(16, 185, 129, 0.08);
+        }
+
+        .check-pill.fail {
+            border-color: var(--danger);
+            color: var(--danger);
+            background: rgba(239, 68, 68, 0.08);
+        }
+
+        .verdict-actions {
+            display: flex;
+            justify-content: flex-end;
+            margin-top: 1rem;
+        }
+
+        /* CRITIC TOAST */
+        .critic-toast {
+            position: fixed;
+            top: 74px;
+            right: 20px;
+            width: 380px;
+            background: #0f0f13;
+            border: 1px solid #2f2f37;
+            border-left: 4px solid var(--verdict_bad);
+            border-radius: 12px;
+            padding: 1rem 1.1rem;
+            z-index: 1100;
+            box-shadow: 0 20px 35px rgba(0, 0, 0, 0.45);
+            opacity: 0;
+            transform: translateY(-12px);
+            pointer-events: none;
+            transition: opacity 0.25s ease, transform 0.25s ease;
+        }
+
+        .critic-toast.active {
+            opacity: 1;
+            transform: translateY(0);
+            pointer-events: auto;
+        }
+
+        .toast-header {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            margin-bottom: 0.6rem;
+        }
+
+        .toast-title {
+            font-weight: 700;
+            font-size: 0.85rem;
+            letter-spacing: 0.05em;
+            text-transform: uppercase;
+            color: #fcd34d;
+        }
+
+        .toast-close {
+            background: none;
+            border: none;
+            color: #71717a;
+            cursor: pointer;
+            font-size: 1rem;
+        }
+
+        .toast-body {
+            font-size: 0.8rem;
+            color: #d4d4d8;
+            line-height: 1.5;
+        }
+
+        .toast-meta {
+            margin-top: 0.6rem;
+            display: flex;
+            gap: 10px;
+            flex-wrap: wrap;
+            font-size: 0.7rem;
+            color: #a1a1aa;
+        }
+
         #global-progress {
             position: absolute;
             bottom: 0;
@@ -897,17 +1072,36 @@
 
     <!-- RESULT MODAL (DE-BRIEF) -->
     <div id="result-modal" class="modal-overlay">
-        <div class="glass-panel" style="text-align:center; border: 1px solid var(--success);">
-            <i class="fas fa-check-circle" style="font-size: 4rem; color: var(--success); margin-bottom: 1rem;"></i>
+        <div class="glass-panel" id="result-panel" style="text-align:center; border: 1px solid var(--verdict_ok);">
+            <i class="fas fa-check-circle" id="result-icon"
+                style="font-size: 4rem; color: var(--verdict_ok); margin-bottom: 1rem;"></i>
             <h2 style="margin-bottom:0.5rem;">MISSION DE-BRIEF</h2>
+            <div id="final-verdict" class="verdict-badge" style="margin: 0.6rem auto 1rem auto;">Pending</div>
+            <div
+                style="display:flex; justify-content:center; gap:12px; font-size:0.8rem; color:#a1a1aa; margin-bottom:1rem;">
+                <span>Probability: <strong id="final-probability" style="color:#fff;">--</strong></span>
+                <span>Iterations: <strong id="final-iterations" style="color:#fff;">--</strong></span>
+            </div>
             <div id="final-summary"
-                style="background:#18181b; padding:1.5rem; border-radius:8px; margin:1.5rem 0; font-family:var(--font-mono); font-size:0.9rem; line-height:1.6; text-align:left; border-left:4px solid var(--success);">
+                style="background:#18181b; padding:1.5rem; border-radius:8px; margin:1.5rem 0; font-family:var(--font-mono); font-size:0.9rem; line-height:1.6; text-align:left; border-left:4px solid var(--verdict_ok);">
                 Computing final summary...
             </div>
-            <button class="btn-launch" onclick="closeResultModal()" style="background:var(--success);">
+            <div id="final-checklist" class="verdict-checklist" style="justify-content:center; margin-bottom:1rem;">
+            </div>
+            <button class="btn-launch" onclick="closeResultModal()" style="background:var(--primary);">
                 Review Mission Data
             </button>
         </div>
+    </div>
+
+    <!-- CRITIC UNSATISFACTORY TOAST -->
+    <div id="critic-toast" class="critic-toast">
+        <div class="toast-header">
+            <div class="toast-title">Critic: UNSATISFACTORY</div>
+            <button class="toast-close" onclick="dismissCriticToast()"><i class="fas fa-times"></i></button>
+        </div>
+        <div id="critic-toast-body" class="toast-body">Awaiting critic feedback...</div>
+        <div id="critic-toast-meta" class="toast-meta"></div>
     </div>
 
     <!-- MAIN HEADER -->
@@ -1048,17 +1242,27 @@
             </div>
 
             <!-- PREDICTION HERO -->
-            <div id="prediction-hero" class="prediction-hero"
-                style="display:none; text-align:center; margin-top:20px; padding:20px; border:1px solid #333; border-radius:10px;">
-                <span class="verdict-badge">Assessment Complete</span>
-                <div class="verdict-line" id="final-verdict-text">--</div>
-                <div style="font-size: 1.1rem; color: var(--text-muted);">
-                    Confidence Level: <span style="color:white; font-weight:600;" id="final-confidence">--</span>
+            <div id="prediction-hero" class="prediction-hero" style="display:none;">
+                <div class="verdict-grid">
+                    <div class="verdict-card">
+                        <div class="verdict-title">Prediction Output</div>
+                        <div class="verdict-value" id="prediction-label">--</div>
+                        <div class="verdict-sub">Probability: <strong id="prediction-prob">--</strong></div>
+                        <div class="verdict-sub">Confidence: <strong id="prediction-conf">--</strong></div>
+                    </div>
+                    <div class="verdict-card">
+                        <div class="verdict-title">Critic Verdict</div>
+                        <div class="verdict-value" id="critic-verdict">--</div>
+                        <div class="verdict-sub" id="critic-summary">Awaiting critic evaluation...</div>
+                        <div class="verdict-checklist" id="critic-checklist"></div>
+                    </div>
                 </div>
+            <div class="verdict-actions">
                 <button onclick="document.getElementById('result-modal').classList.add('active')"
-                    style="margin-top:10px; background:none; border:1px solid var(--success); color:var(--success); padding:6px 12px; border-radius:4px; cursor:pointer;">
+                    style="background:none; border:1px solid var(--verdict_ok); color:var(--verdict_ok); padding:6px 12px; border-radius:4px; cursor:pointer;">
                     View De-brief
                 </button>
+            </div>
             </div>
 
         </main>
@@ -1084,6 +1288,7 @@
         let latestEventId = 0;
         let isRunning = false;
         let autoScrollTimeline = true;
+        let autoScrollLogs = true;
         let startTime = null;
         let currentIteration = 1;
         let hasShownResultModal = false;
@@ -1168,13 +1373,13 @@
 
         function toggleLogScroll() {
             autoScrollLogs = !autoScrollLogs;
-            document.getElementById('btn-log-scroll').textContent = autoScrollLogs ? 'AUTO: OFF' : 'AUTO: ON';
+            document.getElementById('btn-log-scroll').textContent = autoScrollLogs ? 'AUTO: ON' : 'AUTO: OFF';
         }
 
         function toggleTimelineScroll() {
             autoScrollTimeline = !autoScrollTimeline;
             const btn = document.getElementById('btn-timeline-scroll');
-            btn.textContent = autoScrollTimeline ? 'AUTO-FOLLOW: OFF' : 'AUTO-FOLLOW: ON';
+            btn.textContent = autoScrollTimeline ? 'AUTO-FOLLOW: ON' : 'AUTO-FOLLOW: OFF';
             btn.style.opacity = autoScrollTimeline ? '1' : '0.5';
         }
 
@@ -1188,6 +1393,115 @@
         function closeResultModal() {
             document.getElementById('result-modal').classList.remove('active');
             switchTab('results'); loadResults();
+        }
+
+        function dismissCriticToast() {
+            const toast = document.getElementById('critic-toast');
+            toast.classList.remove('active');
+        }
+
+        function escapeHtml(text) {
+            if (!text) return '';
+            return text
+                .replace(/&/g, "&amp;")
+                .replace(/</g, "&lt;")
+                .replace(/>/g, "&gt;")
+                .replace(/\"/g, "&quot;")
+                .replace(/\'/g, "&#039;");
+        }
+
+        function normalizeClassification(raw) {
+            if (!raw) return 'UNKNOWN';
+            const upper = String(raw).toUpperCase();
+            if (upper.includes('CONTROL')) return 'CONTROL';
+            if (upper.includes('CASE')) return 'CASE';
+            return String(raw).trim();
+        }
+
+        const CHECKLIST_LABELS = {
+            has_binary_outcome: "Binary outcome",
+            valid_probability: "Valid probability",
+            sufficient_coverage: "Coverage",
+            evidence_based_reasoning: "Evidence-based",
+            clinically_relevant: "Clinical relevance",
+            logically_coherent: "Coherence",
+            critical_domains_processed: "Critical domains"
+        };
+
+        function buildChecklistPills(checklist, compact = true) {
+            if (!checklist) return '';
+            const entries = Object.keys(CHECKLIST_LABELS).map(key => ({
+                key,
+                label: CHECKLIST_LABELS[key],
+                pass: Boolean(checklist[key])
+            }));
+            const passCount = entries.filter(e => e.pass).length;
+            const total = entries.length || 7;
+            const failed = entries.filter(e => !e.pass);
+
+            let pills = `<span class="check-pill ${failed.length ? 'fail' : 'pass'}">${passCount}/${total} checks</span>`;
+            const list = compact ? failed : entries;
+            if (list.length === 0 && !compact) {
+                return pills;
+            }
+            list.forEach(item => {
+                const cls = item.pass ? 'pass' : 'fail';
+                const label = item.pass ? `✓ ${item.label}` : `✗ ${item.label}`;
+                pills += `<span class="check-pill ${cls}">${label}</span>`;
+            });
+            return pills;
+        }
+
+        function showCriticToast(criticData) {
+            if (!criticData || criticData.verdict !== 'UNSATISFACTORY') return;
+            const toast = document.getElementById('critic-toast');
+            const title = toast.querySelector('.toast-title');
+            const body = document.getElementById('critic-toast-body');
+            const meta = document.getElementById('critic-toast-meta');
+
+            title.textContent = `Critic: ${criticData.verdict}`;
+            title.style.color = 'var(--verdict_bad)';
+
+            const summary = criticData.summary || 'Critic found issues requiring re-orchestration.';
+            const weaknesses = (criticData.weaknesses || []).slice(0, 2);
+            const suggestions = (criticData.improvement_suggestions || []).slice(0, 1);
+
+            const weaknessText = weaknesses.length ? `Key issues: ${escapeHtml(weaknesses.join(' | '))}` : '';
+            let suggestionLabel = '';
+            if (suggestions.length) {
+                const sugg = suggestions[0];
+                if (typeof sugg === 'string') {
+                    suggestionLabel = sugg;
+                } else {
+                    suggestionLabel = sugg.issue || sugg.suggestion || '';
+                }
+            }
+            const suggestionText = suggestionLabel ? `Fix: ${escapeHtml(suggestionLabel)}` : '';
+
+            body.innerHTML = `
+                <div>${escapeHtml(summary)}</div>
+                ${weaknessText ? `<div style="margin-top:6px;">${weaknessText}</div>` : ''}
+                ${suggestionText ? `<div style="margin-top:6px;">${suggestionText}</div>` : ''}
+                <div style="margin-top:6px;">${buildChecklistPills(criticData.checklist, true)}</div>
+            `;
+
+            const metaItems = [];
+            const lastState = window.__lastState || {};
+            if (lastState.iteration && lastState.max_iterations) {
+                metaItems.push(`Iteration: ${lastState.iteration}/${lastState.max_iterations}`);
+            }
+            if (typeof criticData.composite_score === 'number') {
+                metaItems.push(`Score: ${criticData.composite_score.toFixed(2)}`);
+            }
+            if (typeof criticData.passed === 'number' && typeof criticData.total === 'number') {
+                metaItems.push(`Checklist: ${criticData.passed}/${criticData.total}`);
+            }
+            metaItems.push('Re-orchestrating...');
+            meta.innerHTML = metaItems.map(m => `<span>${escapeHtml(m)}</span>`).join('');
+
+            toast.classList.add('active');
+            clearTimeout(window.__criticToastTimer);
+            window.__criticToastTimer = setTimeout(() => toast.classList.remove('active'), 6500);
         }
 
         function renderSteps(steps, currentStage) {
@@ -1357,6 +1671,16 @@
                 const res = await fetch(`/api/snapshot?since_id=${latestEventId}`);
                 const data = await res.json();
                 const state = data.state;
+                window.__lastState = state;
+
+                // Reset client-side session flags when a new pipeline run starts.
+                const sessionKey = `${state.participant_id || ''}|${state.start_time || ''}`;
+                if (window.__sessionKey && sessionKey !== window.__sessionKey) {
+                    startTime = null;
+                    hasShownResultModal = false;
+                    currentIteration = state.iteration || 1;
+                }
+                window.__sessionKey = sessionKey;
 
                 // Store plans globally for the click handler
                 window.lastPlans = state.plans;
@@ -1367,7 +1691,7 @@
 
                 // Timer
                 if (state.start_time && !startTime) startTime = new Date();
-                if (startTime && state.status !== "Pipeline Completed") {
+                if (startTime && !state.completed && state.status !== "Pipeline Completed") {
                     const diff = Math.floor((new Date() - startTime) / 1000);
                     const m = Math.floor(diff / 60).toString().padStart(2, '0');
                     const s = (diff % 60).toString().padStart(2, '0');
@@ -1375,7 +1699,15 @@
                 }
 
                 // Global Progress & Completion Check
-                if (state.status === "Pipeline Completed" || state.status.includes("Mission Complete")) {
+                const maxIters = state.max_iterations || 1;
+                const iterNow = state.iteration || 1;
+                const criticIter = state.critic && state.critic.iteration ? state.critic.iteration : null;
+                const isFinalCritic = state.critic && (
+                    state.critic.verdict === 'SATISFACTORY' ||
+                    (criticIter !== null ? criticIter >= maxIters : false)
+                );
+
+                if (state.completed || state.status === "Pipeline Completed" || state.status.includes("Mission Complete") || isFinalCritic) {
                     if (isRunning) {
                         isRunning = false;
                         document.getElementById('session-status').textContent = "Mission Complete";
@@ -1408,12 +1740,44 @@
                     renderPlan(state.plans, state.iteration);
                 }
 
-                // Prediction Result
-                if (state.prediction) {
+                // Prediction + Critic Summary Panel
+                if (state.prediction || state.critic) {
                     document.getElementById('prediction-hero').style.display = 'block';
-                    document.getElementById('final-verdict-text').textContent = state.prediction.result;
-                    document.getElementById('final-confidence').textContent = (state.prediction.prob * 100).toFixed(1) + "%";
-                    document.getElementById('status-dot').style.color = state.prediction.result === 'CASE' ? 'var(--danger)' : 'var(--success)';
+                } else {
+                    document.getElementById('prediction-hero').style.display = 'none';
+                    document.getElementById('prediction-label').textContent = '--';
+                    document.getElementById('prediction-prob').textContent = '--';
+                    document.getElementById('prediction-conf').textContent = '--';
+                    document.getElementById('critic-verdict').textContent = '--';
+                    document.getElementById('critic-summary').textContent = 'Awaiting critic evaluation...';
+                    document.getElementById('critic-checklist').innerHTML = '';
+                }
+
+                if (state.prediction) {
+                    const label = state.prediction.label || normalizeClassification(state.prediction.result);
+                    document.getElementById('prediction-label').textContent = label;
+                    document.getElementById('prediction-prob').textContent = (state.prediction.prob * 100).toFixed(1) + "%";
+                    document.getElementById('prediction-conf').textContent = state.prediction.confidence || '--';
+                    document.getElementById('prediction-label').style.color = label === 'CASE' ? 'var(--case)' : (label === 'CONTROL' ? 'var(--control)' : 'var(--text-main)');
+                }
+
+                if (state.critic) {
+                    const verdict = state.critic.verdict || '--';
+                    document.getElementById('critic-verdict').textContent = verdict;
+                    document.getElementById('critic-verdict').style.color = verdict === 'SATISFACTORY' ? 'var(--verdict_ok)' : 'var(--verdict_bad)';
+                    document.getElementById('critic-summary').textContent = state.critic.summary || 'No critic summary provided.';
+                    document.getElementById('critic-checklist').innerHTML = buildChecklistPills(state.critic.checklist, true);
+
+                    const verdictBadge = document.getElementById('final-verdict');
+                    verdictBadge.textContent = verdict;
+                    verdictBadge.classList.remove('good', 'bad');
+                    verdictBadge.classList.add(verdict === 'SATISFACTORY' ? 'good' : 'bad');
+
+                    const statusDot = document.getElementById('status-dot');
+                    statusDot.style.color = verdict === 'SATISFACTORY' ? 'var(--verdict_ok)' : 'var(--verdict_bad)';
+                } else if (state.prediction) {
+                    const label = state.prediction.label || normalizeClassification(state.prediction.result);
+                    document.getElementById('status-dot').style.color = label === 'CASE' ? 'var(--case)' : (label === 'CONTROL' ? 'var(--control)' : 'var(--text-main)');
                 }
 
                 // Reset modal flag if iteration changes
@@ -1423,12 +1787,34 @@
                 }
 
                 // Result Modal (Mission De-brief)
-                // Trigger if we have a summary and the pipeline is actually finished
-                const isFinished = state.status === 'Pipeline Completed' || state.status === 'Mission Complete' || (state.prediction && state.current_stage >= 5);
-
-                if (state.critic_summary && !hasShownResultModal && isFinished) {
+                // Trigger when critic verdict is FINAL (SATISFACTORY or last iteration reached).
+                if (state.critic && !hasShownResultModal && isFinalCritic) {
                     hasShownResultModal = true;
-                    document.getElementById('final-summary').textContent = state.critic_summary;
+                    const summary = state.critic.summary || state.critic_summary || 'No critic summary provided.';
+                    document.getElementById('final-summary').textContent = summary;
+                    document.getElementById('final-probability').textContent = state.completion && state.completion.probability !== undefined
+                        ? (state.completion.probability * 100).toFixed(1) + "%"
+                        : (state.prediction ? (state.prediction.prob * 100).toFixed(1) + "%" : "--");
+                    document.getElementById('final-iterations').textContent = state.completion && state.completion.iterations
+                        ? state.completion.iterations
+                        : (state.iteration || '--');
+                    document.getElementById('final-checklist').innerHTML = buildChecklistPills(state.critic.checklist, false);
+
+                    const resultPanel = document.getElementById('result-panel');
+                    const resultIcon = document.getElementById('result-icon');
+                    const summaryPanel = document.getElementById('final-summary');
+                    if (state.critic.verdict === 'SATISFACTORY') {
+                        resultPanel.style.borderColor = 'var(--verdict_ok)';
+                        resultIcon.className = 'fas fa-check-circle';
+                        resultIcon.style.color = 'var(--verdict_ok)';
+                        summaryPanel.style.borderLeftColor = 'var(--verdict_ok)';
+                    } else {
+                        resultPanel.style.borderColor = 'var(--verdict_bad)';
+                        resultIcon.className = 'fas fa-triangle-exclamation';
+                        resultIcon.style.color = 'var(--verdict_bad)';
+                        summaryPanel.style.borderLeftColor = 'var(--verdict_bad)';
+                    }
+
                     document.getElementById('result-modal').classList.add('active');
                     document.getElementById('session-status').textContent = "Mission Complete";
                     document.getElementById('status-dot').classList.remove('pulse');
@@ -1453,6 +1839,16 @@
                         div.className = 'log-entry';
                         div.innerHTML = `<span class="log-ts">${e.time}</span><span class="log-type type-${e.type}">${e.type}</span> <span>${JSON.stringify(e.data).substring(0, 100)}</span>`;
                         logCon.appendChild(div);
+
+                        if (e.type === 'CRITIC' && e.data && e.data.verdict === 'UNSATISFACTORY') {
+                            const finalIter = e.data.iteration !== undefined && e.data.iteration !== null
+                                ? e.data.iteration
+                                : (state.iteration || 1);
+                            const isFinal = finalIter >= (state.max_iterations || 1);
+                            if (isFinal) {
+                                showCriticToast(e.data);
+                            }
+                        }
                     });
                     if (autoScrollLogs) logCon.scrollTop = logCon.scrollHeight;
                 }

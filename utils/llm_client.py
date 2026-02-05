@@ -317,11 +317,14 @@ class LLMClient:
             # Truncate if necessary (naive truncation, better handled upstream but safety net here)
             if len(text) > 30000:
                 text = text[:30000]
-                
-            response = self.client.embeddings.create(
-                input=text,
-                model=model
-            )
+
+            # Even when the chat backend is LOCAL, embeddings may still use OpenAI.
+            if not hasattr(self, "client") or self.client is None:
+                if not self.api_key:
+                    raise ValueError("OpenAI API key not provided for embeddings")
+                self.client = OpenAI(api_key=self.api_key)
+
+            response = self.client.embeddings.create(input=text, model=model)
             return response.data[0].embedding
         except Exception as e:
             logger.error(f"Embedding generation failed: {str(e)}")

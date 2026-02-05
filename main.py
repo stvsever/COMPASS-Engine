@@ -32,7 +32,6 @@ from multi_agent_system.utils.compass_logging.execution_logger import ExecutionL
 from multi_agent_system.utils.compass_logging.decision_trace import DecisionTrace
 from multi_agent_system.utils.compass_logging.patient_report import PatientReportGenerator
 from multi_agent_system.data.models.prediction_result import Verdict
-from multi_agent_system.data.models.prediction_result import Verdict
 from multi_agent_system.frontend.compass_ui import get_ui, reset_ui, start_ui_loop
 
 
@@ -157,6 +156,12 @@ def run_compass_pipeline(
 
         # Step 5: Predictor makes prediction
         if interactive_ui: ui.set_status("Generating Prediction...", stage=4)
+        if interactive_ui:
+            ui.on_step_start(
+                step_id=910 + iteration,
+                tool_name="Predictor Agent",
+                description="Synthesizing phenotype prediction from fused evidence..."
+            )
 
         prediction = predictor.execute(
             executor_output=executor_output,
@@ -168,6 +173,13 @@ def run_compass_pipeline(
             "classification": prediction.binary_classification.value,
             "probability": prediction.probability_score
         })
+        
+        if interactive_ui:
+            ui.on_prediction(
+                classification=prediction.binary_classification.value,
+                probability=prediction.probability_score,
+                confidence=prediction.confidence_level.value
+            )
         
         decision_trace.record_prediction(
             classification=prediction.binary_classification.value,
@@ -201,20 +213,59 @@ def run_compass_pipeline(
             checklist_total=7,
             reasoning=evaluation.reasoning[:500]
         )
+
+        if interactive_ui:
+            if hasattr(evaluation.checklist, "model_dump"):
+                checklist_data = evaluation.checklist.model_dump()
+            elif hasattr(evaluation.checklist, "dict"):
+                checklist_data = evaluation.checklist.dict()
+            else:
+                checklist_data = {}
+            
+            improvements = []
+            for s in evaluation.improvement_suggestions[:5]:
+                if hasattr(s, "model_dump"):
+                    improvements.append(s.model_dump())
+                elif hasattr(s, "dict"):
+                    improvements.append(s.dict())
+                else:
+                    improvements.append({
+                        "issue": getattr(s, "issue", ""),
+                        "suggestion": getattr(s, "suggestion", ""),
+                        "priority": getattr(s, "priority", "")
+                    })
+            
+            ui.on_critic_verdict(
+                verdict=evaluation.verdict.value,
+                confidence=evaluation.confidence_in_verdict,
+                checklist_passed=evaluation.checklist.pass_count,
+                checklist_total=7,
+                summary=evaluation.concise_summary or evaluation.reasoning[:240],
+                checklist=checklist_data,
+                weaknesses=evaluation.weaknesses[:5],
+                improvement_suggestions=improvements,
+                domains_missed=evaluation.domains_missed[:5],
+                composite_score=evaluation.composite_score,
+                score_breakdown=evaluation.score_breakdown,
+                iteration=iteration
+            )
         
         final_prediction = prediction
         final_evaluation = evaluation
         
-        # Check if satisfactory
+        # Check if satisfactory / decide on re-orchestration
         if evaluation.verdict == Verdict.SATISFACTORY:
             print(f"\n✓ Prediction deemed SATISFACTORY by Critic")
             break
-        else:
-            print(f"\n✗ Prediction deemed UNSATISFACTORY by Critic")
-            if iteration < max_iterations:
-                print(f"  Re-orchestrating with critic feedback...")
-                previous_feedback = _format_feedback(evaluation)
-            iteration += 1
+
+        print(f"\n✗ Prediction deemed UNSATISFACTORY by Critic")
+        if iteration >= max_iterations:
+            # Final attempt reached; do not increment `iteration` (keeps accurate count for reports/UI).
+            break
+
+        print(f"  Re-orchestrating with critic feedback...")
+        previous_feedback = _format_feedback(evaluation)
+        iteration += 1
     
     # Generate final report
     print(f"\n{'='*70}")
@@ -300,6 +351,15 @@ def run_compass_pipeline(
             "duration_seconds": duration
         }
     )
+
+    if interactive_ui:
+        ui.on_pipeline_complete(
+            result=final_prediction.binary_classification.value,
+            probability=final_prediction.probability_score,
+            iterations=iteration,
+            total_duration_secs=duration,
+            total_tokens=token_usage.get("total_tokens", 0)
+        )
     
     print(f"\n{'='*70}")
     print(f"  COMPASS PIPELINE COMPLETE")
@@ -582,7 +642,7 @@ Examples:
                 # Small delay to ensure server is up before first event
                 def auto_launch():
                     time.sleep(2)
-                    launch_wrapper(participant_id, target_condition)
+                    launch_wrapper({"id": participant_id, "target": target_condition})
                 threading.Thread(target=auto_launch, daemon=True).start()
 
             start_ui_loop(launch_wrapper)

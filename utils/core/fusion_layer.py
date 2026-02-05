@@ -12,6 +12,7 @@ import numpy as np
 import hashlib
 import pickle
 from pathlib import Path
+from concurrent.futures import ThreadPoolExecutor, as_completed
 
 from ...config.settings import get_settings
 from ..llm_client import get_llm_client
@@ -23,6 +24,10 @@ import hashlib
 import os
 import pickle
 from pathlib import Path
+import difflib
+import re
+
+from ..path_utils import split_node_path, resolve_requested_subtree, path_is_prefix, normalize_segment
 
 # Define 128k context limit and 90% threshold
 
@@ -45,6 +50,7 @@ class FusionResult:
     skipped_fusion: bool = False
     raw_multimodal_data: Optional[Dict[str, Any]] = None
     raw_step_outputs: Optional[Dict[int, Dict[str, Any]]] = None
+    context_fill_report: Optional[Dict[str, Any]] = None
 
 
 
@@ -105,23 +111,117 @@ class FusionLayer:
 
         print(f"\n[FusionLayer] Smart Fusion initiated. Threshold: {self.threshold:,} tokens")
         
-        # 1. Identify processed domains/subtrees
-        processed_domains = set()
-        for output in step_outputs.values():
-            if not output: continue
-            if "domain" in output:
-                # Handle sub-domains (e.g., BRAIN_MRI:structural -> BRAIN_MRI)
-                domain_name = output["domain"].split(':')[0]
-                processed_domains.add(domain_name)
-                
-        print(f"[FusionLayer] Processed top-level domains: {processed_domains}")
+        # 1. Identify processed domains/subtrees (subtree-aware, purely lexical).
+        processed_whole_domains: Set[str] = set()
+        processed_prefixes_by_domain: Dict[str, Set[Tuple[str, ...]]] = {}
 
-        # 2. Separate multimodal data into PROCESSED (ignore) and UNPROCESSED (keep raw)
-        unprocessed_multimodal = {}
-        for domain, features in multimodal_data.items():
-            # Check if this domain (or a version of it) was processed
-            if domain not in processed_domains:
-                unprocessed_multimodal[domain] = features
+        for output in (step_outputs or {}).values():
+            if not output or not isinstance(output, dict):
+                continue
+            meta = output.get("_step_meta") or {}
+            tool_name = meta.get("tool_name") or output.get("tool_name")
+            if tool_name != "UnimodalCompressor":
+                continue
+
+            input_domains = meta.get("input_domains") or []
+            params = meta.get("parameters") or {}
+
+            node_paths = params.get("node_paths") or []
+            if not node_paths and "node_path" in params:
+                single = params.get("node_path")
+                if single:
+                    node_paths = [single] if isinstance(single, str) else list(single)
+
+            # Fallback to output domain label if planner didn't specify input_domains.
+            if not input_domains:
+                dom_label = output.get("domain") or ""
+                if dom_label:
+                    input_domains = [str(dom_label).split(":")[0]]
+
+            for dom in input_domains:
+                dom = str(dom)
+                # Normalize inline paths (e.g., "BRAIN_MRI|structural|morphology") to base domain.
+                dom_segs = split_node_path(dom)
+                if dom_segs:
+                    dom = dom_segs[0]
+                dom_features = multimodal_data.get(dom)
+
+                if not node_paths:
+                    processed_whole_domains.add(dom)
+                    continue
+
+                # Only resolve subtrees for flattened feature lists.
+                if not isinstance(dom_features, list):
+                    # Can't resolve; treat as processed domain to avoid double-counting.
+                    processed_whole_domains.add(dom)
+                    continue
+
+                for raw_path in node_paths:
+                    segs = split_node_path(raw_path) if not isinstance(raw_path, list) else [str(s) for s in raw_path]
+                    segs = [s for s in segs if s]
+                    if not segs:
+                        continue
+
+                    # Strip domain prefix if present.
+                    if normalize_segment(segs[0]) == normalize_segment(dom):
+                        segs = segs[1:]
+
+                    # Empty => whole domain.
+                    if not segs:
+                        processed_whole_domains.add(dom)
+                        continue
+
+                    resolved = resolve_requested_subtree(dom_features, dom, segs, cutoff=0.60)
+                    if resolved is None:
+                        # Fail-safe: do NOT exclude raw data if we can't resolve the requested subtree.
+                        continue
+                    _d, prefix = resolved
+                    processed_prefixes_by_domain.setdefault(dom, set()).add(prefix)
+
+        processed_domains = set(processed_whole_domains) | set(processed_prefixes_by_domain.keys())
+        print(f"[FusionLayer] Processed domains (subtree-aware): {processed_domains}")
+
+        # 2. Separate multimodal data into PROCESSED (exclude) and UNPROCESSED (keep raw).
+        unprocessed_multimodal: Dict[str, Any] = {}
+        excluded_features_by_domain: Dict[str, List[dict]] = {}
+
+        for domain, features in (multimodal_data or {}).items():
+            # Domains not represented as flattened lists are passed through as-is.
+            if not isinstance(features, list):
+                if domain not in processed_whole_domains:
+                    unprocessed_multimodal[domain] = features
+                continue
+
+            # Whole-domain processed: exclude all leaves for this domain.
+            if domain in processed_whole_domains:
+                excluded_features_by_domain[domain] = [f for f in features if isinstance(f, dict)]
+                continue
+
+            prefixes = list(processed_prefixes_by_domain.get(domain, set()))
+            if not prefixes:
+                # Unprocessed domain: keep everything.
+                unprocessed_multimodal[domain] = self._features_to_nested_tree(features)
+                continue
+
+            kept: List[dict] = []
+            excluded: List[dict] = []
+            for feat in features:
+                if not isinstance(feat, dict):
+                    continue
+                path = feat.get("path_in_hierarchy") or []
+                if not isinstance(path, list):
+                    kept.append(feat)
+                    continue
+
+                if any(path_is_prefix(prefix, path) for prefix in prefixes):
+                    excluded.append(feat)
+                else:
+                    kept.append(feat)
+
+            if kept:
+                unprocessed_multimodal[domain] = self._features_to_nested_tree(kept)
+            if excluded:
+                excluded_features_by_domain[domain] = excluded
         
         # 3. Estimate tokens
         # Raw Data Components
@@ -156,13 +256,25 @@ class FusionLayer:
             
             # Context Filling: Add back PROCESSED raw data using Semantic RAG (Lowest Priority)
             remaining_tokens = self.threshold - total_tokens
-            filled_multimodal = self._fill_context_with_rag(
+            phenotype_text = self._build_phenotype_text(step_outputs, target_condition)
+            filled_multimodal, fill_report = self._fill_context_with_rag(
                 remaining_tokens=remaining_tokens,
-                multimodal_data=multimodal_data,
+                candidate_features_by_domain=excluded_features_by_domain,
                 current_unprocessed=unprocessed_multimodal,
-                target_condition=target_condition,
-                processed_domains=list(processed_domains)
+                phenotype_text=phenotype_text,
             )
+            fill_report = fill_report or {}
+            fill_report["coverage"] = {
+                "processed_whole_domains": sorted(list(processed_whole_domains)),
+                "processed_prefixes_by_domain": {
+                    dom: [list(p) for p in sorted(list(prefixes), key=lambda x: (len(x), str(x)))]
+                    for dom, prefixes in processed_prefixes_by_domain.items()
+                },
+                "excluded_leaf_counts": {dom: len(feats) for dom, feats in excluded_features_by_domain.items()},
+                "unprocessed_leaf_counts": {
+                    dom: len(self._collect_feature_keys(data)) for dom, data in unprocessed_multimodal.items()
+                },
+            }
 
             # Construct a "Pass-Through" FusionResult
             # We still populate summaries from tool outputs but don't do new synthesis
@@ -172,12 +284,19 @@ class FusionLayer:
             domain_data = {}
             for step_id, output in step_outputs.items():
                 if not output: continue
+                if "abnormality_patterns" in output:
+                    findings.extend(output.get("abnormality_patterns") or [])
                 if "key_abnormalities" in output:
                     findings.extend(output["key_abnormalities"])
                 if "key_findings" in output:
                     findings.extend(output["key_findings"])
-                if "domain" in output and "summary" in output:
-                    domain_data[output["domain"]] = output["summary"]
+                if "domain" in output:
+                    if "domain_synthesis" in output:
+                        domain_data[output["domain"]] = output["domain_synthesis"]
+                    elif "summary" in output:
+                        domain_data[output["domain"]] = output["summary"]
+                    elif "clinical_narrative" in output:
+                        domain_data[output["domain"]] = output["clinical_narrative"]
 
             return FusionResult(
                 fused_narrative="Raw pass-through mode: detailed synthesis skipped in favor of raw data integrity.",
@@ -186,10 +305,11 @@ class FusionLayer:
                 cross_modal_patterns=[], # No cross-modal analysis done without LLM
                 evidence_summary={"for_case": [], "for_control": []},
                 tokens_used=0,
-                source_outputs=list(step_outputs.keys()),
+                source_outputs=[str(k) for k in (step_outputs or {}).keys()],
                 skipped_fusion=True,
                 raw_multimodal_data=filled_multimodal,
-                raw_step_outputs=step_outputs
+                raw_step_outputs=step_outputs,
+                context_fill_report=fill_report,
             )
         else:
             print(f"[FusionLayer] ⚠ OVER THRESHOLD - PERFORMING LLM FUSION to compress.")
@@ -317,34 +437,63 @@ Please fuse these outputs into a unified representation. PRESERVE all clinical n
             cross_modal_patterns=result_json.get("cross_modal_patterns", []),
             evidence_summary=result_json.get("evidence_summary", {"for_case": [], "for_control": []}),
             tokens_used=response.total_tokens,
-            source_outputs=list(step_outputs.keys())
+            source_outputs=[str(k) for k in (step_outputs or {}).keys()]
         )
 
         
         # --- POST-FUSION BACKFILL LOGIC ---
         # Did we compress too much? If so, fill with RAG.
-        # Estimate current size
-        current_tokens = response.total_tokens + 2000 # Overhead buffer
-        remaining_buffer = self.threshold - current_tokens
+        # Estimate remaining space based on the actual Predictor payload size (not the fusion call size).
+        baseline = FusionResult(
+            fused_narrative=fusion_result.fused_narrative,
+            domain_summaries=fusion_result.domain_summaries,
+            key_findings=fusion_result.key_findings,
+            cross_modal_patterns=fusion_result.cross_modal_patterns,
+            evidence_summary=fusion_result.evidence_summary,
+            tokens_used=fusion_result.tokens_used,
+            source_outputs=fusion_result.source_outputs,
+            skipped_fusion=False,
+            raw_multimodal_data=None,
+            raw_step_outputs=fusion_result.raw_step_outputs,
+            context_fill_report=None,
+        )
+        baseline_payload = self.compress_for_predictor(
+            fusion_result=baseline,
+            hierarchical_deviation=hierarchical_deviation,
+            non_numerical_data=non_numerical_data,
+        )
+        baseline_tokens = len(self.encoder.encode(json.dumps(baseline_payload, default=str)))
+        remaining_buffer = self.threshold - baseline_tokens
         
         if remaining_buffer > 2000 and multimodal_data:
             print(f"[FusionLayer] Post-Compression Space Available: {remaining_buffer} tokens. Initiating Smart Backfill.")
             
-            # For backfill, we consider ALL domains as candidates since we compressed everything
-            all_domains = list(multimodal_data.keys())
-            
-            rag_filled_data = self._fill_context_with_rag(
+            phenotype_text = self._build_phenotype_text(step_outputs, target_condition)
+
+            # For backfill, we consider ALL multimodal domains as candidates.
+            candidate_features_by_domain: Dict[str, List[dict]] = {}
+            for dom, dom_data in multimodal_data.items():
+                if isinstance(dom_data, list):
+                    candidate_features_by_domain[dom] = [f for f in dom_data if isinstance(f, dict)]
+                elif isinstance(dom_data, dict):
+                    # Flatten nested UKB format to leaf dicts.
+                    flat = [feat for feat, _ in self._flatten_multimodal_features(dom_data, parents=[dom])]
+                    candidate_features_by_domain[dom] = [f for f in flat if isinstance(f, dict)]
+                else:
+                    continue
+
+            rag_filled_data, fill_report = self._fill_context_with_rag(
                 remaining_tokens=remaining_buffer,
-                multimodal_data=multimodal_data,
-                current_unprocessed={}, # Start fresh
-                target_condition=target_condition,
-                processed_domains=all_domains
+                candidate_features_by_domain=candidate_features_by_domain,
+                current_unprocessed={},  # Start fresh
+                phenotype_text=phenotype_text,
             )
             
             # Attach this backfilled data to the FusionResult so compress_for_predictor can include it
             if rag_filled_data:
                  print(f"[FusionLayer] ✓ Smart Backfill successful. Enhancing context for Predictor.")
                  fusion_result.raw_multimodal_data = rag_filled_data
+                 fusion_result.context_fill_report = fill_report
         
         
         print(f"[FusionLayer] ✓ Fusion complete - {len(fusion_result.key_findings)} key findings")
@@ -425,16 +574,21 @@ Please fuse these outputs into a unified representation. PRESERVE all clinical n
                 # Raw Data
                 "hierarchical_deviation_raw": hierarchical_deviation,
                 "non_numerical_data_raw": non_numerical_data,
-                "multimodal_context_boost": fusion_result.raw_multimodal_data,
+                # Canonical multimodal key + backward-compatible aliases
+                "multimodal_unprocessed_raw": fusion_result.raw_multimodal_data,
+                "multimodal_context_boost": fusion_result.raw_multimodal_data,  # legacy alias
+                "unprocessed_multimodal_data_raw": fusion_result.raw_multimodal_data,  # legacy alias
                 
                 # Tool Outputs (preserved)
-                "tool_findings": fusion_result.key_findings,
-                "tool_summaries": fusion_result.domain_summaries,
+                "key_findings": fusion_result.key_findings,
+                "domain_summaries": fusion_result.domain_summaries,
                 "tool_outputs_raw": fusion_result.raw_step_outputs,
+                "context_fill_report": fusion_result.context_fill_report,
                 
                 # Placeholder for schema compatibility
                 "fused_narrative": "Raw data provided - see raw fields.",
                 "evidence_summary": fusion_result.evidence_summary,
+                "cross_modal_patterns": [],
             }
         else:
             # COMPRESSED MODE (Legacy)
@@ -448,6 +602,7 @@ Please fuse these outputs into a unified representation. PRESERVE all clinical n
                 "key_findings": fusion_result.key_findings[:15],
                 "cross_modal_patterns": fusion_result.cross_modal_patterns[:8],
                 "evidence_summary": fusion_result.evidence_summary,
+                "context_fill_report": fusion_result.context_fill_report,
                 
                 # Still pass critical raw data
                 "hierarchical_deviation_raw": hierarchical_deviation,
@@ -455,7 +610,9 @@ Please fuse these outputs into a unified representation. PRESERVE all clinical n
                 
                 # Note: No multimodal raw in this mode as it was too big
                 # UNLESS: We performed Post-Fusion Backfill
-                "multimodal_context_boost": fusion_result.raw_multimodal_data
+                "multimodal_unprocessed_raw": fusion_result.raw_multimodal_data,
+                "multimodal_context_boost": fusion_result.raw_multimodal_data,  # legacy alias
+                "unprocessed_multimodal_data_raw": fusion_result.raw_multimodal_data,  # legacy alias
             }
         
         print(f"[FusionLayer] ✓ Final predictor input ready")
@@ -469,6 +626,120 @@ Please fuse these outputs into a unified representation. PRESERVE all clinical n
             return json.dumps(deviation, indent=2, default=str)[:200000]
         except:
             return str(deviation)[:200000]
+
+    def _build_phenotype_text(self, step_outputs: Dict[int, Dict[str, Any]], target_condition: str) -> str:
+        """
+        Build phenotype text used for RAG semantic scoring.
+
+        Prefer PhenotypeRepresentation tool output (if present), otherwise fall back
+        to `target_condition`.
+        """
+        try:
+            for out in (step_outputs or {}).values():
+                if not isinstance(out, dict):
+                    continue
+                tool_name = out.get("tool_name") or (out.get("_step_meta") or {}).get("tool_name")
+                if tool_name != "PhenotypeRepresentation":
+                    continue
+
+                phenotype_summary = out.get("phenotype_summary") or ""
+                biomarker = out.get("biomarker_signature") or {}
+                abnormal_domains = biomarker.get("abnormal_domains") or []
+                pattern_interp = biomarker.get("pattern_interpretation") or ""
+
+                parts = [
+                    f"Target: {target_condition}",
+                    phenotype_summary,
+                ]
+                if abnormal_domains:
+                    parts.append("Abnormal domains: " + ", ".join(str(d) for d in abnormal_domains))
+                if pattern_interp:
+                    parts.append(pattern_interp)
+                text = "\n".join(p for p in parts if p and str(p).strip()).strip()
+                return text or str(target_condition)
+        except Exception:
+            pass
+
+        return str(target_condition)
+
+    def _features_to_nested_tree(self, features: List[dict]) -> Dict[str, Any]:
+        """Convert flattened features (with path_in_hierarchy) into a nested dict tree."""
+        root: Dict[str, Any] = {}
+        for feat in features or []:
+            if not isinstance(feat, dict):
+                continue
+            path = feat.get("path_in_hierarchy") or []
+            if not isinstance(path, list):
+                path = []
+            cur = root
+            for seg in path:
+                if seg is None:
+                    continue
+                seg_s = str(seg)
+                if not seg_s:
+                    continue
+                if seg_s not in cur or not isinstance(cur.get(seg_s), dict):
+                    cur[seg_s] = {}
+                cur = cur[seg_s]
+            cur.setdefault("_leaves", []).append(feat)
+        return root
+
+    def _insert_feature_into_tree(self, tree: Dict[str, Any], feat: dict) -> None:
+        """Insert a single feature dict into an existing nested tree."""
+        if not isinstance(tree, dict) or not isinstance(feat, dict):
+            return
+        path = feat.get("path_in_hierarchy") or []
+        if not isinstance(path, list):
+            path = []
+        cur = tree
+        for seg in path:
+            if seg is None:
+                continue
+            seg_s = str(seg)
+            if not seg_s:
+                continue
+            if seg_s not in cur or not isinstance(cur.get(seg_s), dict):
+                cur[seg_s] = {}
+            cur = cur[seg_s]
+        cur.setdefault("_leaves", []).append(feat)
+
+    def _collect_feature_keys(self, domain_data: Any) -> Set[Tuple[str, Tuple[str, ...]]]:
+        """Collect feature keys (id/name + path) already present to avoid duplicates."""
+        keys: Set[Tuple[str, Tuple[str, ...]]] = set()
+
+        def add_feat(f: dict):
+            if not isinstance(f, dict):
+                return
+            fid = f.get("feature_id") or f.get("field_name") or f.get("feature") or "unknown"
+            path = f.get("path_in_hierarchy") or []
+            if not isinstance(path, list):
+                path = []
+            keys.add((str(fid), tuple(str(p) for p in path)))
+
+        def walk(obj: Any):
+            if isinstance(obj, list):
+                for it in obj:
+                    if isinstance(it, dict):
+                        # flattened features
+                        if "field_name" in it or "feature" in it:
+                            add_feat(it)
+                        else:
+                            walk(it)
+                    else:
+                        walk(it)
+                return
+            if isinstance(obj, dict):
+                if "_leaves" in obj and isinstance(obj["_leaves"], list):
+                    for lf in obj["_leaves"]:
+                        add_feat(lf)
+                for k, v in obj.items():
+                    if k == "_leaves":
+                        continue
+                    if isinstance(v, (dict, list)):
+                        walk(v)
+
+        walk(domain_data)
+        return keys
 
     def _get_cached_embedding(self, text: str, cache_dir: Path) -> List[float]:
         """Get embedding from cache or generate new one."""
@@ -498,89 +769,231 @@ Please fuse these outputs into a unified representation. PRESERVE all clinical n
     def _fill_context_with_rag(
         self,
         remaining_tokens: int,
-        multimodal_data: Dict[str, Any],
+        candidate_features_by_domain: Dict[str, List[dict]],
         current_unprocessed: Dict[str, Any],
-        target_condition: str,
-        processed_domains: List[str]
-    ) -> Dict[str, Any]:
+        phenotype_text: str,
+        max_prefilter: int = 2500,
+    ) -> Tuple[Dict[str, Any], Dict[str, Any]]:
         """
         Fill remaining context window with highest-relevance raw features using Semantic RAG.
         """
-        filled_multimodal = current_unprocessed.copy()
-        added_domains = []
-        
-        if not processed_domains:
-            print(f"  > RAG: No processed domains to backfill.")
-            return filled_multimodal
-            
-        print(f"  > RAG: Checking {len(processed_domains)} processed domains for backfill candidates...")
+        filled_multimodal: Dict[str, Any] = dict(current_unprocessed or {})
+        report: Dict[str, Any] = {
+            "added_count": 0,
+            "added_tokens": 0,
+            "per_domain": {},
+            "top_added": [],
+            "semantic_backend": "openai_embeddings",
+        }
+
+        if remaining_tokens <= 0:
+            return filled_multimodal, report
+
+        if not candidate_features_by_domain:
+            print("  > RAG: No candidates provided for backfill.")
+            return filled_multimodal, report
+
+        # Collect existing keys to avoid duplicates.
+        present_keys_by_domain: Dict[str, Set[Tuple[str, Tuple[str, ...]]]] = {}
+        for dom, dom_data in filled_multimodal.items():
+            present_keys_by_domain[dom] = self._collect_feature_keys(dom_data)
+
+        def feature_breadcrumb(dom: str, feat: dict) -> str:
+            feat_name = feat.get("feature") or feat.get("field_name") or "unknown"
+            path = feat.get("path_in_hierarchy") or []
+            if not isinstance(path, list):
+                path = []
+            parents = [dom] + [str(p) for p in path if p is not None and str(p).strip()]
+            context_parents = parents[-3:][::-1]
+            return " <- ".join([str(feat_name), *context_parents])
+
+        # 1) Build candidate list with abnormality prefilter.
+        candidates: List[Dict[str, Any]] = []
+        for dom, feats in candidate_features_by_domain.items():
+            if not isinstance(feats, list):
+                continue
+            for feat in feats:
+                if not isinstance(feat, dict):
+                    continue
+
+                # Estimate token cost of injecting this feature.
+                feat_str = json.dumps(feat, default=str)
+                feat_tokens = len(self.encoder.encode(feat_str))
+                if feat_tokens >= remaining_tokens:
+                    continue
+
+                z = feat.get("z_score", None)
+                try:
+                    z_f = float(z) if z is not None else None
+                except Exception:
+                    z_f = None
+
+                abnormality_score = 0.0
+                if z_f is not None:
+                    abnormality_score = min(1.0, abs(z_f) / 3.0)
+
+                name = feat.get("feature") or feat.get("field_name") or "unknown"
+                candidates.append(
+                    {
+                        "domain": str(dom),
+                        "data": feat,
+                        "feature_name": str(name),
+                        "text": feature_breadcrumb(str(dom), feat),
+                        "tokens": feat_tokens,
+                        "abnormality_score": abnormality_score,
+                        "z_score": z_f,
+                    }
+                )
+
+        if not candidates:
+            return filled_multimodal, report
+
+        # Pre-filter to reduce embedding calls.
+        candidates.sort(key=lambda c: c.get("abnormality_score", 0.0), reverse=True)
+        if len(candidates) > max_prefilter:
+            candidates = candidates[:max_prefilter]
+
+        # 2) Semantic ranking with embeddings (fallback to lexical similarity if embeddings unavailable).
+        cache_dir = self.settings.paths.base_dir / ".cache" / "embeddings"
+        cache_dir.mkdir(parents=True, exist_ok=True)
+
+        target_emb = None
         try:
-            # 1. Prepare candidate chunks (Granular Feature Level)
-            candidates = []
-            for domain in processed_domains:
-                if domain in multimodal_data:
-                    print(f"  > RAG: Flattening domain: {domain}")
-                    # Extract all leaf features with breadcrumbs
-                    features_with_keys = self._flatten_multimodal_features(multimodal_data[domain], parents=[domain])
-                    print(f"  > RAG: Found {len(features_with_keys)} candidate features in {domain}")
-                    
-                    for feat, cache_key in features_with_keys:
-                        # Create candidate entry
-                        feat_str = json.dumps(feat, default=str)
-                        feat_tokens = len(self.encoder.encode(feat_str))
-                        
-                        # Only add if it fits remaining individually
-                        if feat_tokens < remaining_tokens:
-                            candidates.append({
-                                "domain": domain,
-                                "data": feat,
-                                "feature_name": feat.get("feature", "unknown"),
-                                "text": cache_key, # Use the breadcrumb string for embedding lookup
-                                "tokens": feat_tokens
-                            })
-            
-            if candidates:
-                # 2. Semantic Ranking
-                # Ensure cache dir exists
-                cache_dir = self.settings.paths.base_dir / ".cache" / "embeddings"
-                cache_dir.mkdir(parents=True, exist_ok=True)
-                
-                # Embed Target
-                target_emb = self._get_cached_embedding(target_condition, cache_dir)
-                
-                scored_candidates = []
-                print(f"  > RAG: Scoring {len(candidates)} feature candidates against target: '{target_condition}'")
-                
-                for cand in candidates:
-                    # Embed candidate text
-                    # Feature embedding is cheap and precise
-                    cand_emb = self._get_cached_embedding(cand["text"], cache_dir)
-                    
-                    # Cosine Similarity
-                    score = np.dot(target_emb, cand_emb) / (np.linalg.norm(target_emb) * np.linalg.norm(cand_emb))
-                    scored_candidates.append((score, cand))
-                
-                # Sort by score desc
-                scored_candidates.sort(key=lambda x: x[0], reverse=True)
-                
-                # 3. Greedy Fill based on Rank
-                for score, cand in scored_candidates:
-                    if cand["tokens"] < remaining_tokens:
-                        filled_multimodal.setdefault(cand["domain"], []).append(cand["data"])
-                        remaining_tokens -= cand["tokens"]
-                        added_domains.append(f"{cand['domain']}:{cand['feature_name']} (sim={score:.3f})")
-                        
-                if added_domains:
-                    print(f"[FusionLayer] RAG Context Fill: Added {len(added_domains)} high-value features to context.")
-                    for d in added_domains[:3]: 
-                        print(f"  + Added: {d}")
-                    if len(added_domains) > 3: print(f"  + ...and {len(added_domains)-3} more.")
-                    
-        except Exception as e:
-            logger.error(f"RAG Context Fill failed: {e}")
-            print(f"[FusionLayer] ⚠ RAG Error: {e}")
-            
-        return filled_multimodal
+            target_emb = self._get_cached_embedding(str(phenotype_text), cache_dir)
+        except Exception:
+            target_emb = None
+            report["semantic_backend"] = "lexical_fallback"
+        else:
+            report["semantic_backend"] = "openai_embeddings"
+
+        def norm_free_text(s: str) -> str:
+            s = str(s or "").lower().replace("_", " ").replace("-", " ")
+            s = re.sub(r"[^\w\s]", " ", s)
+            s = re.sub(r"\s+", " ", s).strip()
+            return s
+
+        scored: List[Tuple[float, float, Dict[str, Any]]] = []
+        phenotype_norm = norm_free_text(str(phenotype_text)[:2000])
+
+        # Precompute candidate embeddings in parallel (cache-aware).
+        candidate_embeddings: Dict[str, Any] = {}
+        embedding_errors = 0
+        if target_emb is not None:
+            unique_texts = sorted({c.get("text") for c in candidates if c.get("text")})
+            if unique_texts:
+                try:
+                    max_workers = int(os.getenv("COMPASS_EMBEDDING_MAX_WORKERS", "200"))
+                except Exception:
+                    max_workers = 200
+                workers = max(1, min(max_workers, len(unique_texts)))
+                report["embedding_workers"] = workers
+
+                def load_one(text: str):
+                    try:
+                        return text, self._get_cached_embedding(text, cache_dir)
+                    except Exception:
+                        return text, None
+
+                with ThreadPoolExecutor(max_workers=workers) as pool:
+                    futures = [pool.submit(load_one, text) for text in unique_texts]
+                    for fut in as_completed(futures):
+                        text, emb = fut.result()
+                        if emb is not None:
+                            candidate_embeddings[text] = emb
+                        else:
+                            embedding_errors += 1
+
+                if embedding_errors:
+                    report["embedding_errors"] = embedding_errors
+                    report["semantic_backend"] = "openai_embeddings_with_fallback"
+
+        for cand in candidates:
+            semantic_score_norm = 0.0
+            semantic_raw = 0.0
+            if target_emb is not None:
+                try:
+                    cand_emb = candidate_embeddings.get(cand["text"])
+                    if cand_emb is None:
+                        raise ValueError("missing_embedding")
+                    denom = (np.linalg.norm(target_emb) * np.linalg.norm(cand_emb))
+                    if denom:
+                        semantic_raw = float(np.dot(target_emb, cand_emb) / denom)
+                    else:
+                        semantic_raw = 0.0
+                    semantic_score_norm = max(0.0, min(1.0, (semantic_raw + 1.0) / 2.0))
+                except Exception:
+                    semantic_score_norm = difflib.SequenceMatcher(None, phenotype_norm, norm_free_text(cand["text"])).ratio()
+            else:
+                semantic_score_norm = difflib.SequenceMatcher(None, phenotype_norm, norm_free_text(cand["text"])).ratio()
+
+            abnormality_score = float(cand.get("abnormality_score", 0.0))
+            combined_score = 0.75 * semantic_score_norm + 0.25 * abnormality_score
+            scored.append((combined_score, semantic_score_norm, cand))
+
+        scored.sort(key=lambda x: x[0], reverse=True)
+
+        # 3) Greedy fill by combined score.
+        added_rows: List[Dict[str, Any]] = []
+        remaining = int(remaining_tokens)
+        per_domain: Dict[str, int] = {}
+
+        for combined, semantic_norm, cand in scored:
+            if cand["tokens"] >= remaining:
+                continue
+
+            dom = cand["domain"]
+            feat = cand["data"]
+            fid = feat.get("feature_id") or feat.get("field_name") or feat.get("feature") or "unknown"
+            path = feat.get("path_in_hierarchy") or []
+            if not isinstance(path, list):
+                path = []
+            key = (str(fid), tuple(str(p) for p in path))
+            if key in present_keys_by_domain.setdefault(dom, set()):
+                continue
+
+            # Ensure domain container is a nested tree.
+            existing = filled_multimodal.get(dom)
+            if isinstance(existing, list):
+                tree = self._features_to_nested_tree([f for f in existing if isinstance(f, dict)])
+                filled_multimodal[dom] = tree
+                existing = tree
+            if existing is None:
+                filled_multimodal[dom] = {}
+                existing = filled_multimodal[dom]
+            if not isinstance(existing, dict):
+                # Can't safely insert; skip.
+                continue
+
+            self._insert_feature_into_tree(existing, feat)
+            present_keys_by_domain[dom].add(key)
+            remaining -= int(cand["tokens"])
+            per_domain[dom] = per_domain.get(dom, 0) + 1
+            report["added_count"] += 1
+            report["added_tokens"] += int(cand["tokens"])
+
+            added_rows.append(
+                {
+                    "domain": dom,
+                    "feature_name": cand.get("feature_name"),
+                    "path_in_hierarchy": path,
+                    "z_score": cand.get("z_score"),
+                    "combined_score": round(float(combined), 4),
+                    "semantic_score_norm": round(float(semantic_norm), 4),
+                    "abnormality_score": round(float(cand.get("abnormality_score", 0.0)), 4),
+                }
+            )
+
+            if remaining < 200:
+                break
+
+        report["per_domain"] = per_domain
+        report["top_added"] = added_rows[:50]
+        report["remaining_tokens"] = remaining
+
+        if report["added_count"]:
+            print(f"[FusionLayer] RAG Context Fill: Added {report['added_count']} features ({report['added_tokens']} tokens).")
+
+        return filled_multimodal, report
 
     def _flatten_multimodal_features(self, subdomain_data: Any, parents: List[str] = None) -> List[Tuple[Dict, str]]:
         """
@@ -596,10 +1009,12 @@ Please fuse these outputs into a unified representation. PRESERVE all clinical n
             feat_name = subdomain_data.get("feature") or subdomain_data.get("field_name")
             if feat_name:
                 # Use provided path if available, otherwise use parents
-                hierarchy = subdomain_data.get("path_in_hierarchy") or parents
-                context_parents = hierarchy[-2:][::-1]
-                parts = [feat_name]
-                parts.extend(context_parents)
+                hierarchy = subdomain_data.get("path_in_hierarchy") or []
+                if not isinstance(hierarchy, list):
+                    hierarchy = []
+                full_parents = list(parents) + [str(p) for p in hierarchy if p is not None and str(p).strip()]
+                context_parents = full_parents[-3:][::-1]
+                parts = [feat_name, *context_parents]
                 cache_key = " <- ".join(parts)
                 features.append((subdomain_data, cache_key))
                 return features
@@ -610,9 +1025,8 @@ Please fuse these outputs into a unified representation. PRESERVE all clinical n
                     if isinstance(leaf, dict):
                         l_name = leaf.get("feature") or leaf.get("field_name")
                         if l_name:
-                            context_parents = parents[-2:][::-1]
-                            parts = [l_name]
-                            parts.extend(context_parents)
+                            context_parents = parents[-3:][::-1]
+                            parts = [l_name, *context_parents]
                             cache_key = " <- ".join(parts)
                             features.append((leaf, cache_key))
             
