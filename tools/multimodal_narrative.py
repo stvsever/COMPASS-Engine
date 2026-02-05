@@ -24,8 +24,8 @@ class MultimodalNarrativeCreator(BaseTool):
         """Validate that required inputs are present."""
         domains = input_data.get("input_domains", [])
         
-        if len(domains) < 2:
-            return "At least 2 domains required for multimodal narrative"
+        if len(domains) < 1:
+            return "At least 1 domain required for narrative creation (multimodal or unimodal fusion)"
         
         if "target_condition" not in input_data:
             return "Missing target_condition"

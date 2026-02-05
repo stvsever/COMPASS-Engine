@@ -44,10 +44,10 @@ class ModelConfig:
     
     # TESTING MODE: All gpt-5-nano
     # PRODUCTION: Change orchestrator/critic/predictor to "gpt-5"
-    orchestrator_model: str = "gpt-5"       # Production: "gpt-5"
-    critic_model: str = "gpt-5"             # Production: "gpt-5"
-    predictor_model: str = "gpt-5"          # Production: "gpt-5"
-    integrator_model: str = "gpt-5"         # Production: "gpt-5"
+    orchestrator_model: str = "gpt-5-nano"       # Production: "gpt-5"
+    critic_model: str = "gpt-5-nano"             # Production: "gpt-5"
+    predictor_model: str = "gpt-5-nano"          # Production: "gpt-5"
+    integrator_model: str = "gpt-5-nano"         # Production: "gpt-5"
     tool_model: str = "gpt-5-nano"          # Always gpt-5-nano
     
     orchestrator_max_tokens: int = 64000
@@ -83,6 +83,12 @@ class TokenBudgetConfig:
     integrator_budget: int = 90000 
     predictor_budget: int = 100000
     critic_budget: int = 50000
+    
+    # Granular controls
+    max_agent_input_tokens: int = 20000   # Max context window for agent prompts
+    max_agent_output_tokens: int = 4096   # Max tokens for agent generation
+    max_tool_input_tokens: int = 20000    # Max input size passed to tools
+    max_tool_output_tokens: int = 15000   # Max output size for tools/compressors
 
 
 @dataclass

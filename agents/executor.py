@@ -74,14 +74,48 @@ class Executor(BaseAgent):
         # Fuse outputs via Integrator Agent
         print(f"\n[Executor] Handing step outputs to Integrator Agent...")
         
-        integration_output = self.integrator.execute(
-            step_outputs=execution_result.step_outputs,
-            context=context,
-            target_condition=target_condition
-        )
+        from ..frontend.compass_ui import get_ui
+        ui = get_ui()
+        fusion_step_id = 900 + context.get("iteration", 1) # Pseudo ID matching UI logic
+        
+        if ui:
+            ui.set_status("Integrator fusing outputs...", stage=3)
+            # Start visual step
+            ui.on_step_start(
+                step_id=fusion_step_id,
+                tool_name="Fusion Layer",
+                description="Integrating domain outputs into unified representation..."
+            )
+
+        try:
+            integration_output = self.integrator.execute(
+                step_outputs=execution_result.step_outputs,
+                context=context,
+                target_condition=target_condition
+            )
+            
+            if ui:
+                ui.on_step_complete(
+                    step_id=fusion_step_id,
+                    tokens=0, 
+                    duration_ms=0, 
+                    preview="Integration complete."
+                )
+                
+        except Exception as e:
+            if ui:
+                ui.on_step_failed(
+                    step_id=fusion_step_id, 
+                    error=str(e)
+                )
+            raise e
         
         fusion_result = integration_output["fusion_result"]
         compressed = integration_output["predictor_input"]
+
+        # Generate prediction status
+        if ui:
+            ui.set_status("Predictor analyzing fused data...", stage=4)
         
         # Build output
         output = {

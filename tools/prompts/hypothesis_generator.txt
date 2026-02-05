@@ -11,7 +11,7 @@ Distinguish between:
 
 ## INPUT
 1. **Abnormality Summary**: Detected deviations across domains
-2. **Target Condition**: "neuropsychiatric" or "neurologic"
+2. **Target Condition**: {target_condition}
 3. **Hierarchical Deviation Profile**: Z-scores and deviation patterns
 4. **Patient Context**: Demographics, relevant history
 

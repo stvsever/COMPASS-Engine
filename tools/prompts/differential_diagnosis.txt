@@ -10,7 +10,7 @@ Distinguish between:
 *Crucial*: Do NOT treat general brain abnormalities as automatic evidence for TARGET.
 
 6. **INPUT**
-1. **Target Condition**: "neuropsychiatric" or "neurologic"
+1. **Target Condition**: {target_condition}
 2. **Phenotype Concept**: The "Gold Standard" definition from PhenotypeRepresentation tool
 3. **Multimodal Narrative**: The ACTUAL patient profile from MultimodalNarrativeCreator
 4. **Hypotheses Generated**: Mechanistic hypotheses

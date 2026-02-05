@@ -33,7 +33,7 @@ from multi_agent_system.utils.compass_logging.decision_trace import DecisionTrac
 from multi_agent_system.utils.compass_logging.patient_report import PatientReportGenerator
 from multi_agent_system.data.models.prediction_result import Verdict
 from multi_agent_system.data.models.prediction_result import Verdict
-from multi_agent_system.utils.compass_ui import get_ui, reset_ui, start_ui_loop
+from multi_agent_system.frontend.compass_ui import get_ui, reset_ui, start_ui_loop
 
 
 def run_compass_pipeline(
@@ -150,13 +150,13 @@ def run_compass_pipeline(
                     tokens=status.get("tokens", 0)
                 )
         
-        # Step 5: Predictor makes prediction
-        if interactive_ui: ui.set_status("Generating Prediction...", stage=3)
-        print(f"\n[5/5] Predictor generating prediction...")
-        
         # Send fused input to UI for inspection
+        # This event sets status to "Fusion Complete", so we must set prediction status AFTER it
         if interactive_ui and "predictor_input" in executor_output:
             ui.on_fusion_complete(executor_output["predictor_input"])
+
+        # Step 5: Predictor makes prediction
+        if interactive_ui: ui.set_status("Generating Prediction...", stage=4)
 
         prediction = predictor.execute(
             executor_output=executor_output,
@@ -177,7 +177,7 @@ def run_compass_pipeline(
         )
         
         # Step 6: Critic evaluates
-        if interactive_ui: ui.set_status("Critic Evaluating...", stage=4)
+        if interactive_ui: ui.set_status("Critic Evaluating...", stage=5)
         print(f"\n[6/6] Critic evaluating prediction...")
         # Pass FULL data overview as dictionary (User Requirement)
         data_overview_dict = participant_data.data_overview.model_dump()
@@ -424,6 +424,33 @@ Examples:
         default=2048,
         help="Max context tokens for local model (default: 2048). Only used if --backend local"
     )
+    
+    # --- TOKEN CONTROLS ---
+    parser.add_argument(
+        "--total_budget",
+        type=int,
+        help="Override total token budget"
+    )
+    parser.add_argument(
+        "--max_agent_input",
+        type=int,
+        help="Max limit for agent input context (Prompt)"
+    )
+    parser.add_argument(
+        "--max_agent_output",
+        type=int,
+        help="Max tokens for agent generation"
+    )
+    parser.add_argument(
+        "--max_tool_input",
+        type=int,
+        help="Max limit for tool input size"
+    )
+    parser.add_argument(
+        "--max_tool_output",
+        type=int,
+        help="Max limit for tool output size"
+    )
     # ---------------------------
     
     args = parser.parse_args()
@@ -511,16 +538,17 @@ Examples:
                 from multi_agent_system.config.settings import get_settings, LLMBackend
                 settings = get_settings()
                 
-                if config.get("backend") == "local":
-                    settings.models.backend = LLMBackend.LOCAL
-                    if config.get("model"):
-                        settings.models.local_model_name = config.get("model")
-                    if config.get("max_tokens"):
-                        settings.models.local_max_tokens = int(config.get("max_tokens"))
-                    print(f"[*] Configured LOCAL backend: {settings.models.local_model_name}")
-                elif config.get("backend") == "openai":
-                    settings.models.backend = LLMBackend.OPENAI
-                    print("[*] Configured OPENAI backend")
+                # Apply Token Limits from UI
+                if config.get("total_budget"):
+                    settings.token_budget.total_budget = int(config.get("total_budget"))
+                if config.get("max_agent_input"):
+                    settings.token_budget.max_agent_input_tokens = int(config.get("max_agent_input"))
+                if config.get("max_agent_output"):
+                    settings.token_budget.max_agent_output_tokens = int(config.get("max_agent_output"))
+                if config.get("max_tool_input"):
+                    settings.token_budget.max_tool_input_tokens = int(config.get("max_tool_input"))
+                if config.get("max_tool_output"):
+                    settings.token_budget.max_tool_output_tokens = int(config.get("max_tool_output"))
 
                 print(f"[*] UI Triggered Launch: {participant_id} -> {target_condition}")
                 
@@ -573,6 +601,18 @@ Examples:
                 print(f"[Init] Switching to LOCAL Backend with model: {args.model}")
             else:
                 settings.models.backend = LLMBackend.OPENAI
+
+            # Apply Token Limits (CLI)
+            if args.total_budget:
+                settings.token_budget.total_budget = args.total_budget
+            if args.max_agent_input:
+                settings.token_budget.max_agent_input_tokens = args.max_agent_input
+            if args.max_agent_output:
+                settings.token_budget.max_agent_output_tokens = args.max_agent_output
+            if args.max_tool_input:
+                settings.token_budget.max_tool_input_tokens = args.max_tool_input
+            if args.max_tool_output:
+                settings.token_budget.max_tool_output_tokens = args.max_tool_output
 
             # Run standard CLI
             result = run_compass_pipeline(

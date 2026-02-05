@@ -79,28 +79,12 @@ class Orchestrator(BaseAgent):
         )
         
         # Get UI instance for granular updates
-        from ..utils.compass_ui import get_ui
+        from ..frontend.compass_ui import get_ui
         ui = get_ui()
         
         print(f"[Orchestrator] Participant: {participant_data.participant_id}")
         
-        # Granular Status Updates (User requested visibility)
-        if hasattr(ui, 'enabled') and ui.enabled:
-             ui.set_status("Analyzing Domain Coverage...", stage=1)
-             time.sleep(0.5) # Slight pause for visual feedback
-             
-             ui.set_status("Synthesizing Feature Importance...", stage=1) 
-             time.sleep(0.5) 
-             
-             ui.set_status("Constructing Execution Plan...", stage=1)
 
-        print(f"[Orchestrator] Target: {target_condition}")
-        print(f"[Orchestrator] Available domains: {participant_data.get_available_domains()}")
-        print(f"[Orchestrator] Iteration: {iteration}")
-        
-        if previous_feedback:
-            print(f"[Orchestrator] Previous feedback: {previous_feedback[:200]}...")
-        
         # Call LLM with auto-repair parsing
         plan_data = self._call_llm(user_prompt)
         
@@ -118,6 +102,11 @@ class Orchestrator(BaseAgent):
             iteration=iteration,
             previous_feedback=previous_feedback
         )
+        
+        # UI Update: Send full plan
+        if hasattr(ui, 'enabled') and ui.enabled:
+             ui.set_status("Constructing Execution Plan...", stage=1)
+             ui.on_plan_created(plan)
 
         
         self._log_complete(
@@ -194,7 +183,7 @@ GUIDANCE:
 - If REQUIRES_COMPRESSION: The Fusion Layer will COMPRESS data. You must plan for efficient summarization.
 
 ### STRATEGY FOR HIGH-VOLUME DOMAINS (Token Optimization)
-If a specific domain (e.g., BRAIN_MRI, GENOMICS) has >15k tokens, DO NOT process the entire domain in one step. Instead, split it into multiple `UnimodalCompressor` steps using the `node_paths` parameter to target specific subtrees. This ensures the output is detailed and avoids max_token limits.
+If a specific domain (e.g., BRAIN_MRI, GENOMICS) often has >5-15k tokens, DO NOT process the entire domain in one step. Instead, split it into multiple `UnimodalCompressor` steps using the `node_paths` parameter to target specific subtrees. This ensures the output is detailed and avoids max_token limits.
 
 **Examples of (granular) Subtree Splitting :**
 
@@ -213,10 +202,9 @@ If a specific domain (e.g., BRAIN_MRI, GENOMICS) has >15k tokens, DO NOT process
      - Step C: UnimodalCompressor(domain='BIOLOGICAL_ASSAY', parameters={{'node_paths': ['BIOLOGICAL_ASSAY:haematology']}})
      - Step D: UnimodalCompressor(domain='BIOLOGICAL_ASSAY', parameters={{'node_paths': ['BIOLOGICAL_ASSAY:serum_biochemistry']}})
 
-#NOTE:
+#NOTES:
 - BUT remember that you always just need to choose the subtrees you want to be compressed that seem to be of too high volume to be passed in a later final step to the (phenotypic) Predictor Agent. ; can also be primary domain ; think for yourself cs it dependes on the data overview at hand.
-- Refer to the available leaves in the DATA OVERVIEW to determine valid paths.
-
+- Refer to the available leaves in the DATA OVERVIEW to determine valid paths! ; you NEED to make your plan based on the available data ; under stand this hierarchial structure of the info that can be used ; do not hallucinate ; give correct subtree specification
 """
 
         # Available tools description
@@ -252,6 +240,7 @@ Return a JSON object with:
   "plan_id": "string",
   "priority_domains": ["domain1", "domain2"],
   "fusion_strategy": "Description of how to combine data",
+  "user_facing_explanation": "Concise 2-sentence summary of the plan for the UI",
   "reasoning": "Explanation of the plan",
   "steps": [
     {
@@ -332,6 +321,7 @@ Return a JSON object with:
             total_estimated_tokens=plan_data.get("total_estimated_tokens", 0),
             priority_domains=plan_data.get("priority_domains", []),
             fusion_strategy=plan_data.get("fusion_strategy", ""),
+            user_facing_explanation=plan_data.get("user_facing_explanation") or f"Execution plan targeting {', '.join(plan_data.get('priority_domains', ['relevant domains']))}.",
             reasoning=plan_data.get("reasoning", ""),
             steps=steps,
             iteration=iteration,

@@ -21,7 +21,7 @@ from ...tools import get_tool
 from .auto_repair import AutoRepair
 # Removed duplicate import
 from .token_manager import TokenManager
-from ..compass_ui import get_ui
+from ...frontend.compass_ui import get_ui
 
 logger = logging.getLogger("compass.plan_executor")
 
@@ -86,7 +86,7 @@ class PlanExecutor:
         print(f"{'='*60}\n")
         
         if self.ui.enabled:
-            self.ui.on_plan_created(plan.plan_id, plan.total_steps, plan.priority_domains)
+            self.ui.on_plan_created(plan)
         
         # Track outputs from completed steps for dependencies
         step_outputs: Dict[int, Dict[str, Any]] = {}

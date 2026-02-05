@@ -13,7 +13,7 @@ import json
 import logging
 import webbrowser
 import queue
-from flask import Flask, render_template_string, jsonify, request, send_file, make_response
+from flask import Flask, render_template, jsonify, request, send_file, make_response
 from flask.json.provider import DefaultJSONProvider
 import os
 from datetime import datetime
@@ -41,10 +41,11 @@ class EventStore:
             "progress": 0,
             "max_steps": 1, 
             "steps": [],
+            "history": [], # Archive of steps from previous iterations
             "prediction": None,
             "latest_update_id": 0,
             "current_stage": -1, # -1: Setup, 0:Init, 1:Plan, 2:Exec, 3:Predict, 4:Evaluate
-            "stages": ["Initialization", "Orchestration", "Execution", "Prediction", "Evaluation"],
+            "stages": ["Initialization", "Orchestration", "Execution", "Integration", "Prediction", "Evaluation"],
             "iteration": 1
         }
 
@@ -78,6 +79,7 @@ class EventStore:
                 self.state["status"] = "Initializing Engine..."
                 self.state["current_stage"] = 0
                 self.state["steps"] = [] 
+                self.state["history"] = []
                 self.state["plans"] = {} # Store plans by iteration
                 
             elif event_type == "PLAN":
@@ -91,6 +93,12 @@ class EventStore:
                 self.state["max_steps"] = data.get("steps", 10)
                 self.state["status"] = f"Orchestrating Plan (Iteration {current_iter})..."
                 self.state["current_stage"] = 1
+                
+                # Archive previous steps steps to history
+                if self.state["steps"]:
+                    # Mark them as historical if needed, or distinct
+                    self.state.setdefault("history", []).extend(self.state["steps"])
+                
                 self.state["steps"] = [] # Clear for new plan steps
                 # Clear previous results to prevent stale modal
                 self.state["prediction"] = None
@@ -142,18 +150,49 @@ class EventStore:
                 self.state["fusion_data"] = data
                 self.state["status"] = "Fusion Complete"
                 self.state["current_stage"] = 3
-            
+                # Step is now handled via explicit STEP_START/COMPLETE in executor
+
             elif event_type == "PREDICTION":
                 self.state["prediction"] = data
                 self.state["status"] = "Prediction Generated"
                 self.state["current_stage"] = 4 
-                
+                # Add virtual step for Predictor
+                self.state["steps"].append({
+                    "id": 910 + self.state["iteration"],
+                    "tool": "Predictor Agent",
+                    "desc": f"Generated prediction: {data.get('result', 'Unknown')} ({data.get('prob', 0):.1%})",
+                    "status": "complete",
+                    "tokens": 0,
+                    "startTime": time.time(),
+                    "duration": 0.5,
+                    "iteration": self.state.get("iteration", 1)
+                })
+
             elif event_type == "CRITIC":
                 self.state["status"] = f"Critic Verdict: {data['verdict']}"
-                self.state["critic_summary"] = data.get("summary", "") # Store concise summary
-                self.state["current_stage"] = 4
+                self.state["critic_summary"] = data.get("summary", "") 
+                self.state["current_stage"] = 5
                 
+                # Determine status based on verdict
+                verdict = data.get('verdict', 'UNKNOWN')
+                is_pass = verdict == 'SATISFACTORY'
+                step_status = "complete" if is_pass else "failed"
+                
+                # Add virtual step for Critic
+                self.state["steps"].append({
+                    "id": 920 + self.state["iteration"],
+                    "tool": "Critic Agent",
+                    "desc": f"Verdict: {verdict}",
+                    "preview": data.get("summary", "No details provided."),
+                    "status": step_status, 
+                    "tokens": 0,
+                    "startTime": time.time(),
+                    "duration": 0.5,
+                    "iteration": self.state.get("iteration", 1)
+                })
+
             elif event_type == "COMPLETE":
+                # Ensure we don't duplicate logic, just set status
                 self.state["status"] = "Pipeline Completed"
                 self.state["progress"] = self.state["max_steps"] 
 
@@ -199,8 +238,12 @@ class CustomJSONEncoder(json.JSONEncoder):
         return super().default(obj)
 
 # --- FLASK APP ---
-app = Flask(__name__)
+template_dir = os.path.abspath(os.path.join(os.path.dirname(__file__), 'templates'))
+static_dir = os.path.abspath(os.path.join(os.path.dirname(__file__), 'static'))
+
+app = Flask(__name__, template_folder=template_dir, static_folder=static_dir)
 app.json_encoder = CustomJSONEncoder
+
 # For newer Flask versions, we might need to override json.provider
 class CustomProvider(DefaultJSONProvider):
     def default(self, obj):
@@ -219,6 +262,7 @@ class CustomProvider(DefaultJSONProvider):
         return super().default(obj)
 
 app.json = CustomProvider(app)
+
 @app.route('/api/inputs')
 def list_inputs():
     p_dir = _event_store.state.get("participant_dir")
@@ -243,14 +287,6 @@ def get_input_content():
     if os.path.exists(path) and os.path.isfile(path):
         return send_file(path)
     return "File not found", 404
-    
-# FLASK APP
-template_dir = os.path.abspath(os.path.join(os.path.dirname(__file__), '../frontend/templates'))
-static_dir = os.path.abspath(os.path.join(os.path.dirname(__file__), '../frontend/static'))
-
-app = Flask(__name__, template_folder=template_dir, static_folder=static_dir)
-log = logging.getLogger('werkzeug')
-log.setLevel(logging.ERROR)
 
 @app.route('/')
 def index():
@@ -271,7 +307,12 @@ def launch():
         "target": data.get('target', 'neuropsychiatric'),
         "backend": data.get('backend'),
         "model": data.get('model'),
-        "max_tokens": data.get('max_tokens')
+        "max_tokens": data.get('max_tokens'),
+        "total_budget": data.get('total_budget'),
+        "max_agent_input": data.get('max_agent_input'),
+        "max_tool_output": data.get('max_tool_output'),
+        "max_agent_output": data.get('max_agent_output'),
+        "max_tool_input": data.get('max_tool_input')
     }
     
     if _launcher_callback:
@@ -283,24 +324,26 @@ def launch():
 @app.route('/api/outputs')
 def list_outputs():
     # List all files in results/participant_{id} if we can know participant ID
-    # Or just list all recent outputs?
-    # Better: List files for the CURRENT participant based on EventStore
     pid = _event_store.state.get("participant_id")
     if not pid or pid == "Unknown":
         return jsonify([])
         
     # Locate results dir
-    # From settings: ../../results
-    base = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
-    # Navigate to results (sibling of project root in original structure, or ../results in new?)
-    # Based on batch_run.py: PROJECT_ROOT.parent / "results"
-    # Current file is in utils/, so root is ../
-    # results is ../../results
+    # From settings: ../../results (based on current location in frontend/ or utils/)
+    # Current file is in frontend/, so root is ../
+    # results is ../results
     
+    base = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+    # results is sibling of multi_agent_system, so project_root (parent of base) joined with results
     results_dir = os.path.join(os.path.dirname(base), "results")
     
     # Try finding folder
     target_dir = None
+    if not os.path.exists(results_dir):
+         # Try creating it or looking at old path relative to project
+         pass
+
+    # Safe fallback if results_dir check fails
     possible_names = [f"participant_{pid}", f"participant_ID{pid}", pid, f"ID{pid}"]
     for name in possible_names:
         path = os.path.join(results_dir, name)
@@ -321,6 +364,7 @@ def get_output_content():
     if not pid : return "No participant active", 400
     
     base = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+    # results is sibling of multi_agent_system, so project_root (parent of base) joined with results
     results_dir = os.path.join(os.path.dirname(base), "results")
     
     # Same logic to find dir

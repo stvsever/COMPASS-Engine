@@ -118,7 +118,10 @@ class UnimodalCompressor(BaseTool):
         """
         Extract specific subtrees matching the provided paths.
         Supports selecting multiple subtrees (e.g. ['BRAIN_MRI:structural', 'BRAIN_MRI:functional']).
+        Uses fuzzy matching logic to handle LLM-generated path inaccuracies.
         """
+        import difflib
+        
         if not hierarchical_deviation:
             return {}
 
@@ -126,15 +129,24 @@ class UnimodalCompressor(BaseTool):
         domain_root = None
         if "root" in hierarchical_deviation:
             root = hierarchical_deviation["root"]
-            # Find the domain node
+            
+            # Try exact match first
             if root.get("node_name", "").upper() == domain.upper():
                 domain_root = root
             else:
+                # Try children
                 for child in root.get("children", []):
                     if child.get("node_name", "").upper() == domain.upper():
                         domain_root = child
                         break
-        
+                
+                # If still not found, try fuzzy match on children node_names
+                if not domain_root:
+                    child_names = {c.get("node_name", "").upper(): c for c in root.get("children", [])}
+                    matches = difflib.get_close_matches(domain.upper(), child_names.keys(), n=1, cutoff=0.7)
+                    if matches:
+                        domain_root = child_names[matches[0]]
+
         if not domain_root:
             return {}
 
@@ -143,7 +155,6 @@ class UnimodalCompressor(BaseTool):
             return domain_root
 
         # 2. Filter children based on paths
-        # We create a synthetic root containing only the requested branches
         synthetic_root = {
             "node_name": domain_root.get("node_name"),
             "z_score": domain_root.get("z_score"),
@@ -151,31 +162,72 @@ class UnimodalCompressor(BaseTool):
             "children": []
         }
 
-        def find_node_by_path(current_node, target_path_segments):
-            """Recursive search for a node matching the path segments."""
-            if not target_path_segments:
+        def fuzzy_find_node(current_node, segments):
+            """Recursive search with fuzzy matching failsafe."""
+            if not segments:
                 return current_node
             
-            next_segment = target_path_segments[0].upper()
-            for child in current_node.get("children", []):
-                if child.get("node_name", "").upper() == next_segment:
-                    return find_node_by_path(child, target_path_segments[1:])
+            target = segments[0].upper()
+            children = current_node.get("children", [])
+            child_map = {c.get("node_name", "").upper(): c for c in children}
+            
+            # Try exact match
+            if target in child_map:
+                return fuzzy_find_node(child_map[target], segments[1:])
+            
+            # Try fuzzy match
+            matches = difflib.get_close_matches(target, child_map.keys(), n=1, cutoff=0.6)
+            if matches:
+                 return fuzzy_find_node(child_map[matches[0]], segments[1:])
+            
+            # FALLBACK: Try search in ALL descendants if it's a leaf segment
+            if len(segments) == 1:
+                def deep_search(node, name):
+                    if node.get("node_name", "").upper() == name:
+                        return node
+                    for c in node.get("children", []):
+                        found = deep_search(c, name)
+                        if found: return found
+                    return None
+                
+                # Try exact deep search
+                found = deep_search(current_node, target)
+                if found: return found
+                
+                # Try fuzzy deep search (flatten names)
+                all_node_names = {}
+                def collect_names(node):
+                    name = node.get("node_name", "").upper()
+                    if name: all_node_names[name] = node
+                    for c in node.get("children", []): collect_names(c)
+                
+                collect_names(current_node)
+                deep_matches = difflib.get_close_matches(target, all_node_names.keys(), n=1, cutoff=0.7)
+                if deep_matches:
+                    return all_node_names[deep_matches[0]]
+
             return None
 
         # Process each requested path
+        added_nodes = set()
         for path in node_paths:
-            # Normalize path: 'DOMAIN:Sub:Leaf' -> ['Sub', 'Leaf'] (assuming domain is already handled)
-            # The orchestrator usually passes full paths like ['BRAIN_MRI', 'structural']
-            # We strip the domain prefix if present
             segments = path if isinstance(path, list) else str(path).split(":")
             
-            # Remove domain name from start if present (e.g. BRAIN_MRI -> Structural)
+            # Remove domain name from start if present
             if segments and segments[0].upper() == domain.upper():
                 segments = segments[1:]
             
-            match = find_node_by_path(domain_root, segments)
+            match = fuzzy_find_node(domain_root, segments)
             if match:
-                synthetic_root["children"].append(match)
+                # Avoid duplicates
+                node_id = id(match)
+                if node_id not in added_nodes:
+                    synthetic_root["children"].append(match)
+                    added_nodes.add(node_id)
+
+        # If no matches found fuzzy, fallback to providing the whole domain to avoid empty input
+        if not synthetic_root["children"]:
+            return domain_root
 
         return synthetic_root
     

@@ -6,7 +6,7 @@ Apply token-efficient GPT-based compression of uni-modal data to generate a suff
 ## COMPASS GOAL
 Distinguish between:
 1. TARGET: {target_condition} ; neuropsychiatric group disorder
-2. CONTROL: Brain-implicated pathology (e.g. MS, Stroke) but NON-psychiatric.
+2. CONTROL: Brain-implicated pathology, but NON-psychiatric.
 *Crucial*: Do NOT treat general brain abnormalities as automatic evidence for TARGET.
 
 ## INPUT
@@ -26,6 +26,7 @@ Create a clinically meaningful pattern-based summary that:
 5. Captures both pathological AND protective/compensatory patterns where relevant
 6. **CRITICAL FOCUS**: Distinguish patterns that specifically match the `target_condition` ; instead of a "general" brain-implicated (non-psychiatric) pathology. If the target is a SPECIFIC disorder, prioritize features known to be associated with that disorder.
 
+(##NOTE: if demographics; this is not normativized)
 
 ## OUTPUT FORMAT
 

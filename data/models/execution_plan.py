@@ -89,6 +89,7 @@ class ExecutionPlan(BaseModel):
     total_estimated_tokens: int = Field(0, ge=0)
     priority_domains: List[str] = Field(default_factory=list)
     fusion_strategy: str = Field("", description="How to combine all outputs")
+    user_facing_explanation: str = Field("", description="Concise 2-sentence summary of the plan for the UI")
     reasoning: str = Field("", description="Orchestrator's reasoning for the plan")
     
     # Plan steps

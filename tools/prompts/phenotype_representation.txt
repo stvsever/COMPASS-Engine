@@ -13,7 +13,7 @@ TARGET phenotype will be a specific neurospychiatric case VS CONTROL (brain-path
 ## COMPASS GOAL
 Distinguish between:
 1. TARGET: {target_condition}
-2. CONTROL: Brain-implicated pathology but NON-psychiatric.
+2. CONTROL: Brain-implicated pathology, but NON-psychiatric.
 *Crucial*: Do NOT treat general brain abnormalities as automatic evidence for TARGET.
 
 ## YOUR TASK

@@ -11,7 +11,7 @@ Distinguish between:
 
 ## INPUT
 1. **Hierarchical Deviation Map**: Full structure with z-scores at each level
-2. **Target Condition**: "neuropsychiatric" or "neurologic"
+2. **Target Condition**: {target_condition}
 3. **Domain Coverage**: Available domains and their coverage
 
 ## YOUR TASK

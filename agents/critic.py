@@ -173,7 +173,7 @@ class Critic(BaseAgent):
             prediction.target_condition,
             
             f"\n## CONTROL CONDITION",
-            "Evaluate whether the 'target phenotype' is present VS whether this data matches better a profile of 'a brain-implicated pathology, but non-psychiatric'!"
+            "Evaluate whether the 'target phenotype' is present (case) VS whether this data matches better a profile of 'a brain-implicated pathology, but non-psychiatric' (control)!"
             
             "\n## EVALUATION TASK",
             "Evaluate this prediction using the following Hierarchical Multi-composite Satisfaction Scoring Matrix.",
@@ -209,6 +209,7 @@ class Critic(BaseAgent):
             "- verdict: 'SATISFACTORY' or 'UNSATISFACTORY'",
             "- confidence_in_verdict: float (0-1)",
             "- composite_score: float (0.00-1.00)",
+            "- concise_summary: string (1-2 sentences explaining WHY this verdict was reached)",
             "- score_breakdown: { 'logic': float, 'evidence': float, 'completeness': float, 'relevance': float }",
             "- checklist: {",
             "    'has_binary_outcome': bool,",
@@ -283,7 +284,8 @@ class Critic(BaseAgent):
             weaknesses=evaluation_data.get("weaknesses", []),
             improvement_suggestions=suggestions,
             domains_missed=evaluation_data.get("domains_missed", []),
-            reasoning=evaluation_data.get("reasoning", "")
+            reasoning=evaluation_data.get("reasoning", ""),
+            concise_summary=evaluation_data.get("concise_summary", "No summary provided.")
         )
 
     

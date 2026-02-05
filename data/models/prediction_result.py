@@ -187,6 +187,7 @@ class CriticEvaluation(BaseModel):
     
     # Reasoning
     reasoning: str = Field("", description="Detailed explanation of evaluation")
+    concise_summary: str = Field("", description="Concise summary (1-2 sentences) of why verdict was reached")
     
     @property
     def is_satisfactory(self) -> bool:
