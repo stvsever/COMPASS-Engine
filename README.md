@@ -87,8 +87,6 @@ multi_agent_system/
 │   ├── models/         # Pydantic data models & execution plan schemas
 │   └── pseudo_data/    # Synthetic clinical data for validation
 ├── config/             # Environment & system-wide settings
-├── logs/               # Execution & system logs
-├── tests/              # Automated test suite
 └── main.py             # CLI Entry Point
 ```
 
