@@ -110,15 +110,17 @@ This Multi-Agent System is being developed in the context of a **Master's Intern
 
 The research is being conducted at the **Computational Neuroscience Lab** of **[IIS Biobizkaia](https://compneurobilbao.eus)** (Bilbao, Spain).
 
+COMPASS is currently being tested on a large neuropsychiatric cohort from the **UK Biobank**, leveraging available multi-modal brain and clinical data to evaluate robustness, scalability, and generalization in real-world population settings.
+
+## 📚 Project Credits
+
 **Author**: Stijn Van Severen (email: stijn.vanseveren@ugent.be)
 
 **Supervisors**: 
 - **Ibai Díez Palacio** (Computational Neuroimaging Lab @ IIS Biobizkaia & Dept. of Radiology; Harvard Medical School)
 - **Jesús M. Cortés** (Computational Neuroimaging Lab @ IIS Biobizkaia)
 
-**Lab**: [Computational Neuroscience Group](https://compneurobilbao.eus)
-
-COMPASS is currently being tested on a large neuropsychiatric cohort from the **UK Biobank**, leveraging available multi-modal brain and clinical data to evaluate robustness, scalability, and generalization in real-world population settings.
+**Research Lab**: [Computational Neuroscience Group](https://compneurobilbao.eus)
 
 ## 🛡️ License
 
