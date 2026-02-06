@@ -10,7 +10,7 @@
 
 ## 🚀 Key Features
 
-- **Multi-Agent Orchestration**: A dynamic actor-critic team of specialized agents (**Orchestrator, Executor, Integrator, Predictor, Critic, Communicator**) collaborates to synthesize complex diagnostic logic through iterative refinement cycles.
+- **Multi-Agent Orchestration**: A dynamic actor-critic team of specialized agents (**Orchestrator, Executor, Integrator, Predictor, Critic**) collaborates to synthesize complex diagnostic logic through iterative refinement cycles.
 - **Scalable Nature of LLM-based Knowledge**: Leverages the vast pre-trained clinical and biomedical knowledge of state-of-the-art large language models (LLM) for high-precision phenotypic prediction without requiring task-specific training, or fine-tuning.
 - **Zero-Shot Scalability**: Architected to scale across thousands of multi-modal features and diverse clinical phenotypes by utilizing LLMs as flexible, data-aware reasoning engines.
 - **Semantic RAG Fusion**: Employs a "Smart Fusion" layer that prioritizes semantically relevant biomarkers using hierarchical embeddings and targeted context retrieval to maximize the information-to-token ratio.
