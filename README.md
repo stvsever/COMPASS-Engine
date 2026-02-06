@@ -18,7 +18,6 @@
 - **Live Dashboard**: Integrated real-time UI for monitoring agent reasoning, token usage, and cross-modal evidence synthesis as it happens.
 
 
-
 ## 🧠 System Architecture
 
 COMPASS utilizes a sequential multi-agent workflow with iterative feedback loops.
@@ -26,8 +25,6 @@ COMPASS utilizes a sequential multi-agent workflow with iterative feedback loops
 <div align="center">
   <img src="overview/compass_flowchart.png" alt="COMPASS Flowchart" width="800" />
 </div>
-<p align="center"><em>Mermaid source: <code>overview/compass_flowchart.mmd</code> (regenerate PNG via <code>overview/uml_diagram.py</code>).</em></p>
-<br>
 
 ## 🖥️ Interactive Dashboard
 
@@ -107,7 +104,7 @@ python utils/precompute_embeddings.py
 
 ```text
 multi_agent_system/
-├── agents/             # Autonomous agent definitions (Orchestrator, Predictor, Critic, Communicator, etc.) and prompts
+├── agents/             # Autonomous agent definitions (Orchestrator, Predictor, Critic, etc.) and prompts
 ├── tools/              # Clinical analysis tools (COMPASS Core Tools) and prompt templates
 ├── frontend/           # Interactive Web UI (Flask backend + HTML/CSS/JS frontend)
 ├── utils/              # System utilities (Core Engine, Logging, Embeddings, Logic)
