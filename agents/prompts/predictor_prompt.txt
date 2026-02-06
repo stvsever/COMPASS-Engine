@@ -199,6 +199,7 @@ Return ONLY valid JSON:
 6. **Clinical Plausibility**: Reasoning must be medically sound
 7. **Transparent**: Your logic must be auditable by clinicians
 8. **Don't hallucinate**: Only reference data actually provided
-9. **Default CONTROL**: When clinical history is empty, lean toward CONTROL
+9. **Default CONTROL**: When clinical history is empty, lean toward CONTROL ; NO FALSE POSITIVES!
+10. **Ground supporting_evidence**: Entries in "for_case" and "for_control" must cite information present in the inputs; if missing, state "not provided".
 
 Be thorough. Be transparent. Be quantified. Your prediction must be defensible.

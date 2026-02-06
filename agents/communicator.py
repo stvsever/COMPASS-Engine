@@ -94,17 +94,17 @@ class Communicator(BaseAgent):
         predictor_input = executor_output.get("predictor_input", {})
         context_fill_report = predictor_input.get("context_fill_report") or executor_output.get("context_fill_report") or {}
 
-        pred_text = truncate_text_by_tokens(json.dumps(prediction_dict, indent=2, default=str), pred_budget, model_hint="gpt-5")
-        eval_text = truncate_text_by_tokens(json.dumps(evaluation_dict, indent=2, default=str), eval_budget, model_hint="gpt-5")
-        fusion_text = truncate_text_by_tokens(json.dumps(fusion_dict, indent=2, default=str), fusion_budget, model_hint="gpt-5")
-        predictor_input_text = truncate_text_by_tokens(json.dumps(predictor_input, indent=2, default=str), predictor_input_budget, model_hint="gpt-5")
-        overview_text = truncate_text_by_tokens(json.dumps(data_overview, indent=2, default=str), overview_budget, model_hint="gpt-5")
-        fill_text = truncate_text_by_tokens(json.dumps(context_fill_report, indent=2, default=str), fill_budget, model_hint="gpt-5")
-        exec_text = truncate_text_by_tokens(json.dumps(execution_summary, indent=2, default=str), exec_budget, model_hint="gpt-5")
+        pred_text = truncate_text_by_tokens(json_to_toon(prediction_dict), pred_budget, model_hint="gpt-5")
+        eval_text = truncate_text_by_tokens(json_to_toon(evaluation_dict), eval_budget, model_hint="gpt-5")
+        fusion_text = truncate_text_by_tokens(json_to_toon(fusion_dict), fusion_budget, model_hint="gpt-5")
+        predictor_input_text = truncate_text_by_tokens(json_to_toon(predictor_input), predictor_input_budget, model_hint="gpt-5")
+        overview_text = truncate_text_by_tokens(json_to_toon(data_overview), overview_budget, model_hint="gpt-5")
+        fill_text = truncate_text_by_tokens(json_to_toon(context_fill_report), fill_budget, model_hint="gpt-5")
+        exec_text = truncate_text_by_tokens(json_to_toon(execution_summary), exec_budget, model_hint="gpt-5")
 
         return "\n".join([
             "You are the COMPASS Communicator Agent.",
-            "Your job: write a clinician-grade DEEP PHENOTYPING report (in Markdown).",
+            "Your job: write a clinician-grade deep phenotyping report in Markdown.",
             "",
             "CRITICAL RULES:",
             "1) Do NOT hallucinate. Only use information present in the inputs below.",
@@ -122,29 +122,28 @@ class Communicator(BaseAgent):
             "- Data coverage & limitations",
             "- Appendix: Traceable evidence excerpts (short, relevant snippets)",
             "",
-            "## INPUTS (JSON, do not repeat verbatim; synthesize)",
+            "## INPUTS (TOON, do not repeat verbatim; synthesize)",
             "",
             "### Prediction Output",
-            f"```json\n{pred_text}\n```",
+            f"```text\n{pred_text}\n```",
             "",
             "### Critic Evaluation",
-            f"```json\n{eval_text}\n```",
+            f"```text\n{eval_text}\n```",
             "",
             "### Fusion Result",
-            f"```json\n{fusion_text}\n```",
+            f"```text\n{fusion_text}\n```",
             "",
             "### Predictor Input (Evidence Snapshot)",
-            f"```json\n{predictor_input_text}\n```",
+            f"```text\n{predictor_input_text}\n```",
             "",
             "### Data Overview (Coverage)",
-            f"```json\n{overview_text}\n```",
+            f"```text\n{overview_text}\n```",
             "",
             "### Context Fill Report (RAG Backfill)",
-            f"```json\n{fill_text}\n```",
+            f"```text\n{fill_text}\n```",
             "",
             "### Execution Summary",
-            f"```json\n{exec_text}\n```",
+            f"```text\n{exec_text}\n```",
             "",
             "Now produce the final Markdown report. No JSON, no code fences in the output.",
         ])
-
