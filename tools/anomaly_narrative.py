@@ -42,7 +42,7 @@ class AnomalyNarrativeBuilder(BaseTool):
         prompt_parts = [
             f"## TARGET CONDITION: {target}",
             
-            f"\n## HIERARCHICAL DEVIATION MAP",
+            f"\n## HIERARCHICAL DEVIATION MAP (high absolute value is not necessary pathological; just abnormal (e.g., high cognitive scores))",
             f"```json\n{json.dumps(analysis, indent=2)}\n```",
             
             f"\n## FULL DEVIATION STRUCTURE (TRUNCATED)",

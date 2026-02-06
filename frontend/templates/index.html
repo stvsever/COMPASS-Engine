@@ -461,6 +461,72 @@
             white-space: pre-wrap;
         }
 
+        .file-content-view.markdown-render {
+            font-family: var(--font-main);
+            font-size: 0.92rem;
+            line-height: 1.7;
+            color: #e4e4e7;
+            white-space: normal;
+        }
+
+        .file-content-view.markdown-render h1,
+        .file-content-view.markdown-render h2,
+        .file-content-view.markdown-render h3,
+        .file-content-view.markdown-render h4 {
+            margin: 1.2rem 0 0.6rem;
+            font-weight: 700;
+            color: #f4f4f5;
+        }
+
+        .file-content-view.markdown-render p {
+            margin: 0.5rem 0;
+        }
+
+        .file-content-view.markdown-render ul,
+        .file-content-view.markdown-render ol {
+            margin: 0.6rem 0 0.6rem 1.25rem;
+        }
+
+        .file-content-view.markdown-render li {
+            margin: 0.25rem 0;
+        }
+
+        .file-content-view.markdown-render table {
+            width: 100%;
+            border-collapse: collapse;
+            margin: 1rem 0;
+            font-size: 0.9rem;
+        }
+
+        .file-content-view.markdown-render th,
+        .file-content-view.markdown-render td {
+            border: 1px solid #27272a;
+            padding: 0.5rem 0.6rem;
+            text-align: left;
+        }
+
+        .file-content-view.markdown-render th {
+            background: #0f0f12;
+            color: #fafafa;
+        }
+
+        .file-content-view.markdown-render code {
+            background: #111113;
+            padding: 0.1rem 0.35rem;
+            border-radius: 4px;
+            font-family: var(--font-mono);
+            font-size: 0.85rem;
+        }
+
+        .file-content-view.markdown-render pre {
+            background: #0b0b0d;
+            border: 1px solid #27272a;
+            padding: 0.75rem 0.9rem;
+            border-radius: 6px;
+            overflow-x: auto;
+            margin: 0.8rem 0;
+        }
+
         /* INSPECTOR */
         #inspector-content {
             padding: 2rem;
@@ -1150,13 +1216,13 @@
             <!-- TIMELINE & TABS -->
             <div class="timeline-wrapper">
                 <div class="timeline-tabs" style="display:flex; align-items:center;">
-                    <button class="tab-btn active" onclick="switchTab('timeline')"><i class="fas fa-stream"></i> Live
+                    <button class="tab-btn active" data-tab="timeline" onclick="switchTab('timeline', this)"><i class="fas fa-stream"></i> Live
                         Execution</button>
-                    <button class="tab-btn" onclick="switchTab('plan');"><i class="fas fa-sitemap"></i> Execution
+                    <button class="tab-btn" data-tab="plan" onclick="switchTab('plan', this);"><i class="fas fa-sitemap"></i> Execution
                         Plan</button>
-                    <button class="tab-btn" onclick="switchTab('results'); loadResults();"><i
+                    <button class="tab-btn" data-tab="results" onclick="switchTab('results', this); loadResults();"><i
                             class="fas fa-file-alt"></i> Results</button>
-                    <button class="tab-btn" onclick="switchTab('inspector'); loadInputs();"><i class="fas fa-code"></i>
+                    <button class="tab-btn" data-tab="inspector" onclick="switchTab('inspector', this); loadInputs();"><i class="fas fa-code"></i>
                         Data Inspector</button>
                     <button onclick="toggleTimelineScroll()" id="btn-timeline-scroll"
                         style="margin-left:auto; background:none; border:none; color:var(--primary); cursor:pointer; font-size:0.7rem; font-weight:600; padding:0 10px;">AUTO-FOLLOW:
@@ -1283,6 +1349,7 @@
     </div>
 
     <!-- LOGIC -->
+    <script src="/static/marked.min.js"></script>
     <script>
         // State
         let latestEventId = 0;
@@ -1383,16 +1450,19 @@
             btn.style.opacity = autoScrollTimeline ? '1' : '0.5';
         }
 
-        function switchTab(tab) {
+        function switchTab(tab, btn) {
             document.querySelectorAll('.tab-content').forEach(c => c.classList.remove('active'));
             document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
             document.getElementById('tab-' + tab).classList.add('active');
-            event.target.classList.add('active');
+            const targetBtn = btn || document.querySelector(`.tab-btn[data-tab="${tab}"]`) || (typeof event !== 'undefined' ? event.target : null);
+            if (targetBtn) targetBtn.classList.add('active');
         }
 
-        function closeResultModal() {
+        async function closeResultModal() {
             document.getElementById('result-modal').classList.remove('active');
-            switchTab('results'); loadResults();
+            switchTab('results');
+            await loadResults();
+            await openStandardReport();
         }
 
         function dismissCriticToast() {
@@ -1881,7 +1951,7 @@
                 }
 
                 container.innerHTML = files.map(f => `
-                    <div class="file-item" onclick="loadFile('${f}')">
+                    <div class="file-item" data-file="${f}" onclick="loadFile('${f}', this)">
                         <span><i class="fas fa-file-code"></i> ${f}</span>
                         <i class="fas fa-chevron-right" style="font-size:0.7rem; opacity:0.5;"></i>
                     </div>
@@ -1890,16 +1960,47 @@
             } catch (e) { console.error(e); }
         }
 
-        async function loadFile(filename) {
-            document.querySelectorAll('.file-item').forEach(el => el.classList.remove('active'));
-            event.currentTarget.classList.add('active');
+        async function loadFile(filename, el) {
+            document.querySelectorAll('#file-list-container .file-item').forEach(el => el.classList.remove('active'));
+            if (el) {
+                el.classList.add('active');
+            } else {
+                const match = document.querySelector(`.file-item[data-file="${filename}"]`);
+                if (match) match.classList.add('active');
+            }
 
+            const preview = document.getElementById('file-preview-container');
+            preview.classList.remove('markdown-render');
             document.getElementById('current-file-name').textContent = filename;
-            document.getElementById('file-preview-container').textContent = "Loading...";
+            preview.textContent = "Loading...";
 
             const res = await fetch(`/api/outputs/content?file=${filename}`);
             const text = await res.text();
-            document.getElementById('file-preview-container').textContent = text;
+
+            if (filename.endsWith('.md') && window.marked && typeof window.marked.parse === 'function') {
+                preview.classList.add('markdown-render');
+                preview.innerHTML = window.marked.parse(text);
+            } else if (filename.endsWith('.md')) {
+                preview.classList.add('markdown-render');
+                preview.textContent = text;
+            } else {
+                preview.textContent = text;
+            }
+        }
+
+        async function openStandardReport() {
+            try {
+                const state = window.__lastState || {};
+                const pid = state.participant_id || '';
+                if (!pid) return;
+                const targetName = `report_${pid}.md`;
+                const res = await fetch('/api/outputs');
+                const files = await res.json();
+                const file = files.find(f => f === targetName) || files.find(f => f.startsWith(`report_${pid}`) && f.endsWith('.md'));
+                if (file) {
+                    await loadFile(file);
+                }
+            } catch (e) { console.error(e); }
         }
 
         async function loadInputs() {
@@ -1914,7 +2015,7 @@
                 }
 
                 container.innerHTML = files.map(f => `
-                    <div class="file-item" onclick="loadInputFile('${f}')">
+                    <div class="file-item" data-file="${f}" onclick="loadInputFile('${f}', this)">
                         <span><i class="fas fa-table"></i> ${f}</span>
                         <i class="fas fa-chevron-right" style="font-size:0.7rem; opacity:0.5;"></i>
                     </div>
@@ -1923,9 +2024,14 @@
             } catch (e) { console.error(e); }
         }
 
-        async function loadInputFile(filename) {
+        async function loadInputFile(filename, el) {
             document.querySelectorAll('#input-list-container .file-item').forEach(el => el.classList.remove('active'));
-            event.currentTarget.classList.add('active');
+            if (el) {
+                el.classList.add('active');
+            } else {
+                const match = document.querySelector(`#input-list-container .file-item[data-file="${filename}"]`);
+                if (match) match.classList.add('active');
+            }
 
             document.getElementById('current-input-name').textContent = filename;
             document.getElementById('input-preview-container').textContent = "Loading...";
@@ -1933,34 +2039,6 @@
             const res = await fetch(`/api/inputs/content?file=${filename}`);
             const text = await res.text();
             document.getElementById('input-preview-container').textContent = text;
-        }
-
-        function simpleMarkdown(text) {
-            let html = text
-                .replace(/^# (.*$)/gim, '<h1>$1</h1>')
-                .replace(/^## (.*$)/gim, '<h2>$1</h2>')
-                .replace(/^### (.*$)/gim, '<h3>$1</h3>')
-                .replace(/^\- (.*$)/gim, '• $1')
-                .replace(/\*\*(.*)\*\*/gim, '<b>$1</b>');
-            return html;
-        }
-
-        // Overwrite loadFile to use markdown
-        async function loadFile(filename) {
-            document.querySelectorAll('#file-list-container .file-item').forEach(el => el.classList.remove('active'));
-            event.currentTarget.classList.add('active');
-
-            document.getElementById('current-file-name').textContent = filename;
-            document.getElementById('file-preview-container').innerHTML = "Loading...";
-
-            const res = await fetch(`/api/outputs/content?file=${filename}`);
-            const text = await res.text();
-
-            if (filename.endsWith('.md')) {
-                document.getElementById('file-preview-container').innerHTML = simpleMarkdown(text);
-            } else {
-                document.getElementById('file-preview-container').textContent = text;
-            }
         }
 
         setInterval(updateLoop, 800);

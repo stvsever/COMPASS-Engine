@@ -6,6 +6,7 @@ from .executor import Executor
 from .integrator import Integrator
 from .predictor import Predictor
 from .critic import Critic
+from .communicator import Communicator
 
 __all__ = [
     "BaseAgent",
@@ -14,4 +15,5 @@ __all__ = [
     "Integrator",
     "Predictor",
     "Critic",
+    "Communicator",
 ]

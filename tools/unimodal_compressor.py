@@ -260,6 +260,12 @@ class UnimodalCompressor(BaseTool):
     ) -> Dict[str, Any]:
         """Add domain info to output."""
         domain = input_data.get("input_domains", ["UNKNOWN"])[0]
+        base_domain = None
+        if isinstance(domain, str):
+            segs = split_node_path(domain)
+            base_domain = segs[0] if segs else domain
+        else:
+            base_domain = str(domain)
         
         # Check for node_paths to create a specific domain label
         parameters = input_data.get("parameters", {})
@@ -285,4 +291,5 @@ class UnimodalCompressor(BaseTool):
                 domain = f"{domain}:{'+'.join(labels)}"
 
         output_data["domain"] = domain
+        output_data["base_domain"] = base_domain or domain
         return output_data

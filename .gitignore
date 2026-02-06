@@ -50,6 +50,7 @@ overview/*
 !overview/logo/COMPASS_logo_2.png
 !overview/main.tex
 !overview/uml_diagram.py
+!overview/compass_flowchart.mmd
 !overview/compass_flowchart.png
 !overview/user_interface/
 !overview/user_interface/COMPASS_UI_1.png
@@ -73,3 +74,7 @@ tests/
 
 # Outputs
 outputs/
+
+# Local-only tests (do not commit)
+tests/test_plan_executor_inline_paths.py
+tests/test_plan_executor_narrative_fallback.py

@@ -266,7 +266,7 @@ class PlanExecutor:
                     "step_id": step.step_id,
                     "tool_name": step.tool_name.value,
                     "input_domains": list((tool_input.get("input_domains") or step.input_domains or [])),
-                    "parameters": dict(step.parameters or {}),
+                    "parameters": dict(tool_input.get("parameters") or step.parameters or {}),
                     "depends_on": list(step.depends_on or []),
                 }
                 
@@ -367,6 +367,8 @@ class PlanExecutor:
                 node_paths = [single] if isinstance(single, list) else [single]
             if inline_node_paths:
                 node_paths = list(node_paths or []) + inline_node_paths
+            if node_paths:
+                tool_input["parameters"]["node_paths"] = node_paths
             
             for domain in (normalized_domains if normalized_domains else raw_input_domains):
                 if domain in multimodal_data:
@@ -396,8 +398,8 @@ class PlanExecutor:
             tool_input["domain_data"] = domain_data
         
         # Add outputs from dependent steps (truncated)
+        dependency_outputs = {}
         if step.depends_on:
-            dependency_outputs = {}
             is_narrative_fusion = tool_canonical in ["MultimodalNarrativeCreator"]
             for dep_id in step.depends_on:
                 if dep_id in previous_outputs:
@@ -407,6 +409,51 @@ class PlanExecutor:
                         max_children=2000 if is_narrative_fusion else 200,
                     )
                     dependency_outputs[f"step_{dep_id}"] = truncated_output
+
+        # Fallback: if MultimodalNarrativeCreator has no usable dependencies,
+        # auto-attach relevant UnimodalCompressor outputs by base-domain match.
+        if tool_canonical == "MultimodalNarrativeCreator" and not dependency_outputs:
+            base_domains = []
+            for dom in (normalized_domains if normalized_domains else raw_input_domains):
+                if isinstance(dom, str):
+                    segs = split_node_path(dom)
+                    base_domains.append(segs[0] if segs else dom)
+                else:
+                    base_domains.append(dom)
+            base_domains = [str(d) for d in base_domains if d]
+
+            for dep_id, output in (previous_outputs or {}).items():
+                if not isinstance(output, dict):
+                    continue
+                tool_name = output.get("tool_name") or (output.get("_step_meta") or {}).get("tool_name")
+                if tool_name != "UnimodalCompressor":
+                    continue
+
+                # Determine base domains from output fields / metadata.
+                out_domains = []
+                out_base = output.get("base_domain") or output.get("domain") or ""
+                if out_base:
+                    segs = split_node_path(out_base)
+                    out_domains.append(segs[0] if segs else out_base)
+                meta_domains = (output.get("_step_meta") or {}).get("input_domains") or []
+                for md in meta_domains:
+                    if isinstance(md, str):
+                        segs = split_node_path(md)
+                        out_domains.append(segs[0] if segs else md)
+                    else:
+                        out_domains.append(str(md))
+
+                if not any(str(d) in base_domains for d in out_domains):
+                    continue
+
+                truncated_output = self._truncate_for_context(
+                    output,
+                    max_depth=16,
+                    max_children=2000,
+                )
+                dependency_outputs[f"step_{dep_id}"] = truncated_output
+
+        if dependency_outputs:
             tool_input["dependency_outputs"] = dependency_outputs
         
         return tool_input

@@ -10,11 +10,13 @@
 
 ## 🚀 Key Features
 
-- **Multi-Agent Orchestration**: A dynamic actor-critic team of specialized agents (**Orchestrator, Executor, Integrator, Predictor, Critic**) collaborates to synthesize complex diagnostic logic through iterative refinement cycles.
+- **Multi-Agent Orchestration**: A dynamic actor-critic team of specialized agents (**Orchestrator, Executor, Integrator, Predictor, Critic, Communicator**) collaborates to synthesize complex diagnostic logic through iterative refinement cycles.
 - **Scalable Nature of LLM-based Knowledge**: Leverages the vast pre-trained clinical and biomedical knowledge of state-of-the-art large language models (LLM) for high-precision phenotypic prediction without requiring task-specific training, or fine-tuning.
 - **Zero-Shot Scalability**: Architected to scale across thousands of multi-modal features and diverse clinical phenotypes by utilizing LLMs as flexible, data-aware reasoning engines.
 - **Semantic RAG Fusion**: Employs a "Smart Fusion" layer that prioritizes semantically relevant biomarkers using hierarchical embeddings and targeted context retrieval to maximize the information-to-token ratio.
 - **Explainable Clinical Reasoning**: Generates multi-modal evidence chains and structured patient reports, transforming complex high-dimensional data signals into human-interpretable clinical narratives.
+- **Deep Phenotyping Report**: A dedicated **Communicator** agent produces a clinician-grade `deep_phenotype.md` report that is evidence-grounded and explicit about missing data (no hallucinated metrics).
+- **Phenotype Matching (Not Diagnosis)**: Outputs are phenotype-match predictions for research decision support, not formal clinical diagnoses.
 - **Live Dashboard**: Integrated real-time UI for monitoring agent reasoning, token usage, and cross-modal evidence synthesis as it happens.
 
 
@@ -25,6 +27,7 @@ COMPASS utilizes a sequential multi-agent workflow with iterative feedback loops
 <div align="center">
   <img src="overview/compass_flowchart.png" alt="COMPASS Flowchart" width="800" />
 </div>
+<p align="center"><em>Mermaid source: <code>overview/compass_flowchart.mmd</code> (regenerate PNG via <code>overview/uml_diagram.py</code>).</em></p>
 <br>
 
 ## 🖥️ Interactive Dashboard
@@ -78,6 +81,13 @@ Each participant folder must contain four core input files (see data/pseudo_data
 ```
 The first three JSON files are ontology-based structured feature maps created during pre-processing
 
+Pipeline outputs (per participant) include:
+```text
+- report_{participant_id}.md        (standard clinical report)
+- deep_phenotype.md                 (communicator deep phenotyping report)
+- execution_log_{participant_id}.json
+```
+
 > [!NOTE]
 > **Batch Configuration**
 > The participant list and specific target conditions are defined within `batch_run.py`. 
@@ -89,11 +99,16 @@ For a hands-on walkthrough, run the included Jupyter Notebook:
 jupyter notebook COMPASS_demo.ipynb
 ```
 
+Optional: warm the embedding cache (recommended for large cohorts):
+```bash
+python utils/precompute_embeddings.py
+```
+
 ## 📁 Project Structure
 
 ```text
 multi_agent_system/
-├── agents/             # Autonomous agent definitions (Orchestrator, Predictor, Critic, etc.) and prompts
+├── agents/             # Autonomous agent definitions (Orchestrator, Predictor, Critic, Communicator, etc.) and prompts
 ├── tools/              # Clinical analysis tools (COMPASS Core Tools) and prompt templates
 ├── frontend/           # Interactive Web UI (Flask backend + HTML/CSS/JS frontend)
 ├── utils/              # System utilities (Core Engine, Logging, Embeddings, Logic)

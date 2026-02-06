@@ -131,19 +131,19 @@ class Predictor(BaseAgent):
         
         prompt_parts.extend([
             f"\n### Key Findings",
-            json.dumps(predictor_input.get("key_findings", [])[:10], indent=2),
+            json_to_toon(predictor_input.get("key_findings", [])[:10]),
             
             f"\n### Cross-Modal Patterns",
-            json.dumps(predictor_input.get("cross_modal_patterns", []), indent=2),
+            json_to_toon(predictor_input.get("cross_modal_patterns", [])),
             
             f"\n### Evidence Summary",
-            f"For CONTROL: {predictor_input.get('evidence_summary', {}).get('for_control', [])}",
+            json_to_toon(predictor_input.get("evidence_summary", {})),
         ])
         
         # Inject RAW TOOL OUTPUTS if available (User Request for transparency)
         raw_tool_outputs = predictor_input.get("tool_outputs_raw")
         if raw_tool_outputs:
-            tool_text = json.dumps(raw_tool_outputs, indent=2, default=str)
+            tool_text = json_to_toon(raw_tool_outputs)
             tool_text = truncate_text_by_tokens(tool_text, tool_budget, model_hint="gpt-5")
             prompt_parts.extend([
                 f"\n## DETAILED TOOL OUTPUTS (RAW - UNFILTERED)",
@@ -170,7 +170,7 @@ class Predictor(BaseAgent):
         overview_text = ""
         if data_overview:
             overview_text = truncate_text_by_tokens(
-                json.dumps(data_overview, indent=2, default=str),
+                json_to_toon(data_overview),
                 int(max_in * 0.15),
                 model_hint="gpt-5",
             )

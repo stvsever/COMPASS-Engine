@@ -28,6 +28,7 @@ from multi_agent_system.agents.orchestrator import Orchestrator
 from multi_agent_system.agents.executor import Executor
 from multi_agent_system.agents.predictor import Predictor
 from multi_agent_system.agents.critic import Critic
+from multi_agent_system.agents.communicator import Communicator
 from multi_agent_system.utils.compass_logging.execution_logger import ExecutionLogger
 from multi_agent_system.utils.compass_logging.decision_trace import DecisionTrace
 from multi_agent_system.utils.compass_logging.patient_report import PatientReportGenerator
@@ -95,12 +96,15 @@ def run_compass_pipeline(
     executor = Executor(token_manager=token_manager)
     predictor = Predictor(token_manager=token_manager)
     critic = Critic(token_manager=token_manager)
+    communicator = Communicator(token_manager=token_manager)
     
     # Main loop: Orchestrator -> Executor -> Predictor -> Critic
     iteration = 1
     previous_feedback = None
     final_prediction = None
     final_evaluation = None
+    final_executor_output = None
+    final_plan = None
     
     while iteration <= max_iterations:
         print(f"\n{'='*70}")
@@ -137,6 +141,8 @@ def run_compass_pipeline(
             participant_data=participant_data,
             target_condition=target_condition
         )
+        final_executor_output = executor_output
+        final_plan = plan
         
         # Log each step
         exec_result = executor_output.get("execution_result")
@@ -160,7 +166,7 @@ def run_compass_pipeline(
             ui.on_step_start(
                 step_id=910 + iteration,
                 tool_name="Predictor Agent",
-                description="Synthesizing phenotype prediction from fused evidence..."
+                description="Generating phenotypic prediction from fused evidence..."
             )
 
         prediction = predictor.execute(
@@ -267,15 +273,17 @@ def run_compass_pipeline(
         previous_feedback = _format_feedback(evaluation)
         iteration += 1
     
-    # Generate final report
+    # Prepare output directory and token usage
+    token_usage = token_manager.get_detailed_usage()
+    base_output_dir = settings.paths.output_dir / f"participant_{participant_id}"
+    base_output_dir.mkdir(parents=True, exist_ok=True)
+
+    # Generate final report (standard outputs first)
     print(f"\n{'='*70}")
     print(f"  GENERATING FINAL REPORT")
     print(f"{'='*70}")
     
     report_generator = PatientReportGenerator()
-    
-    # Get token usage details
-    token_usage = token_manager.get_detailed_usage()
     
     # Collect detailed logs from Logger or Trace? 
     # Actually, we need to collect them from the executor results if they are stored there.
@@ -288,7 +296,7 @@ def run_compass_pipeline(
     execution_summary = {
         "iterations": iteration,
         "tokens_used": token_usage.get("total_tokens", 0),
-        "domains_processed": plan.priority_domains,
+        "domains_processed": (final_plan.priority_domains if final_plan else plan.priority_domains),
         "detailed_logs": detailed_logs_collection # We need to populate this
     }
     
@@ -301,22 +309,20 @@ def run_compass_pipeline(
     )
     
     # Save outputs to configured output directory
-    base_output_dir = settings.paths.output_dir / f"participant_{participant_id}"
-    base_output_dir.mkdir(parents=True, exist_ok=True)
     
     report_generator.save(report, base_output_dir)
     report_generator.save_markdown(report, base_output_dir)
     exec_logger.save_structured_log(base_output_dir / f"execution_log_{participant_id}.json")
-    
-    # Log completion
-    duration = (datetime.now() - start_time).total_seconds()
-    
+
+    # Log completion duration early so standard reports can include it
+    duration_so_far = (datetime.now() - start_time).total_seconds()
+
     # Generate Performance Report
     performance_report = {
         "participant_id": participant_id,
         "target_condition": target_condition,
         "execution_timestamp": start_time.isoformat(),
-        "total_duration_seconds": round(duration, 2),
+        "total_duration_seconds": round(duration_so_far, 2),
         "iterations": iteration,
         "prediction_result": {
             "classification": final_prediction.binary_classification.value,
@@ -339,9 +345,56 @@ def run_compass_pipeline(
     
     # Save performance report as JSON
     import json
-    with open(base_output_dir / f"performance_report_{participant_id}.json", 'w') as f:
+    performance_report_path = base_output_dir / f"performance_report_{participant_id}.json"
+    with open(performance_report_path, 'w') as f:
         json.dump(performance_report, f, indent=2)
-    
+
+    # Communicator: deep phenotyping report (final verdict only)
+    if final_prediction and final_evaluation and final_executor_output:
+        if interactive_ui:
+            ui.set_status("Generating deep phenotype report...", stage=6)
+            ui.on_step_start(
+                step_id=930 + iteration,
+                tool_name="Communicator Agent",
+                description="Generating deep phenotype report..."
+            )
+
+        try:
+            data_overview_dict = participant_data.data_overview.model_dump()
+
+            deep_report = communicator.execute(
+                prediction=final_prediction,
+                evaluation=final_evaluation,
+                executor_output=final_executor_output,
+                data_overview=data_overview_dict,
+                execution_summary=execution_summary
+            )
+
+            if deep_report:
+                deep_path = base_output_dir / "deep_phenotype.md"
+                with open(deep_path, "w") as f:
+                    f.write(deep_report)
+                print(f"[Communicator] Saved to: {deep_path}")
+
+            if interactive_ui:
+                ui.on_step_complete(
+                    step_id=930 + iteration,
+                    tokens=0,
+                    duration_ms=0,
+                    preview="Deep phenotype report generated."
+                )
+        except Exception as e:
+            if interactive_ui:
+                ui.on_step_failed(step_id=930 + iteration, error=str(e))
+            print(f"[Communicator] Error: {e}")
+
+    # Log completion
+    duration = (datetime.now() - start_time).total_seconds()
+    if abs(duration - duration_so_far) > 0.05:
+        performance_report["total_duration_seconds"] = round(duration, 2)
+        with open(performance_report_path, 'w') as f:
+            json.dump(performance_report, f, indent=2)
+
     exec_logger.log_pipeline_end(
         success=True,
         summary={

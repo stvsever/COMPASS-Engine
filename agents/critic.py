@@ -23,6 +23,7 @@ from ..data.models.prediction_result import (
 from ..data.models.execution_plan import PlanExecutionResult
 from ..utils.json_parser import parse_json_response
 from ..utils.token_packer import truncate_text_by_tokens
+from ..utils.toon import json_to_toon
 
 logger = logging.getLogger("compass.critic")
 
@@ -170,14 +171,14 @@ class Critic(BaseAgent):
         # Provide the Critic with the actual fused input used by the Predictor (evidence traceability).
         predictor_input = executor_output.get("predictor_input", {}) or {}
         predictor_input_text = truncate_text_by_tokens(
-            json.dumps(predictor_input, indent=2, default=str),
+            json_to_toon(predictor_input),
             pred_input_budget,
             model_hint="gpt-5",
         )
         prompt_parts.extend([
             f"\n## PREDICTOR INPUT (EVIDENCE SNAPSHOT)",
             f"Use this to verify whether cited findings are present in the provided context.",
-            f"```json\n{predictor_input_text}\n```",
+            f"```text\n{predictor_input_text}\n```",
         ])
         
         prompt_parts.extend([

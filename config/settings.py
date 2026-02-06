@@ -48,12 +48,14 @@ class ModelConfig:
     critic_model: str = "gpt-5-mini"             # Production: "gpt-5"
     predictor_model: str = "gpt-5-mini"          # Production: "gpt-5"
     integrator_model: str = "gpt-5-mini"         # Production: "gpt-5"
+    communicator_model: str = "gpt-5-mini"       # Production: "gpt-5"
     tool_model: str = "gpt-5-nano"          # Always gpt-5-nano
     
     orchestrator_max_tokens: int = 64000
     critic_max_tokens: int = 64000
     predictor_max_tokens: int = 64000
     integrator_max_tokens: int = 64000
+    communicator_max_tokens: int = 64000
     tool_max_tokens: int = 24000
     
     # Temperature settings
@@ -61,6 +63,7 @@ class ModelConfig:
     critic_temperature: float = 0.2
     predictor_temperature: float = 0.2  # Reduced to avoid verbose loops
     integrator_temperature: float = 0.3
+    communicator_temperature: float = 0.2
     tool_temperature: float = 0.5
 
 

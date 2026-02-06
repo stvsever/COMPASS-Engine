@@ -189,11 +189,12 @@ If a specific domain (e.g., BRAIN_MRI, GENOMICS) often has >5-15k tokens, DO NOT
 
 1. **BRAIN_MRI (High Volume)**:
    - *Instead of:* One step for 'BRAIN_MRI'.
-   - *Do (Granular Splitting):* 
+   - *Do (Granular Splitting):* (example:)
      - Step W: UnimodalCompressor(domain='BRAIN_MRI', parameters={{'node_paths': ['BRAIN_MRI:Morphologics']}})
      - Step X: UnimodalCompressor(domain='BRAIN_MRI', parameters={{'node_paths': ['BRAIN_MRI:Connectomics:Structural:streamline_count']}})
      - Step Y: UnimodalCompressor(domain='BRAIN_MRI', parameters={{'node_paths': ['BRAIN_MRI:Connectomics:Structural:fractional_anisotropy']}})
      - Step Z: UnimodalCompressor(domain='BRAIN_MRI', parameters={{'node_paths': ['BRAIN_MRI:Connectomics:structural-functional coupling']}})
+     - Step AA: UnimodalCompressor(domain='BRAIN_MRI', parameters={{'node_paths': ['BRAIN_MRI:Connectomics:functional']}})
 
 2. **BIOLOGICAL_ASSAY (High Volume)**:
    - *Do:* 

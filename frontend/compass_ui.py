@@ -49,7 +49,7 @@ class EventStore:
             "completion": None,
             "latest_update_id": 0,
             "current_stage": -1, # -1: Setup, 0:Init, 1:Plan, 2:Exec, 3:Predict, 4:Evaluate
-            "stages": ["Initialization", "Orchestration", "Execution", "Integration", "Prediction", "Evaluation"],
+            "stages": ["Initialization", "Orchestration", "Execution", "Integration", "Prediction", "Evaluation", "Communication"],
             "iteration": 1
         }
 
@@ -218,7 +218,8 @@ class EventStore:
                 # Ensure we don't duplicate logic, just set status
                 self.state["status"] = "Pipeline Completed"
                 self.state["progress"] = self.state["max_steps"] 
-                self.state["current_stage"] = 5
+                # Always snap to final stage in case new stages are added (e.g., Communication)
+                self.state["current_stage"] = max(0, len(self.state.get("stages", [])) - 1)
                 self.state["completed"] = True
                 self.state["completion"] = data
 
