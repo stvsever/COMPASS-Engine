@@ -192,7 +192,7 @@ Return ONLY valid JSON:
 ## CRITICAL GUIDELINES
 
 1. **Use ALL Information**: Don't ignore any provided data
-2. **Prioritize Clinical History**: non_numerical_data is the most important for CASE/CONTROL
+2. **Prioritize clinical notes first**: non_numerical_data is often most important for CASE/CONTROL prediction
 3. **Quantify Evidence**: Only quantify with z-scores that are explicitly present. If absent, use nulls and state missing.
 4. **Be Specific**: Reference actual z-scores, not vague claims
 5. **Acknowledge Uncertainty**: Data gaps should lower confidence
@@ -201,5 +201,9 @@ Return ONLY valid JSON:
 8. **Don't hallucinate**: Only reference data actually provided
 9. **Default CONTROL**: When clinical history is empty, lean toward CONTROL ; NO FALSE POSITIVES!
 10. **Ground supporting_evidence**: Entries in "for_case" and "for_control" must cite information present in the inputs; if missing, state "not provided".
+
+## IMPORTANT NOTES
+- Your focus should lie on features that have a known high feature importance (from literature or common sense); like clinical notes often contains more relevant information than full multi-modal (hierarchical) deviation data (if present).
+- Since you are being tested with UKB annotated dataset; all features that might directly leak the phenotype have been removed (e.g., {neuropsychiatric phenotype} from ICD10-codes; specific obvious clinical questionnaire information; etc.)
 
 Be thorough. Be transparent. Be quantified. Your prediction must be defensible.

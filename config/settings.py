@@ -45,10 +45,10 @@ class ModelConfig:
     # TESTING MODE: All gpt-5-nano
     # PRODUCTION: Change orchestrator/critic/predictor to "gpt-5"
     orchestrator_model: str = "gpt-5-mini"       # Production: "gpt-5"
-    critic_model: str = "gpt-5-mini"             # Production: "gpt-5"
+    critic_model: str = "gpt-5-nano"             # Production: "gpt-5"
     predictor_model: str = "gpt-5-mini"          # Production: "gpt-5"
-    integrator_model: str = "gpt-5-mini"         # Production: "gpt-5"
-    communicator_model: str = "gpt-5-mini"       # Production: "gpt-5"
+    integrator_model: str = "gpt-5-nano"         # Production: "gpt-5"
+    communicator_model: str = "gpt-5-nano"       # Production: "gpt-5"
     tool_model: str = "gpt-5-nano"          # Always gpt-5-nano
     
     orchestrator_max_tokens: int = 64000

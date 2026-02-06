@@ -1631,7 +1631,12 @@
                             <div class="step-card">
                                 <div class="step-header">
                                     <div class="step-tool"><i class="fas fa-wrench"></i> ${step.tool}</div>
-                                    <div class="step-meta">${step.duration ? step.duration + 's' : (step.status === 'running' ? 'running' : 'pending')}</div>
+                                    <div class="step-meta">${
+                                        step.duration ? (step.duration + 's')
+                                        : (step.status === 'running' ? 'running'
+                                            : (step.status === 'failed' ? 'failed'
+                                                : (step.status === 'complete' ? 'complete' : 'pending')))
+                                    }</div>
                                 </div>
                                 <div class="step-desc">${step.desc}</div>
                                 ${step.preview ? `<div class="step-preview">${step.preview}</div>` : ''}

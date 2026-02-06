@@ -183,7 +183,7 @@ class Critic(BaseAgent):
         
         prompt_parts.extend([
             f"\n## HIERARCHICAL DEVIATION PROFILE (INPUT DATA)",
-            f"Note: This is the mean aggregated hierarchy of the multi-modal data. Use this to verify if cited findings exist.",
+            f"Note: This is the mean aggregated hierarchy of the multi-modal data (so there is no direction; only means 'abnormal' without necesarilly implying pathology ; Use this to verify if cited findings exist. The actual multi-modal data is NOT always given to you; just a compressed summary.",
             truncate_text_by_tokens(str(hierarchical_deviation) if hierarchical_deviation else "Not provided", dev_budget, model_hint="gpt-5"),
             
             f"\n## NON-NUMERICAL CLINICAL NOTES",
@@ -211,12 +211,12 @@ class Critic(BaseAgent):
             "### 2. EVIDENCE VERIFICATION (Weight: 30%) [FOUNDATION]",
             "Do the cited findings actually exist in the provided Input Data?",
             "CHECK FOR THESE ERRORS:",
-            "- Hallucination (Citing values/findings not in the input data)",
-            "- Misinterpretation (Exaggerating low z-scores, misreading values)",
-            "- Attribution Error (Attributing findings to wrong domain)",
+            "- Hallucination (Citing values that are not plausible given the data_overview; you will not be given ALL raw leaf-level input data)",
+            "- Misinterpretation (Exaggerating z-scores, small effects, irrelevant findings as highly predictive, misreading values)",
+            "IMPORTANT: you are NOT passed all the raw mulit-modal data so you can not fully verify each leaf-node level finding. ..."
             "",
             "### 3. COMPLETENESS (Weight: 20%) [BREADTH]",
-            "Did the analysis use all available CRITICAL domains?",
+            "Did the analysis use all available CRITICAL (i.e., truly high useful) domains?",
             "- Penalty if available MRI/Genomic data was ignored.",
             "- Penalty for failing to report 'Normal' findings (crucial for differential diagnosis).",
             "",

@@ -10,6 +10,7 @@ from .clinical_ranker import ClinicalRelevanceRanker
 from .anomaly_narrative import AnomalyNarrativeBuilder
 from .phenotype_representation import PhenotypeRepresentation
 from .differential_diagnosis import DifferentialDiagnosis
+from .chunk_evidence_extractor import ChunkEvidenceExtractor
 
 # Tool registry
 TOOL_REGISTRY = {
@@ -22,6 +23,7 @@ TOOL_REGISTRY = {
     "AnomalyNarrativeBuilder": AnomalyNarrativeBuilder,
     "PhenotypeRepresentation": PhenotypeRepresentation,
     "DifferentialDiagnosis": DifferentialDiagnosis,
+    "ChunkEvidenceExtractor": ChunkEvidenceExtractor,
 }
 
 __all__ = [
@@ -37,6 +39,6 @@ __all__ = [
     "AnomalyNarrativeBuilder",
     "PhenotypeRepresentation",
     "DifferentialDiagnosis",
+    "ChunkEvidenceExtractor",
     "TOOL_REGISTRY",
 ]
-

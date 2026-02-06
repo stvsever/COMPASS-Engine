@@ -130,7 +130,21 @@ class EventStore:
                         "duration": 0,
                         "iteration": self.state.get("iteration", 1)
                     })
-                self.state["current_stage"] = 2 
+                if "stage" in data and data["stage"] is not None:
+                    self.state["current_stage"] = data["stage"]
+                else:
+                    # Fallback inference for backward compatibility.
+                    step_id = int(data.get("id") or 0)
+                    if step_id >= 930:
+                        self.state["current_stage"] = 6
+                    elif step_id >= 920:
+                        self.state["current_stage"] = 5
+                    elif step_id >= 910:
+                        self.state["current_stage"] = 4
+                    elif step_id >= 900:
+                        self.state["current_stage"] = 3
+                    else:
+                        self.state["current_stage"] = 2
                 self.state["status"] = f"Running Step {data['id']}: {data['tool']}"
                 
             elif event_type == "STEP_COMPLETE":
@@ -462,8 +476,11 @@ class FlaskUI:
             "plan": plan_dict
         })
         
-    def on_step_start(self, step_id, tool_name, description, parallel_with=None):
-        _event_store.add_event("STEP_START", {"id": step_id, "tool": tool_name, "desc": description})
+    def on_step_start(self, step_id, tool_name, description, parallel_with=None, stage=None):
+        payload = {"id": step_id, "tool": tool_name, "desc": description}
+        if stage is not None:
+            payload["stage"] = stage
+        _event_store.add_event("STEP_START", payload)
         
     def on_step_complete(self, step_id, tokens, duration_ms, preview=""):
         _event_store.add_event("STEP_COMPLETE", {"id": step_id, "tokens": tokens, "preview": preview})

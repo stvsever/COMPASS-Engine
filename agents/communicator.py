@@ -10,6 +10,7 @@ from typing import Any, Dict, Optional
 
 from .base_agent import BaseAgent
 from ..config.settings import get_settings
+from ..utils.toon import json_to_toon
 from ..utils.token_packer import truncate_text_by_tokens
 
 logger = logging.getLogger("compass.communicator")
@@ -39,6 +40,7 @@ class Communicator(BaseAgent):
         executor_output: Dict[str, Any],
         data_overview: Dict[str, Any],
         execution_summary: Dict[str, Any],
+        report_context_note: str = "",
     ) -> str:
         """
         Generate the deep phenotyping report in Markdown.
@@ -51,6 +53,7 @@ class Communicator(BaseAgent):
             executor_output=executor_output,
             data_overview=data_overview,
             execution_summary=execution_summary,
+            report_context_note=report_context_note,
         )
 
         response = self._call_llm(user_prompt, expect_json=False)
@@ -66,6 +69,7 @@ class Communicator(BaseAgent):
         executor_output: Dict[str, Any],
         data_overview: Dict[str, Any],
         execution_summary: Dict[str, Any],
+        report_context_note: str = "",
     ) -> str:
         max_in = int(getattr(self.settings.token_budget, "max_agent_input_tokens", 20000) or 20000)
 
@@ -101,6 +105,10 @@ class Communicator(BaseAgent):
         overview_text = truncate_text_by_tokens(json_to_toon(data_overview), overview_budget, model_hint="gpt-5")
         fill_text = truncate_text_by_tokens(json_to_toon(context_fill_report), fill_budget, model_hint="gpt-5")
         exec_text = truncate_text_by_tokens(json_to_toon(execution_summary), exec_budget, model_hint="gpt-5")
+
+        context_note = str(report_context_note or "").strip()
+        if not context_note:
+            context_note = "No additional warning context."
 
         return "\n".join([
             "You are the COMPASS Communicator Agent.",
@@ -144,6 +152,11 @@ class Communicator(BaseAgent):
             "",
             "### Execution Summary",
             f"```text\n{exec_text}\n```",
+            "",
+            "### Final Verdict Context Note",
+            f"```text\n{context_note}\n```",
+            "",
+            "If the context note indicates an unsatisfactory verdict, include a prominent warning banner at the top of the report.",
             "",
             "Now produce the final Markdown report. No JSON, no code fences in the output.",
         ])

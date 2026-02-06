@@ -28,6 +28,7 @@ import difflib
 import re
 
 from ..path_utils import split_node_path, resolve_requested_subtree, path_is_prefix, normalize_segment
+from .multimodal_coverage import feature_key_set
 
 # Define 128k context limit and 90% threshold
 
@@ -49,6 +50,7 @@ class FusionResult:
     # New field to signal raw pass-through
     skipped_fusion: bool = False
     raw_multimodal_data: Optional[Dict[str, Any]] = None
+    raw_processed_multimodal_data: Optional[Dict[str, Any]] = None
     raw_step_outputs: Optional[Dict[int, Dict[str, Any]]] = None
     context_fill_report: Optional[Dict[str, Any]] = None
 
@@ -223,39 +225,94 @@ class FusionLayer:
             if excluded:
                 excluded_features_by_domain[domain] = excluded
         
-        # 3. Estimate tokens
-        # Raw Data Components
-        dev_str = json.dumps(hierarchical_deviation, default=str)
-        notes_str = non_numerical_data
-        multi_str = json.dumps(unprocessed_multimodal, default=str)
-        
-        # Step Outputs
-        outputs_desc = self._build_outputs_description(step_outputs)
-        
-        # System instructions estimate (approx 2000 tokens)
-        system_overhead = 2000
-        
-        # Total estimate
-        total_tokens = (
-            len(self.encoder.encode(dev_str)) +
-            len(self.encoder.encode(notes_str)) +
-            len(self.encoder.encode(multi_str)) +
-            len(self.encoder.encode(outputs_desc)) +
-            system_overhead
+        # Aggregate key tool outputs for pass-through mode.
+        findings = []
+        domain_data = {}
+        for _, output in (step_outputs or {}).items():
+            if not output:
+                continue
+            if "abnormality_patterns" in output:
+                findings.extend(output.get("abnormality_patterns") or [])
+            if "key_abnormalities" in output:
+                findings.extend(output["key_abnormalities"])
+            if "key_findings" in output:
+                findings.extend(output["key_findings"])
+            if "domain" in output:
+                if "domain_synthesis" in output:
+                    domain_data[output["domain"]] = output["domain_synthesis"]
+                elif "summary" in output:
+                    domain_data[output["domain"]] = output["summary"]
+                elif "clinical_narrative" in output:
+                    domain_data[output["domain"]] = output["clinical_narrative"]
+
+        # 3. Predictor-centric payload estimation (instead of fusion-summary estimate).
+        pass_through_result = FusionResult(
+            fused_narrative="Raw pass-through mode: detailed synthesis skipped in favor of raw data integrity.",
+            domain_summaries=domain_data,
+            key_findings=findings,
+            cross_modal_patterns=[],
+            evidence_summary={"for_case": [], "for_control": []},
+            tokens_used=0,
+            source_outputs=[str(k) for k in (step_outputs or {}).keys()],
+            skipped_fusion=True,
+            raw_multimodal_data=unprocessed_multimodal,
+            raw_processed_multimodal_data=None,
+            raw_step_outputs=step_outputs,
+            context_fill_report={},
         )
-        
-        print(f"[FusionLayer] Total estimated tokens: {total_tokens:,} (Limit: {self.threshold:,})")
-        print(f"  - Deviation Map: {len(self.encoder.encode(dev_str)):,} tokens")
-        print(f"  - Clinical Notes: {len(self.encoder.encode(notes_str)):,} tokens")
-        print(f"  - Unprocessed Multimodal: {len(self.encoder.encode(multi_str)):,} tokens")
-        print(f"  - Step Outputs: {len(self.encoder.encode(outputs_desc)):,} tokens")
-        
-        # 4. Decision Logic
-        if total_tokens < self.threshold:
-            print(f"[FusionLayer] ✓ UNDER THRESHOLD - SKIPPING LLM FUSION. Passing raw data.")
-            
-            # Context Filling: Add back PROCESSED raw data using Semantic RAG (Lowest Priority)
-            remaining_tokens = self.threshold - total_tokens
+        baseline_payload = self.compress_for_predictor(
+            fusion_result=pass_through_result,
+            hierarchical_deviation=hierarchical_deviation,
+            non_numerical_data=non_numerical_data,
+        )
+        baseline_payload_tokens = len(self.encoder.encode(json.dumps(baseline_payload, default=str)))
+        single_chunk_limit = int(getattr(self.settings.token_budget, "max_agent_input_tokens", 20000) or 20000)
+        chunked_two_pass_required = baseline_payload_tokens > single_chunk_limit
+
+        processed_raw_tree: Dict[str, Any] = {}
+        for dom, feats in (excluded_features_by_domain or {}).items():
+            if feats:
+                processed_raw_tree[dom] = self._features_to_nested_tree(feats)
+
+        processed_payload_tokens = None
+        if processed_raw_tree:
+            processed_pass_through = FusionResult(
+                fused_narrative=pass_through_result.fused_narrative,
+                domain_summaries=domain_data,
+                key_findings=findings,
+                cross_modal_patterns=[],
+                evidence_summary={"for_case": [], "for_control": []},
+                tokens_used=0,
+                source_outputs=[str(k) for k in (step_outputs or {}).keys()],
+                skipped_fusion=True,
+                raw_multimodal_data=unprocessed_multimodal,
+                raw_processed_multimodal_data=processed_raw_tree,
+                raw_step_outputs=step_outputs,
+                context_fill_report={},
+            )
+            processed_payload = self.compress_for_predictor(
+                fusion_result=processed_pass_through,
+                hierarchical_deviation=hierarchical_deviation,
+                non_numerical_data=non_numerical_data,
+            )
+            processed_payload_tokens = len(self.encoder.encode(json.dumps(processed_payload, default=str)))
+
+        print(
+            "[FusionLayer] Predictor payload estimate: "
+            f"{baseline_payload_tokens:,} tokens (single-chunk limit: {single_chunk_limit:,}, "
+            f"fusion threshold: {self.threshold:,})"
+        )
+
+        # Keep all information. Add full processed raw if it fits under threshold.
+        filled_multimodal = unprocessed_multimodal
+        fill_report: Dict[str, Any] = {}
+        include_processed_raw = False
+        if processed_payload_tokens is not None and processed_payload_tokens <= self.threshold:
+            include_processed_raw = True
+            fill_report["processed_raw_full_included"] = True
+            fill_report["processed_raw_payload_tokens"] = processed_payload_tokens
+        elif baseline_payload_tokens < self.threshold:
+            remaining_tokens = self.threshold - baseline_payload_tokens
             phenotype_text = self._build_phenotype_text(step_outputs, target_condition)
             filled_multimodal, fill_report = self._fill_context_with_rag(
                 remaining_tokens=remaining_tokens,
@@ -263,57 +320,80 @@ class FusionLayer:
                 current_unprocessed=unprocessed_multimodal,
                 phenotype_text=phenotype_text,
             )
-            fill_report = fill_report or {}
-            fill_report["coverage"] = {
-                "processed_whole_domains": sorted(list(processed_whole_domains)),
-                "processed_prefixes_by_domain": {
-                    dom: [list(p) for p in sorted(list(prefixes), key=lambda x: (len(x), str(x)))]
-                    for dom, prefixes in processed_prefixes_by_domain.items()
-                },
-                "excluded_leaf_counts": {dom: len(feats) for dom, feats in excluded_features_by_domain.items()},
-                "unprocessed_leaf_counts": {
-                    dom: len(self._collect_feature_keys(data)) for dom, data in unprocessed_multimodal.items()
-                },
-            }
+            fill_report["processed_raw_full_included"] = False
+        else:
+            print(
+                "[FusionLayer] Raw pass-through payload exceeds fusion threshold; "
+                "preserving full data and relying on chunked predictor path."
+            )
+            fill_report["processed_raw_full_included"] = False
 
-            # Construct a "Pass-Through" FusionResult
-            # We still populate summaries from tool outputs but don't do new synthesis
-            
-            # Aggregate findings from tools
-            findings = []
-            domain_data = {}
-            for step_id, output in step_outputs.items():
-                if not output: continue
-                if "abnormality_patterns" in output:
-                    findings.extend(output.get("abnormality_patterns") or [])
-                if "key_abnormalities" in output:
-                    findings.extend(output["key_abnormalities"])
-                if "key_findings" in output:
-                    findings.extend(output["key_findings"])
-                if "domain" in output:
-                    if "domain_synthesis" in output:
-                        domain_data[output["domain"]] = output["domain_synthesis"]
-                    elif "summary" in output:
-                        domain_data[output["domain"]] = output["summary"]
-                    elif "clinical_narrative" in output:
-                        domain_data[output["domain"]] = output["clinical_narrative"]
+        fill_report = fill_report or {}
+        all_feature_keys = feature_key_set(multimodal_data or {})
+        unprocessed_feature_keys = feature_key_set(filled_multimodal or {})
+        excluded_feature_keys = set(all_feature_keys) - set(unprocessed_feature_keys)
 
-            return FusionResult(
-                fused_narrative="Raw pass-through mode: detailed synthesis skipped in favor of raw data integrity.",
+        final_payload_probe = self.compress_for_predictor(
+            fusion_result=FusionResult(
+                fused_narrative=pass_through_result.fused_narrative,
                 domain_summaries=domain_data,
                 key_findings=findings,
-                cross_modal_patterns=[], # No cross-modal analysis done without LLM
+                cross_modal_patterns=[],
                 evidence_summary={"for_case": [], "for_control": []},
                 tokens_used=0,
                 source_outputs=[str(k) for k in (step_outputs or {}).keys()],
                 skipped_fusion=True,
                 raw_multimodal_data=filled_multimodal,
+                raw_processed_multimodal_data=processed_raw_tree if include_processed_raw else None,
                 raw_step_outputs=step_outputs,
                 context_fill_report=fill_report,
-            )
-        else:
-            print(f"[FusionLayer] ⚠ OVER THRESHOLD - PERFORMING LLM FUSION to compress.")
-            return self.fuse(step_outputs, hierarchical_deviation, non_numerical_data, target_condition, system_prompt, multimodal_data)
+            ),
+            hierarchical_deviation=hierarchical_deviation,
+            non_numerical_data=non_numerical_data,
+        )
+        final_payload_tokens = len(self.encoder.encode(json.dumps(final_payload_probe, default=str)))
+        fill_report["predictor_payload_estimate"] = {
+            "baseline_tokens": baseline_payload_tokens,
+            "final_tokens": final_payload_tokens,
+            "processed_raw_tokens": processed_payload_tokens,
+            "single_chunk_limit": single_chunk_limit,
+            "threshold": self.threshold,
+            "chunked_two_pass_required": final_payload_tokens > single_chunk_limit,
+            "strategy": "raw_pass_through_chunked_predictor",
+        }
+        fill_report["coverage"] = {
+            "processed_whole_domains": sorted(list(processed_whole_domains)),
+            "processed_prefixes_by_domain": {
+                dom: [list(p) for p in sorted(list(prefixes), key=lambda x: (len(x), str(x)))]
+                for dom, prefixes in processed_prefixes_by_domain.items()
+            },
+            "excluded_leaf_counts": {dom: len(feats) for dom, feats in excluded_features_by_domain.items()},
+            "unprocessed_leaf_counts": {
+                dom: len(self._collect_feature_keys(data)) for dom, data in filled_multimodal.items()
+            },
+            "all_feature_count": len(all_feature_keys),
+            "unprocessed_feature_count": len(unprocessed_feature_keys),
+            "processed_feature_count": len(excluded_feature_keys),
+            "missing_feature_count": max(0, len(all_feature_keys - (unprocessed_feature_keys | excluded_feature_keys))),
+        }
+
+        if chunked_two_pass_required:
+            print("[FusionLayer] Single-pass predictor would overflow; enabling chunked two-pass route.")
+
+        return FusionResult(
+            fused_narrative="Raw pass-through mode: detailed synthesis skipped in favor of raw data integrity.",
+            domain_summaries=domain_data,
+            key_findings=findings,
+            cross_modal_patterns=[], # No cross-modal analysis done without LLM
+            evidence_summary={"for_case": [], "for_control": []},
+            tokens_used=0,
+            source_outputs=[str(k) for k in (step_outputs or {}).keys()],
+            skipped_fusion=True,
+            raw_multimodal_data=filled_multimodal,
+            raw_processed_multimodal_data=processed_raw_tree if include_processed_raw else None,
+            raw_step_outputs=step_outputs,
+            context_fill_report=fill_report,
+        )
 
     
     def fuse(
@@ -578,6 +658,7 @@ Please fuse these outputs into a unified representation. PRESERVE all clinical n
                 "multimodal_unprocessed_raw": fusion_result.raw_multimodal_data,
                 "multimodal_context_boost": fusion_result.raw_multimodal_data,  # legacy alias
                 "unprocessed_multimodal_data_raw": fusion_result.raw_multimodal_data,  # legacy alias
+                "multimodal_processed_raw_low_priority": fusion_result.raw_processed_multimodal_data,
                 
                 # Tool Outputs (preserved)
                 "key_findings": fusion_result.key_findings,
@@ -613,6 +694,7 @@ Please fuse these outputs into a unified representation. PRESERVE all clinical n
                 "multimodal_unprocessed_raw": fusion_result.raw_multimodal_data,
                 "multimodal_context_boost": fusion_result.raw_multimodal_data,  # legacy alias
                 "unprocessed_multimodal_data_raw": fusion_result.raw_multimodal_data,  # legacy alias
+                "multimodal_processed_raw_low_priority": fusion_result.raw_processed_multimodal_data,
             }
         
         print(f"[FusionLayer] ✓ Final predictor input ready")

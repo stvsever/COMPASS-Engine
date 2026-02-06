@@ -12,6 +12,11 @@ from .integrator import Integrator
 from ..utils.core.plan_executor import PlanExecutor
 from ..utils.core.data_loader import ParticipantData
 from ..data.models.execution_plan import ExecutionPlan, PlanExecutionResult
+from ..utils.core.multimodal_coverage import (
+    feature_key_set,
+    feature_map_by_key,
+    features_by_keys,
+)
 
 logger = logging.getLogger("compass.executor")
 
@@ -85,7 +90,8 @@ class Executor(BaseAgent):
             ui.on_step_start(
                 step_id=fusion_step_id,
                 tool_name="Fusion Layer",
-                description="Integrating domain outputs into unified representation..."
+                description="Integrating domain outputs into unified representation...",
+                stage=3,
             )
 
         try:
@@ -94,15 +100,6 @@ class Executor(BaseAgent):
                 context=context,
                 target_condition=target_condition
             )
-            
-            if ui:
-                ui.on_step_complete(
-                    step_id=fusion_step_id,
-                    tokens=0, 
-                    duration_ms=0, 
-                    preview="Integration complete."
-                )
-                
         except Exception as e:
             if ui:
                 ui.on_step_failed(
@@ -113,6 +110,30 @@ class Executor(BaseAgent):
         
         fusion_result = integration_output["fusion_result"]
         compressed = integration_output["predictor_input"]
+        coverage_ledger = self._build_coverage_ledger(
+            multimodal_data=context.get("multimodal_data") or {},
+            step_outputs=execution_result.step_outputs or {},
+            predictor_input=compressed,
+        )
+        compressed["coverage_ledger"] = coverage_ledger
+
+        chunk_result = self.integrator.extract_chunk_evidence(
+            step_outputs=execution_result.step_outputs or {},
+            predictor_input=compressed,
+            coverage_ledger=coverage_ledger,
+            data_overview=context.get("data_overview") or {},
+            hierarchical_deviation=context.get("hierarchical_deviation") or {},
+            non_numerical_data=context.get("non_numerical_data") or "",
+            target_condition=target_condition,
+        )
+
+        if ui:
+            ui.on_step_complete(
+                step_id=fusion_step_id,
+                tokens=0,
+                duration_ms=0,
+                preview="Integration complete.",
+            )
 
         # Generate prediction status
         if ui:
@@ -124,6 +145,8 @@ class Executor(BaseAgent):
             "fusion_result": fusion_result,
             "predictor_input": compressed,
             "step_outputs": execution_result.step_outputs,
+            "chunk_evidence": chunk_result.get("chunk_evidence") or [],
+            "predictor_chunk_count": int(chunk_result.get("predictor_chunk_count") or 0),
             
             # Always include these
             "data_overview": context.get("data_overview"),
@@ -136,6 +159,7 @@ class Executor(BaseAgent):
             "target_condition": target_condition,
             "domains_processed": plan.priority_domains,
             "total_tokens_used": execution_result.total_tokens_used,
+            "coverage_ledger": coverage_ledger,
         }
         
         self._log_complete(
@@ -144,6 +168,112 @@ class Executor(BaseAgent):
         )
         
         return output
+
+    def _build_coverage_ledger(
+        self,
+        multimodal_data: Dict[str, Any],
+        step_outputs: Dict[int, Dict[str, Any]],
+        predictor_input: Dict[str, Any],
+    ) -> Dict[str, Any]:
+        """
+        Build no-loss multimodal coverage ledger and enforce forced-raw recovery when needed.
+        """
+        all_keys = feature_key_set(multimodal_data)
+        fmap = feature_map_by_key(multimodal_data)
+
+        processed: set[str] = set()
+        per_step: Dict[str, int] = {}
+        for step_id, out in (step_outputs or {}).items():
+            if not isinstance(out, dict):
+                continue
+            meta = out.get("_step_meta") or {}
+            keys = meta.get("consumed_feature_keys") or []
+            if not isinstance(keys, list):
+                keys = []
+            keys_set = {str(k) for k in keys if isinstance(k, str)}
+            if keys_set:
+                per_step[str(step_id)] = len(keys_set)
+                processed.update(keys_set)
+
+        raw_unprocessed = predictor_input.get("multimodal_unprocessed_raw") or {}
+        unprocessed_payload_keys = feature_key_set(raw_unprocessed)
+
+        processed_in_all = set(processed) & set(all_keys)
+        covered = processed_in_all | unprocessed_payload_keys
+        missing = set(all_keys) - set(covered)
+
+        forced_raw_features: list[str] = []
+        if missing:
+            # Guarantee no-loss by appending missing features to raw multimodal payload.
+            forced_raw_tree = features_by_keys(fmap, sorted(list(missing)))
+            existing = predictor_input.get("multimodal_unprocessed_raw")
+            predictor_input["multimodal_unprocessed_raw"] = self._merge_trees(
+                existing if isinstance(existing, dict) else {},
+                forced_raw_tree,
+            )
+            predictor_input["multimodal_context_boost"] = predictor_input["multimodal_unprocessed_raw"]
+            predictor_input["unprocessed_multimodal_data_raw"] = predictor_input["multimodal_unprocessed_raw"]
+            forced_raw_features = sorted(list(missing))
+            unprocessed_payload_keys = feature_key_set(predictor_input["multimodal_unprocessed_raw"])
+            covered = processed_in_all | unprocessed_payload_keys
+            missing = set(all_keys) - set(covered)
+
+        ledger = {
+            "all_features": sorted(list(all_keys)),
+            "processed_features": sorted(list(processed_in_all)),
+            "unprocessed_features": sorted(list(set(all_keys) - set(processed_in_all))),
+            "covered_features": sorted(list(covered)),
+            "missing_features": sorted(list(missing)),
+            "forced_raw_features": forced_raw_features,
+            "per_step_consumed_counts": per_step,
+            "summary": {
+                "all_count": len(all_keys),
+                "processed_count": len(processed_in_all),
+                "unprocessed_count": len(set(all_keys) - set(processed_in_all)),
+                "covered_count": len(covered),
+                "missing_count": len(missing),
+                "forced_raw_count": len(forced_raw_features),
+            },
+        }
+        return ledger
+
+    def _merge_trees(self, base: Dict[str, Any], extra: Dict[str, Any]) -> Dict[str, Any]:
+        """Merge nested domain trees with `_leaves` lists."""
+        if not isinstance(base, dict):
+            base = {}
+        if not isinstance(extra, dict):
+            return base
+
+        merged = dict(base)
+        for key, val in extra.items():
+            if key not in merged:
+                merged[key] = val
+                continue
+
+            if isinstance(val, dict) and isinstance(merged.get(key), dict):
+                merged[key] = self._merge_trees(merged[key], val)
+                continue
+
+            if key == "_leaves" and isinstance(val, list) and isinstance(merged.get(key), list):
+                # Deduplicate by feature id/name + path.
+                seen = set()
+                out = []
+                for feat in list(merged[key]) + list(val):
+                    if not isinstance(feat, dict):
+                        continue
+                    fid = str(feat.get("feature_id") or feat.get("field_name") or feat.get("feature") or "unknown")
+                    path = tuple(str(p) for p in (feat.get("path_in_hierarchy") or []))
+                    k = (fid, path)
+                    if k in seen:
+                        continue
+                    seen.add(k)
+                    out.append(feat)
+                merged[key] = out
+                continue
+
+            merged[key] = val
+
+        return merged
     
     def _build_context(
         self,

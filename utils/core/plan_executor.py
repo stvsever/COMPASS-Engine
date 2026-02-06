@@ -23,6 +23,7 @@ from .auto_repair import AutoRepair
 from .token_manager import TokenManager
 from ...frontend.compass_ui import get_ui
 from ..path_utils import split_node_path, resolve_requested_subtree, path_is_prefix
+from .multimodal_coverage import feature_key_set
 
 logger = logging.getLogger("compass.plan_executor")
 
@@ -124,7 +125,13 @@ class PlanExecutor:
                     
                     if self.ui.enabled:
                         parallel_ids = [s.step_id for s in executable if s.step_id != step.step_id]
-                        self.ui.on_step_start(step.step_id, step.tool_name.value, step.description, parallel_with=parallel_ids if parallel_ids else None)
+                        self.ui.on_step_start(
+                            step.step_id,
+                            step.tool_name.value,
+                            step.description,
+                            parallel_with=parallel_ids if parallel_ids else None,
+                            stage=2,
+                        )
                     
                     step_status_lock = True # Simple mutex conceptual flag 
                     step.status = StepStatus.IN_PROGRESS
@@ -231,6 +238,7 @@ class PlanExecutor:
             
             # Build tool input
             tool_input = self._build_tool_input(step, context, previous_outputs)
+            consumed_feature_keys = set(tool_input.get("_consumed_feature_keys") or [])
             
             # Execute tool
             tool_output = tool.execute(tool_input)
@@ -268,6 +276,7 @@ class PlanExecutor:
                     "input_domains": list((tool_input.get("input_domains") or step.input_domains or [])),
                     "parameters": dict(tool_input.get("parameters") or step.parameters or {}),
                     "depends_on": list(step.depends_on or []),
+                    "consumed_feature_keys": sorted(list(consumed_feature_keys)),
                 }
                 
                 return StepResult(
@@ -353,6 +362,7 @@ class PlanExecutor:
             "target_condition": context.get("target_condition"),
             "participant_id": context.get("participant_id"),
         }
+        consumed_feature_keys: set[str] = set()
         
         # Add domain-specific data if specified (truncated)
         if raw_input_domains:
@@ -395,6 +405,10 @@ class PlanExecutor:
                             max_children=2000 if tool_canonical == "UnimodalCompressor" else 200,
                         )
                     domain_data[domain] = truncated_domain
+                    try:
+                        consumed_feature_keys.update(feature_key_set(truncated_domain, domain_hint=domain))
+                    except Exception:
+                        pass
             tool_input["domain_data"] = domain_data
         
         # Add outputs from dependent steps (truncated)
@@ -455,6 +469,8 @@ class PlanExecutor:
 
         if dependency_outputs:
             tool_input["dependency_outputs"] = dependency_outputs
+
+        tool_input["_consumed_feature_keys"] = sorted(list(consumed_feature_keys))
         
         return tool_input
     

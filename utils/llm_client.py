@@ -289,6 +289,39 @@ class LLMClient:
             **kwargs
         )
     
+    def ping(self, model: Optional[str] = None, timeout_s: int = 10) -> bool:
+        """
+        Lightweight connectivity check for the OpenAI backend.
+        """
+        if self.settings.models.backend == LLMBackend.LOCAL:
+            return True
+        if not self.api_key:
+            raise ValueError("OpenAI API key not provided for OpenAI Backend")
+        if not hasattr(self, "client") or self.client is None:
+            self.client = OpenAI(api_key=self.api_key)
+        try:
+            # Prefer a non-generation endpoint to avoid max_tokens edge cases.
+            self.client.models.list()
+            return True
+        except Exception as e:
+            model = model or self.settings.models.tool_model
+            try:
+                for max_tokens in (128, 256, 512):
+                    try:
+                        self.client.chat.completions.create(
+                            model=model,
+                            messages=[{"role": "user", "content": "ping"}],
+                            max_completion_tokens=max_tokens,
+                            timeout=timeout_s,
+                        )
+                        return True
+                    except Exception as inner:
+                        if max_tokens == 512:
+                            raise inner
+            except Exception as inner:
+                logger.error(f"OpenAI connectivity check failed: {str(inner)}")
+                raise RuntimeError(f"OpenAI connectivity check failed: {inner}") from inner
+
     def get_token_usage(self) -> Dict[str, Any]:
         """Get current token usage summary."""
         return self.token_tracker.summary()

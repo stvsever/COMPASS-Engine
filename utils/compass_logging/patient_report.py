@@ -74,6 +74,9 @@ class PatientReportGenerator:
             
             "execution": {
                 "iterations": execution_summary.get("iterations", 1),
+                "selected_iteration": execution_summary.get("selected_iteration", 1),
+                "selection_reason": execution_summary.get("selection_reason", ""),
+                "coverage_summary": execution_summary.get("coverage_summary", {}),
                 "tokens_used": execution_summary.get("tokens_used", 0),
                 "domains_processed": execution_summary.get("domains_processed", []),
                 "detailed_logs": execution_summary.get("detailed_logs", [])
@@ -152,6 +155,8 @@ class PatientReportGenerator:
         lines.extend([
             f"\n## Execution Details",
             f"- **Iterations**: {exec_data.get('iterations', 1)}",
+            f"- **Selected Iteration**: {exec_data.get('selected_iteration', 1)}",
+            f"- **Selection Reason**: {exec_data.get('selection_reason', 'N/A')}",
             f"- **Tokens Used**: {exec_data.get('tokens_used', 0):,}",
             f"- **Domains Processed**: {', '.join(exec_data.get('domains_processed', []))}"
         ])
