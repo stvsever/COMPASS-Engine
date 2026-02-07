@@ -358,6 +358,7 @@ class PlanExecutor:
             
             # Always include these (truncated for context limits)
             "hierarchical_deviation": hierarchical_deviation,
+            "data_overview": context.get("data_overview"),
             "non_numerical_data": context.get("non_numerical_data"),
             "target_condition": context.get("target_condition"),
             "control_condition": context.get("control_condition"),

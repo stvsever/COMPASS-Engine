@@ -57,7 +57,6 @@ Through the dashboard, you can:
    Create a `.env` file with your API keys:
    ```env
    OPENROUTER_API_KEY=sk-...
-   OPENAI_API_KEY=sk-...   # optional fallback if OpenRouter is unavailable
    ```
 
 ## ⚡ Usage
@@ -87,7 +86,6 @@ Pipeline outputs (per participant) include:
 
 Backend notes:
 - `Public API (OpenRouter)` is the default in UI/CLI.
-- If OpenRouter connectivity fails and `OPENAI_API_KEY` is configured, COMPASS automatically falls back to OpenAI and logs that switch.
 - Local runs can be configured in the Advanced Configuration panel (engine, dtype, quantization, context window, and role-specific overrides).
 
 > [!NOTE]
@@ -104,11 +102,6 @@ jupyter notebook COMPASS_demo.ipynb
 The notebook includes separate backend controls for:
 - Public API mode (OpenRouter model + context window)
 - Local backend mode (model path/name + local runtime settings)
-
-Optional: warm the embedding cache (recommended for large cohorts):
-```bash
-python utils/precompute_embeddings.py
-```
 
 ## 📁 Project Structure
 

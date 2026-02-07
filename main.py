@@ -42,6 +42,7 @@ from multi_agent_system.utils.compass_logging.decision_trace import DecisionTrac
 from multi_agent_system.utils.compass_logging.patient_report import PatientReportGenerator
 from multi_agent_system.data.models.prediction_result import Verdict
 from multi_agent_system.frontend.compass_ui import get_ui, reset_ui, start_ui_loop
+from multi_agent_system.utils.participant_resolver import resolve_participant_dir
 
 
 def _resolve_output_dir(participant_dir: Path, participant_id: str, settings) -> Path:
@@ -53,6 +54,8 @@ def _resolve_output_dir(participant_dir: Path, participant_id: str, settings) ->
     except Exception:
         pass
     return settings.paths.output_dir / f"participant_{participant_id}"
+
+
 
 
 def _build_report_context_note(final_evaluation, selected_iteration: int, selection_reason: str) -> str:
@@ -1421,18 +1424,11 @@ Examples:
                 reset_llm_client()
                 print(f"[*] UI Triggered Launch: {participant_id} -> {target_condition} (control: {control_condition})")
                 
-                # Construct full path
-                p_dir = compass_data_root / participant_id
-                
-                if not p_dir.exists():
-                    # Try finding it if user just typed ID number
-                    potential = list(compass_data_root.glob(f"*{participant_id}*"))
-                    if potential:
-                        p_dir = potential[0]
-                        print(f"[*] Fuzzy matched folder: {p_dir.name}")
-                    else:
-                        print(f"[!] Error: Participant folder not found for ID: {participant_id}")
-                        return
+                p_dir = resolve_participant_dir(participant_id, compass_data_root, settings)
+                if not p_dir or not p_dir.exists():
+                    print(f"[!] Error: Participant folder not found for ID: {participant_id}")
+                    return
+                print(f"[*] Fuzzy matched folder: {p_dir.name}")
                 
                 result = run_compass_pipeline(
                     participant_dir=p_dir,

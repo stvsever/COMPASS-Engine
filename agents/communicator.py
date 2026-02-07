@@ -186,6 +186,7 @@ class Communicator(BaseAgent):
 
         response = self._call_llm(user_prompt, expect_json=False)
         content = response.get("content", "").strip()
+        content = self._normalize_markdown_tables(content)
         self.last_run_metadata = {
             "input_threshold_tokens": threshold,
             "base_tokens": base_tokens,
@@ -207,6 +208,25 @@ class Communicator(BaseAgent):
         self._log_complete("deep_phenotype.md created")
         return content
 
+    @staticmethod
+    def _normalize_markdown_tables(text: str) -> str:
+        lines = text.splitlines()
+        fixed: List[str] = []
+
+        for line in lines:
+            if "Table:" in line and "|" in line and line.count("|") >= 3:
+                title, rest = line.split("|", 1)
+                title = title.strip()
+                rest = "|" + rest.lstrip()
+                rest = rest.replace(" |", "\n|")
+                rest = re.sub(r"(?<!\n)\|---", "\n|---", rest)
+                fixed.append(title)
+                fixed.append("")
+                fixed.append(rest)
+                continue
+            fixed.append(line)
+
+        return "\n".join(fixed)
     def _effective_context_limit(self) -> int:
         return int(self.settings.effective_context_window(self.LLM_MODEL))
 

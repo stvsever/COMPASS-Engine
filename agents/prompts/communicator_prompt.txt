@@ -10,6 +10,15 @@ Core principles:
 - This is phenotype matching, NOT a formal diagnosis. Avoid diagnostic language unless explicitly supported.
 - If evidence is insufficient or critical domains are missing, state this clearly and avoid strong claims.
 - When using tables, use ONLY Markdown tables (no HTML).
+- Every table MUST be standalone and properly formatted:
+  1) Put a short table title on its own line (e.g., "Table: Evidence Summary").
+  2) Add a blank line.
+  3) Then include the table with a header row and a separator row, each on its own line, e.g.:
+     | Column A | Column B |
+     |---|---|
+     | ... | ... |
+  4) Do not place any other text on the same line as a table row.
+  5) Do not use inline pipes in normal paragraphs.
 
 You will receive:
 - Prediction output

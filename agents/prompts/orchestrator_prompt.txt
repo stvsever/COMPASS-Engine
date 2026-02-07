@@ -112,10 +112,10 @@ Since multimodal_data.json is large:
 
 #### 8. DifferentialDiagnosis - SCHEDULE LATE
 - **Purpose**: Generate comprehensive differential diagnosis with rule-out logic
-- **Input**: Phenotype, hypotheses, ranked features, abnormality profile
+- **Input**: Phenotype, hypotheses, ranked features, abnormality profile, multimodal narratives, and (if space allows) unimodal summaries + core input files
 - **Output**: Ranked differential diagnoses with likelihood scores
-- **Timing**: LATE - Depends on PhenotypeRepresentation, HypothesisGenerator, ClinicalRanker
-- **Dependencies**: Should depend on steps 1, 7, and clinical ranker step
+- **Timing**: LATE - Depends on PhenotypeRepresentation, HypothesisGenerator, ClinicalRanker, and all MultimodalNarrativeCreator steps
+- **Dependencies**: Must depend on PhenotypeRepresentation + HypothesisGenerator + ClinicalRanker + all MultimodalNarrativeCreator steps; include UnimodalCompressor steps if feasible
 
 #### 9. CodeExecutor
 - **Purpose**: Execute Python code for custom analyses/calculations
@@ -143,7 +143,7 @@ The executor will automatically parallelize steps that have no unmet dependencie
 
 ## CRITICAL REQUIREMENTS
 
-1. **ALWAYS PASS** hierarchical_deviation_map.json and non_numerical_data.txt to relevant tools
+1. **ALWAYS PASS** data_overview.json, hierarchical_deviation_map.json, and non_numerical_data.txt to relevant tools (especially DifferentialDiagnosis)
 2. **COMPLETE COVERAGE**: Process ALL available data domains
 3. **TOKEN EFFICIENCY**: Use compression tools aggressively for multimodal_data.json
 4. **HIERARCHICAL REASONING**:

@@ -1180,7 +1180,7 @@
                             <select id="input-backend" class="form-input" onchange="toggleModelInput()"
                                 style="padding:0.6rem;">
                                 <option value="openrouter" selected>Public API (OpenRouter)</option>
-                                <option value="local">Local (Huggingface)</option>
+                                <option value="local">Local Hosting (Huggingface)</option>
                             </select>
                             <div class="advanced-subtle">
                                 Select your runtime backend. Public API uses OpenRouter routing; Local uses Hugging Face
@@ -1198,14 +1198,14 @@
                             </div>
                             <div class="advanced-grid">
                                 <div>
-                                    <label class="form-label">LLM Model</label>
+                                    <label class="form-label">Large Language Model</label>
                                     <input type="text" id="input-public-model" class="form-input"
                                         placeholder="gpt-5-nano (recommended)" value="gpt-5-nano"
                                         list="openrouter-models-list" oninput="onPublicModelInput()">
                                     <datalist id="openrouter-models-list"></datalist>
                                 </div>
                                 <div>
-                                    <label class="form-label">Model Context Window (input tokens)</label>
+                                    <label class="form-label">Model Context Window</label>
                                     <input type="number" id="input-public-max-context" class="form-input"
                                         placeholder="Auto from model catalog (default 128000)" value="128000">
                                 </div>
@@ -1223,7 +1223,7 @@
 
                         <div id="group-model" class="advanced-section" style="display:none;">
                             <div class="advanced-header">
-                                <div class="advanced-title">Local (Hugging Face)</div>
+                                <div class="advanced-title">Local Hosting (Hugging Face)</div>
                                 <button type="button" onclick="loadHfModels()"
                                     style="height:28px; border:1px solid #2b3445; border-radius:8px; padding:0 10px; background:#0f141d; color:#9fb6ff; cursor:pointer; font-size:0.75rem;">
                                     Reload catalog
@@ -1231,14 +1231,14 @@
                             </div>
                             <div class="advanced-grid">
                                 <div>
-                                    <label class="form-label">Local LLM Model</label>
+                                    <label class="form-label">Local Large Language Model</label>
                                     <input type="text" id="input-model" class="form-input"
                                         placeholder="e.g. Qwen/Qwen2.5-7B" value="Qwen/Qwen2.5-0.5B-Instruct"
                                         list="hf-models-list" oninput="onLocalModelInput()">
                                     <datalist id="hf-models-list"></datalist>
                                 </div>
                                 <div>
-                                    <label class="form-label">Local Context Window (input tokens)</label>
+                                    <label class="form-label">Local Context Window</label>
                                     <input type="number" id="input-max-tokens" class="form-input" placeholder="2048"
                                         value="2048">
                                 </div>
@@ -1881,11 +1881,14 @@
             const eurRate = parseFloat(String(window.__compassEurPerUsd || '')) || parseFloat(String((window.localStorage && localStorage.getItem('COMPASS_EUR_PER_USD')) || '')) || 1.0;
             const promptPerM = found.prompt_price ? (parseFloat(found.prompt_price) * 1_000_000 * eurRate) : null;
             const promptLine = promptPerM !== null ? `€${promptPerM.toFixed(2)} / 1M input tokens` : 'Not provided';
-            meta.innerHTML = [
+            const lines = [
                 `Catalog info retrieved for ${found.id}.`,
                 `Price (input): ${promptLine}`,
-                `Output-token pricing: Not applicable for embedding requests.`
-            ].map(line => `<div>${line}</div>`).join('');
+            ];
+            if (found.context_length) {
+                lines.splice(1, 0, `Context window: ${found.context_length.toLocaleString()} tokens`);
+            }
+            meta.innerHTML = lines.map(line => `<div>${line}</div>`).join('');
         }
 
         function onPublicModelInput(fromCatalogLoad = false) {
@@ -1904,7 +1907,7 @@
                 updateOpenRouterContextFromCatalog(exact.id);
                 return;
             }
-            document.getElementById('openrouter-model-meta').textContent = 'LLM model not found in catalog; using manual value.';
+            document.getElementById('openrouter-model-meta').textContent = 'Large Language Model not found in catalog; using manual value.';
         }
 
         function onEmbeddingModelInput(fromCatalogLoad = false) {
@@ -2232,12 +2235,15 @@
                         }
                         const downloads = data.downloads ? data.downloads.toLocaleString() : 'N/A';
                         const likes = data.likes ? data.likes.toLocaleString() : 'N/A';
-                        meta.innerHTML = [
+                        const lines = [
                             `Catalog info retrieved for ${data.id || input.value}.`,
-                            `Token billing: Not applicable (local runtime).`,
                             `Downloads: ${downloads}`,
                             `Likes: ${likes}`
-                        ].map(line => `<div>${line}</div>`).join('');
+                        ];
+                        if (data.context_length) {
+                            lines.splice(2, 0, `Context window: ${data.context_length.toLocaleString()} tokens`);
+                        }
+                        meta.innerHTML = lines.map(line => `<div>${line}</div>`).join('');
                     } catch (e) {
                         meta.textContent = `Model detail lookup failed: ${e.message}`;
                     }
@@ -2252,12 +2258,15 @@
                 }
                 const downloads = data.downloads ? data.downloads.toLocaleString() : 'N/A';
                 const likes = data.likes ? data.likes.toLocaleString() : 'N/A';
-                meta.innerHTML = [
+                const lines = [
                     `Catalog info retrieved for ${data.id || exact.id}.`,
-                    `Token billing: Not applicable (local runtime).`,
                     `Downloads: ${downloads}`,
                     `Likes: ${likes}`
-                ].map(line => `<div>${line}</div>`).join('');
+                ];
+                if (data.context_length) {
+                    lines.splice(2, 0, `Context window: ${data.context_length.toLocaleString()} tokens`);
+                }
+                meta.innerHTML = lines.map(line => `<div>${line}</div>`).join('');
             } catch (e) {
                 meta.textContent = `Model detail lookup failed: ${e.message}`;
             }

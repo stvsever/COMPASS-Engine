@@ -33,6 +33,7 @@ class DifferentialDiagnosis(BaseTool):
         target = input_data.get("target_condition", "neuropsychiatric")
         control = input_data.get("control_condition", "")
         hierarchical_deviation = input_data.get("hierarchical_deviation", {})
+        data_overview = input_data.get("data_overview", {})
         non_numerical_data = input_data.get("non_numerical_data", "")
         dep_outputs = input_data.get("dependency_outputs", {})
         
@@ -40,9 +41,12 @@ class DifferentialDiagnosis(BaseTool):
         hypotheses = self._extract_hypotheses(dep_outputs)
         ranked_features = self._extract_ranked_features(dep_outputs)
         phenotype = self._extract_phenotype(dep_outputs)
+        multimodal_narratives = self._extract_multimodal_narratives(dep_outputs)
+        unimodal_summaries = self._extract_unimodal_outputs(dep_outputs)
         
         # Get abnormality summary
         abnormality_summary = self._get_abnormality_summary(hierarchical_deviation)
+        overview_summary = self._summarize_data_overview(data_overview)
         
         prompt_parts = [
             f"## TARGET CONDITION: {target}",
@@ -50,13 +54,22 @@ class DifferentialDiagnosis(BaseTool):
             
             f"\n## PHENOTYPE REPRESENTATION",
             phenotype if phenotype else "Not available",
-            
+
+            f"\n## DATA OVERVIEW",
+            overview_summary if overview_summary else "Not available",
+
             f"\n## HYPOTHESES GENERATED",
             f"```json\n{json.dumps(hypotheses, indent=2)}\n```" if hypotheses else "No hypotheses available",
-            
+
             f"\n## CLINICALLY RANKED FEATURES",
             f"```json\n{json.dumps(ranked_features[:10], indent=2)}\n```" if ranked_features else "No ranked features",
-            
+
+            f"\n## MULTIMODAL NARRATIVES",
+            self._format_multimodal_narratives(multimodal_narratives),
+
+            f"\n## UNIMODAL SUMMARIES (IF PROVIDED)",
+            self._format_unimodal_summaries(unimodal_summaries),
+
             f"\n## ABNORMALITY PROFILE",
             abnormality_summary,
             
@@ -70,6 +83,106 @@ class DifferentialDiagnosis(BaseTool):
         ]
         
         return "\n".join(prompt_parts)
+
+    def _summarize_data_overview(self, data_overview: Any) -> str:
+        """Provide a compact summary from data_overview."""
+        if not data_overview:
+            return ""
+        if isinstance(data_overview, dict):
+            total_tokens = data_overview.get("total_tokens")
+            domains = data_overview.get("domain_coverage") or {}
+        else:
+            total_tokens = getattr(data_overview, "total_tokens", None)
+            domains = getattr(data_overview, "domain_coverage", {}) or {}
+
+        lines = []
+        if total_tokens is not None:
+            lines.append(f"- total_tokens: {total_tokens}")
+        if isinstance(domains, dict):
+            for dom, cov in domains.items():
+                if isinstance(cov, dict):
+                    present = cov.get("present_leaves")
+                    total = cov.get("total_leaves")
+                    pct = cov.get("coverage_percentage")
+                    if present is not None and total is not None:
+                        lines.append(f"- {dom}: {present}/{total} ({pct:.1f}%)" if pct is not None else f"- {dom}: {present}/{total}")
+        return "\n".join(lines)
+
+    def _tool_name_from_output(self, output: Any) -> str:
+        if not isinstance(output, dict):
+            return ""
+        if output.get("tool_name"):
+            return str(output.get("tool_name"))
+        meta = output.get("_step_meta") or {}
+        return str(meta.get("tool_name") or "")
+
+    def _extract_multimodal_narratives(self, dep_outputs: Dict[str, Any]) -> List[Dict[str, Any]]:
+        narratives = []
+        for step_key, output in dep_outputs.items():
+            if not isinstance(output, dict):
+                continue
+            tool_name = self._tool_name_from_output(output)
+            if tool_name != "MultimodalNarrativeCreator":
+                continue
+            text = self._extract_text_field(output, ["narrative", "opening", "integrated_summary", "clinical_summary", "summary"])
+            if not text:
+                text = json.dumps(output, indent=2)
+            narratives.append({"step": step_key, "text": text})
+        return narratives
+
+    def _extract_unimodal_outputs(self, dep_outputs: Dict[str, Any]) -> List[Dict[str, Any]]:
+        summaries = []
+        for step_key, output in dep_outputs.items():
+            if not isinstance(output, dict):
+                continue
+            tool_name = self._tool_name_from_output(output)
+            if tool_name != "UnimodalCompressor":
+                continue
+            domain = output.get("domain") or output.get("base_domain") or ""
+            text = self._extract_text_field(output, ["clinical_narrative", "domain_synthesis", "summary"])
+            if not text:
+                text = json.dumps(output, indent=2)
+            summaries.append({"step": step_key, "domain": domain, "text": text})
+        return self._limit_unimodal_summaries(summaries)
+
+    def _extract_text_field(self, output: Dict[str, Any], keys: List[str]) -> str:
+        for key in keys:
+            if key in output and isinstance(output[key], str):
+                return output[key]
+            if key in output and isinstance(output[key], dict):
+                return json.dumps(output[key], indent=2)
+        return ""
+
+    def _limit_unimodal_summaries(self, summaries: List[Dict[str, Any]]) -> List[Dict[str, Any]]:
+        """Best-effort cap to keep unimodal text reasonable."""
+        max_chars = 6000
+        packed = []
+        total = 0
+        for item in summaries:
+            text = item.get("text", "")
+            size = len(text)
+            if total + size > max_chars and packed:
+                break
+            packed.append(item)
+            total += size
+        return packed
+
+    def _format_multimodal_narratives(self, narratives: List[Dict[str, Any]]) -> str:
+        if not narratives:
+            return "No multimodal narratives provided"
+        parts = []
+        for item in narratives:
+            parts.append(f"- {item['step']}: {item['text'][:1200]}")
+        return "\n".join(parts)
+
+    def _format_unimodal_summaries(self, summaries: List[Dict[str, Any]]) -> str:
+        if not summaries:
+            return "No unimodal summaries provided"
+        parts = []
+        for item in summaries:
+            label = item.get("domain") or item.get("step")
+            parts.append(f"- {label}: {item['text'][:800]}")
+        return "\n".join(parts)
     
     def _extract_hypotheses(self, dep_outputs: Dict[str, Any]) -> List[Dict[str, Any]]:
         """Extract hypotheses from dependency outputs."""

@@ -16,6 +16,9 @@ Distinguish between:
 4. **Hypotheses Generated**: Mechanistic hypotheses
 5. **Clinically Ranked Features**: Key patient features
 6. **Clinical Notes**: Patient history and context
+7. **Data Overview**: domain coverage and token estimates
+8. **Multimodal Narratives**: integrated cross-domain narratives (all available)
+9. **Unimodal Summaries (if available)**: compressed domain outputs when space allows
 
 ## YOUR TASK
 1. Generate a ranked list of differential diagnoses

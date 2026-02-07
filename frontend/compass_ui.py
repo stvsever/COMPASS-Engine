@@ -528,6 +528,25 @@ def _is_embedding_model(
     return _looks_like_embedding_id(model_id)
 
 
+def _is_hf_embedding_model(model_id: str = "", pipeline_tag: str = "", tags: Optional[List[str]] = None) -> bool:
+    pipeline = (pipeline_tag or "").lower()
+    tags_l = [(tag or "").lower() for tag in (tags or [])]
+
+    if pipeline:
+        return pipeline in {"feature-extraction", "sentence-similarity"}
+
+    if any(tag in {"feature-extraction", "sentence-similarity", "embeddings", "embedding"} for tag in tags_l):
+        return True
+
+    name = (model_id or "").lower()
+    if _looks_like_embedding_id(name):
+        if any(token in name for token in ("instruct", "chat", "llm")):
+            return False
+        return True
+
+    return False
+
+
 @app.route('/api/openrouter/models')
 def openrouter_models():
     try:
@@ -628,6 +647,7 @@ def openrouter_embedding_models():
             rows.append(
                 {
                     "id": model_id,
+                    "context_length": int(context_length or 0) or None,
                     "prompt_price": prompt_price,
                     "completion_price": completion_price,
                     "modality": "text->vector",
@@ -667,7 +687,7 @@ def hf_models():
                 continue
             pipeline_tag = item.get("pipeline_tag") or ""
             tags = item.get("tags") or []
-            is_embedding = _is_embedding_model(
+            is_embedding = _is_hf_embedding_model(
                 model_id=model_id,
                 pipeline_tag=pipeline_tag,
                 tags=tags,
@@ -751,7 +771,7 @@ def hf_model_detail(model_id: str):
                 "likes": payload.get("likes"),
                 "library_name": payload.get("library_name"),
                 "pipeline_tag": payload.get("pipeline_tag"),
-                "is_embedding": _is_embedding_model(
+                "is_embedding": _is_hf_embedding_model(
                     model_id=payload.get("modelId") or payload.get("id") or model_id,
                     pipeline_tag=payload.get("pipeline_tag"),
                     tags=payload.get("tags") or [],
