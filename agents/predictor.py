@@ -65,6 +65,7 @@ class Predictor(BaseAgent):
         self,
         executor_output: Dict[str, Any],
         target_condition: str,
+        control_condition: str,
         iteration: int = 1,
     ) -> PredictionResult:
         """
@@ -83,6 +84,7 @@ class Predictor(BaseAgent):
 
         print(f"[Predictor] Participant: {participant_id}")
         print(f"[Predictor] Target condition: {target_condition}")
+        print(f"[Predictor] Control condition: {control_condition}")
         print(f"[Predictor] Domains analyzed: {executor_output.get('domains_processed', [])}")
 
         coverage_summary = self._validate_feature_representation(
@@ -94,6 +96,7 @@ class Predictor(BaseAgent):
 
         final_prompt = self._build_final_synthesis_prompt(
             target_condition=target_condition,
+            control_condition=control_condition,
             chunk_evidence=chunk_evidence,
             predictor_input=predictor_input,
             executor_output=executor_output,
@@ -109,6 +112,7 @@ class Predictor(BaseAgent):
             prediction_data=prediction_data,
             participant_id=participant_id,
             target_condition=target_condition,
+            control_condition=control_condition,
             executor_output=executor_output,
             iteration=iteration,
             coverage_summary=coverage_summary,
@@ -161,6 +165,7 @@ class Predictor(BaseAgent):
         self,
         *,
         target_condition: str,
+        control_condition: str,
         chunk_evidence: List[Dict[str, Any]],
         predictor_input: Dict[str, Any],
         executor_output: Dict[str, Any],
@@ -174,6 +179,7 @@ class Predictor(BaseAgent):
             [
                 "Synthesize final CASE/CONTROL verdict from chunk evidence.",
                 f"Target condition: {target_condition}",
+                f"Control condition: {control_condition}",
                 "Respect calibration and avoid false positives.",
                 "Default to CONTROL if class text is ambiguous.",
                 "You MUST integrate all chunk evidence rows.",
@@ -299,6 +305,7 @@ class Predictor(BaseAgent):
         prediction_data: Dict[str, Any],
         participant_id: str,
         target_condition: str,
+        control_condition: str,
         executor_output: Dict[str, Any],
         iteration: int,
         coverage_summary: Optional[Dict[str, Any]] = None,
@@ -307,6 +314,7 @@ class Predictor(BaseAgent):
         classification, ambiguous_class = self._normalize_classification(
             prediction_data.get("binary_classification"),
             raw_probability,
+            control_condition,
         )
         probability = self._normalize_probability_for_classification(raw_probability, classification)
 
@@ -352,6 +360,7 @@ class Predictor(BaseAgent):
             prediction_id=str(prediction_data.get("prediction_id", str(uuid.uuid4())[:8])),
             participant_id=participant_id,
             target_condition=target_condition,
+            control_condition=control_condition,
             created_at=datetime.now(),
             binary_classification=classification,
             probability_score=probability,
@@ -370,10 +379,17 @@ class Predictor(BaseAgent):
         self,
         raw_classification: Any,
         probability: float,
+        control_condition: str,
     ) -> Tuple[BinaryClassification, bool]:
         text = str(raw_classification or "").upper()
         has_case = "CASE" in text or "TARGET PHENOTYPE" in text or "LIKELY HAS TARGET" in text
-        has_control = "CONTROL" in text or "NOT PSYCHIATRIC" in text or "NON-PSYCHIATRIC" in text
+        control_upper = str(control_condition or "").upper()
+        has_control = (
+            "CONTROL" in text
+            or (control_upper and control_upper in text)
+            or "NOT PSYCHIATRIC" in text
+            or "NON-PSYCHIATRIC" in text
+        )
 
         if has_case and not has_control:
             return BinaryClassification.CASE, False

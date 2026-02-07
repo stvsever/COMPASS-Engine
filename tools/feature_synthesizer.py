@@ -34,6 +34,7 @@ class FeatureSynthesizer(BaseTool):
     def _build_prompt(self, input_data: Dict[str, Any]) -> str:
         """Build the feature synthesis prompt."""
         target = input_data.get("target_condition", "neuropsychiatric")
+        control = input_data.get("control_condition", "")
         hierarchical_deviation = input_data.get("hierarchical_deviation", {})
         domains = input_data.get("input_domains", [])
         
@@ -42,6 +43,7 @@ class FeatureSynthesizer(BaseTool):
         
         prompt_parts = [
             f"## TARGET CONDITION: {target}",
+            f"## CONTROL CONDITION: {control}",
             f"## DOMAINS WITH DATA: {', '.join(domains) if domains else 'All available'}",
             
             f"\n## FEATURES WITH DEVIATIONS",
@@ -65,7 +67,8 @@ class FeatureSynthesizer(BaseTool):
         features = []
         
         def traverse(node: Dict[str, Any], path: List[str]):
-            current_path = path + [node.get("node_name", node.get("name", "unknown"))]
+            node_name = node.get("node_name") or node.get("name") or "unknown"
+            current_path = path + [node_name]
             
             # Check for direct z_score (leaf) or aggregated score (node)
             z_score = node.get("z_score")
@@ -88,11 +91,20 @@ class FeatureSynthesizer(BaseTool):
                     "severity": self._classify_severity(score_val)
                 })
             
-            # Traverse children (excluding _stats)
+            # Traverse explicit children list (tree format)
+            children_list = node.get("children")
+            if isinstance(children_list, list):
+                for child in children_list:
+                    if isinstance(child, dict):
+                        traverse(child, current_path)
+
+            # Traverse nested dict children (UKB nested format)
             for key, child in node.items():
-                if key != "_stats" and isinstance(child, dict):
-                    # Add name to child if missing (using key)
-                    if "node_name" not in child:
+                if key in {"_stats", "children"}:
+                    continue
+                if isinstance(child, dict):
+                    if "node_name" not in child and "name" not in child:
+                        child = dict(child)
                         child["node_name"] = key
                     traverse(child, current_path)
         

@@ -10,7 +10,7 @@ authors:
 - family-names: "Cortés"
   given-names: "Jesús M."
   affiliation: "Computational Neuroimaging Lab, IIS Biobizkaia & Ikerbasque Foundation"
-title: "COMPASS: Clinical Orchestrated Multi-modal Predictive Agentic Support System"
+title: "COMPASS: Clinical Ontology-driven Multi-modal Predictive Agentic Support System"
 version: 1.0.0
 date-released: 2026-02-04
 url: "https://github.com/IIS-Biobizkaia/COMPASS"
@@ -26,7 +26,7 @@ preferred-citation:
   - family-names: "Cortés"
     given-names: "Jesús M."
     affiliation: "Computational Neuroimaging Lab, IIS Biobizkaia & Ikerbasque Foundation"
-  title: "COMPASS: Clinical Orchestrated Multi-modal Predictive Agentic Support System"
+  title: "COMPASS: Clinical Ontology-driven Multi-modal Predictive Agentic Support System"
   year: 2026
   institution:
     name: "Computational Neuroscience Lab, IIS Biobizkaia"

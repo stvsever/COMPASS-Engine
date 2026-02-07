@@ -41,6 +41,7 @@ class UnimodalCompressor(BaseTool):
         """Build the compression prompt."""
         domain = input_data.get("input_domains", ["UNKNOWN"])[0]
         target = input_data.get("target_condition", "neuropsychiatric")
+        control = input_data.get("control_condition", "")
         parameters = input_data.get("parameters", {})
         compression_ratio = parameters.get("compression_ratio", 5)
         node_paths = (parameters.get("node_paths") or []) or []
@@ -112,6 +113,7 @@ class UnimodalCompressor(BaseTool):
         prompt_parts = [
             f"## DOMAIN TO COMPRESS: {domain_label}",
             f"\n## TARGET CONDITION: {target}",
+            f"\n## CONTROL CONDITION: {control}",
             #f"\n## COMPRESSION RATIO: {compression_ratio}x",
             
             f"\n## DOMAIN DATA (TOON Format)",

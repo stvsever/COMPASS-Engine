@@ -2,7 +2,7 @@
 """
 COMPASS Multi-Agent System
 
-Clinical Orchestrated Multi-modal Predictive Agent Support System
+Clinical Ontology-driven Multi-modal Predictive Agentic Support System
 
 Main entry point for running the COMPASS pipeline on participant data.
 """
@@ -18,6 +18,9 @@ from typing import Optional, Dict, Any, List, Tuple
 import logging
 
 logger = logging.getLogger(__name__)
+
+# Default control condition (non-case comparator)
+DEFAULT_CONTROL_CONDITION = "brain-implicated pathology, but NOT psychiatric"
 
 # Add parent to path for imports
 sys.path.insert(0, str(Path(__file__).parent.parent))
@@ -44,6 +47,7 @@ from multi_agent_system.frontend.compass_ui import get_ui, reset_ui, start_ui_lo
 def run_compass_pipeline(
     participant_dir: Path,
     target_condition: str,
+    control_condition: str = DEFAULT_CONTROL_CONDITION,
     max_iterations: int = 3,
     verbose: bool = True,
     interactive_ui: bool = False
@@ -53,7 +57,8 @@ def run_compass_pipeline(
     
     Args:
         participant_dir: Path to participant data directory
-        target_condition: "neuropsychiatric" or "neurologic"
+        target_condition: Target phenotype string
+        control_condition: Control comparator string
         max_iterations: Maximum orchestration iterations
         verbose: Enable verbose output
     
@@ -71,12 +76,13 @@ def run_compass_pipeline(
         ui.on_pipeline_start(
             participant_id=participant_dir.name,
             target=target_condition,
+            control=control_condition,
             participant_dir=str(participant_dir),
             max_iterations=max_iterations
         )
     else:
         print("\n" + "=" * 70)
-        print("  COMPASS - Clinical Orchestrated Multi-modal Predictive Agent System")
+        print("  COMPASS - Clinical Ontology-driven Multi-modal Predictive Agentic Support System")
         print("=" * 70)
     
     # Load participant data
@@ -89,7 +95,7 @@ def run_compass_pipeline(
     # Initialize logging
     exec_logger = ExecutionLogger(participant_id, verbose=verbose)
     decision_trace = DecisionTrace(participant_id)
-    exec_logger.log_pipeline_start(target_condition)
+    exec_logger.log_pipeline_start(target_condition, control_condition)
     
     # Initialize token manager
     token_manager = TokenManager()
@@ -103,6 +109,15 @@ def run_compass_pipeline(
         except Exception as e:
             raise RuntimeError(
                 "OpenAI connectivity check failed. Verify network access and OPENAI_API_KEY."
+            ) from e
+    elif settings.models.backend == LLMBackend.LOCAL:
+        if interactive_ui:
+            ui.set_status("Initializing local model...", stage=0)
+        try:
+            get_llm_client()
+        except Exception as e:
+            raise RuntimeError(
+                f"Local backend initialization failed: {e}"
             ) from e
 
     # Initialize agents
@@ -135,6 +150,7 @@ def run_compass_pipeline(
         plan = orchestrator.execute(
             participant_data=participant_data,
             target_condition=target_condition,
+            control_condition=control_condition,
             previous_feedback=previous_feedback,
             iteration=iteration
         )
@@ -156,7 +172,8 @@ def run_compass_pipeline(
         executor_output = executor.execute(
             plan=plan,
             participant_data=participant_data,
-            target_condition=target_condition
+            target_condition=target_condition,
+            control_condition=control_condition,
         )
         final_executor_output = executor_output
         final_plan = plan
@@ -190,8 +207,18 @@ def run_compass_pipeline(
         prediction = predictor.execute(
             executor_output=executor_output,
             target_condition=target_condition,
+            control_condition=control_condition,
             iteration=iteration
         )
+
+        dataflow_summary = _build_dataflow_summary(
+            executor_output=executor_output,
+            target_condition=target_condition,
+            control_condition=control_condition,
+            iteration=iteration,
+        )
+        executor_output["dataflow_summary"] = dataflow_summary
+        exec_logger.log_dataflow_summary(dataflow_summary, iteration=iteration)
         
         exec_logger.log_predictor({
             "classification": prediction.binary_classification.value,
@@ -223,7 +250,8 @@ def run_compass_pipeline(
             executor_output=executor_output,
             data_overview=data_overview_dict,
             hierarchical_deviation=participant_data.hierarchical_deviation.model_dump(),
-            non_numerical_data=participant_data.non_numerical_data.raw_text
+            non_numerical_data=participant_data.non_numerical_data.raw_text,
+            control_condition=control_condition,
         )
         
         exec_logger.log_critic({
@@ -340,6 +368,9 @@ def run_compass_pipeline(
         "selected_iteration": selected_iteration,
         "selection_reason": selection_reason,
         "coverage_summary": coverage_summary,
+        "dataflow_summary": (final_executor_output or {}).get("dataflow_summary", {}),
+        "target_condition": target_condition,
+        "control_condition": control_condition,
         "tokens_used": token_usage.get("total_tokens", 0),
         "domains_processed": (final_plan.priority_domains if final_plan else plan.priority_domains),
         "detailed_logs": detailed_logs_collection # We need to populate this
@@ -366,17 +397,20 @@ def run_compass_pipeline(
     performance_report = {
         "participant_id": participant_id,
         "target_condition": target_condition,
+        "control_condition": control_condition,
         "execution_timestamp": start_time.isoformat(),
         "total_duration_seconds": round(duration_so_far, 2),
         "iterations": len(attempts),
         "selected_iteration": selected_iteration,
         "selection_reason": selection_reason,
         "coverage_summary": coverage_summary,
+        "dataflow_summary": (final_executor_output or {}).get("dataflow_summary", {}),
         "prediction_result": {
             "classification": final_prediction.binary_classification.value,
             "probability": round(final_prediction.probability_score, 4),
             "confidence": final_prediction.confidence_level.value
         },
+        "control_condition": control_condition,
         "critic_verdict": final_evaluation.verdict.value,
         "token_usage": {
             "total_tokens": token_usage.get("total_tokens", 0),
@@ -426,6 +460,7 @@ def run_compass_pipeline(
                 data_overview=data_overview_dict,
                 execution_summary=execution_summary,
                 report_context_note=report_context_note,
+                control_condition=control_condition,
             )
 
             if deep_report:
@@ -494,6 +529,7 @@ def run_compass_pipeline(
         "iterations": len(attempts),
         "selected_iteration": selected_iteration,
         "selection_reason": selection_reason,
+        "control_condition": control_condition,
         "coverage_summary": coverage_summary,
         "duration_seconds": duration,
         "output_dir": str(base_output_dir),
@@ -504,6 +540,7 @@ def run_compass_pipeline(
 def run_dataflow_audit(
     participant_dir: Path,
     target_condition: str,
+    control_condition: str = DEFAULT_CONTROL_CONDITION,
     verbose: bool = True,
 ) -> dict:
     """
@@ -515,7 +552,7 @@ def run_dataflow_audit(
 
     token_manager = TokenManager()
     executor = Executor(token_manager=token_manager)
-    context = executor._build_context(participant_data, target_condition)
+    context = executor._build_context(participant_data, target_condition, control_condition)
 
     fusion_layer = FusionLayer()
     pass_through = FusionResult(
@@ -546,7 +583,7 @@ def run_dataflow_audit(
     predictor_input["coverage_ledger"] = coverage_ledger
 
     max_tool_input = int(getattr(settings.token_budget, "max_tool_input_tokens", 20000) or 20000)
-    chunk_budget = max(1200, min(30000, int(max_tool_input * 0.80)))
+    chunk_budget = max(30000, min(60000, int(max_tool_input * 2.0)))
     assembler = PredictorInputAssembler(max_chunk_tokens=chunk_budget, model_hint=settings.models.tool_model)
     executor_stub = {
         "step_outputs": {},
@@ -603,6 +640,7 @@ def run_dataflow_audit(
     report = {
         "participant_id": participant_data.participant_id,
         "target_condition": target_condition,
+        "control_condition": control_condition,
         "coverage_summary": coverage_ledger.get("summary", {}),
         "predictor_payload_tokens": payload_tokens,
         "chunk_budget_tokens": chunk_budget,
@@ -655,6 +693,81 @@ def _format_feedback(evaluation) -> str:
         lines.append(f"Domains missed: {', '.join(evaluation.domains_missed)}")
     
     return "\n".join(lines)
+
+
+def _build_dataflow_summary(
+    *,
+    executor_output: Dict[str, Any],
+    target_condition: str,
+    control_condition: str,
+    iteration: int,
+) -> Dict[str, Any]:
+    predictor_input = executor_output.get("predictor_input") or {}
+    coverage_ledger = executor_output.get("coverage_ledger") or {}
+    coverage_summary = (
+        executor_output.get("coverage_summary")
+        or coverage_ledger.get("summary")
+        or {}
+    )
+    context_fill_report = predictor_input.get("context_fill_report") or {}
+    chunk_evidence = executor_output.get("chunk_evidence") or []
+    predictor_chunk_count = int(
+        executor_output.get("predictor_chunk_count") or len(chunk_evidence) or 0
+    )
+    chunk_evidence_count = len(chunk_evidence)
+
+    processed_raw_included = context_fill_report.get("processed_raw_full_included")
+    processed_raw_present = bool(predictor_input.get("multimodal_processed_raw_low_priority"))
+
+    missing_count = (
+        coverage_summary.get("missing_feature_count")
+        or coverage_summary.get("missing_count")
+        or 0
+    )
+    invariant_ok = coverage_summary.get("invariant_ok")
+    if invariant_ok is None:
+        invariant_ok = int(missing_count) == 0
+
+    assertions = {
+        "invariant_ok": bool(invariant_ok),
+        "missing_feature_count_zero": int(missing_count) == 0,
+        "chunk_evidence_matches_count": (
+            predictor_chunk_count == 0 or chunk_evidence_count == predictor_chunk_count
+        ),
+        "processed_raw_flag_consistent": (
+            processed_raw_included is None or processed_raw_included == processed_raw_present
+        ),
+    }
+
+    payload_estimate = context_fill_report.get("predictor_payload_estimate") or {}
+    coverage_block = {
+        "summary": coverage_summary,
+        "forced_raw_count": len(coverage_ledger.get("forced_raw_features") or []),
+    }
+    chunking_block = {
+        "predictor_chunk_count": predictor_chunk_count,
+        "chunk_evidence_count": chunk_evidence_count,
+        "chunked_two_pass_required": payload_estimate.get("chunked_two_pass_required"),
+        "single_chunk_limit": payload_estimate.get("single_chunk_limit"),
+    }
+    context_block = {
+        "processed_raw_full_included": processed_raw_included,
+        "rag_added_count": context_fill_report.get("added_count")
+            or context_fill_report.get("top_added_count"),
+        "predictor_payload_estimate": payload_estimate,
+        "coverage_snapshot": context_fill_report.get("coverage"),
+    }
+
+    return {
+        "iteration": iteration,
+        "target_condition": target_condition,
+        "control_condition": control_condition,
+        "predictor_input_mode": predictor_input.get("mode"),
+        "coverage": coverage_block,
+        "chunking": chunking_block,
+        "context_fill": context_block,
+        "assertions": assertions,
+    }
 
 
 def _select_best_attempt(attempts: List[Dict[str, Any]]) -> Tuple[Optional[Dict[str, Any]], str]:
@@ -717,6 +830,12 @@ Examples:
         default="neuropsychiatric",
         help="Target condition to predict (e.g. 'neuropsychiatric', or specific phenotype string)"
     )
+    parser.add_argument(
+        "--control", "-c",
+        type=str,
+        default=DEFAULT_CONTROL_CONDITION,
+        help="Control condition comparator (default: brain-implicated pathology, but NOT psychiatric)"
+    )
     
     parser.add_argument(
         "--iterations", "-i",
@@ -770,6 +889,72 @@ Examples:
         default=2048,
         help="Max context tokens for local model (default: 2048). Only used if --backend local"
     )
+
+    parser.add_argument(
+        "--local_engine",
+        type=str,
+        default="auto",
+        choices=["auto", "vllm", "transformers"],
+        help="Local backend engine preference (auto|vllm|transformers)"
+    )
+    parser.add_argument(
+        "--local_dtype",
+        type=str,
+        default="auto",
+        help="Local dtype (auto|float16|bfloat16|float32|fp8)"
+    )
+    parser.add_argument(
+        "--local_quant",
+        type=str,
+        default=None,
+        help="Local quantization (e.g., awq|gptq|4bit|8bit|fp8)"
+    )
+    parser.add_argument(
+        "--local_kv_cache_dtype",
+        type=str,
+        default=None,
+        help="vLLM KV cache dtype (e.g., fp8_e4m3|fp8_e5m2)"
+    )
+    parser.add_argument(
+        "--local_tensor_parallel",
+        type=int,
+        default=1,
+        help="Tensor parallel size for vLLM (default 1)"
+    )
+    parser.add_argument(
+        "--local_pipeline_parallel",
+        type=int,
+        default=1,
+        help="Pipeline parallel size for vLLM (default 1)"
+    )
+    parser.add_argument(
+        "--local_gpu_mem_util",
+        type=float,
+        default=0.9,
+        help="GPU memory utilization for vLLM (default 0.9)"
+    )
+    parser.add_argument(
+        "--local_max_model_len",
+        type=int,
+        default=0,
+        help="Max model length override (0 = auto)"
+    )
+    parser.add_argument(
+        "--local_enforce_eager",
+        action="store_true",
+        help="Force vLLM eager execution"
+    )
+    parser.add_argument(
+        "--local_trust_remote_code",
+        action="store_true",
+        help="Trust remote code for local model"
+    )
+    parser.add_argument(
+        "--local_attn",
+        type=str,
+        default="auto",
+        help="Transformers attention implementation (auto|flash_attention_2|sdpa|eager)"
+    )
     
     # --- TOKEN CONTROLS ---
     parser.add_argument(
@@ -817,6 +1002,7 @@ Examples:
             run_dataflow_audit(
                 participant_dir=args.participant_dir,
                 target_condition=args.target,
+                control_condition=args.control,
                 verbose=not args.quiet,
             )
             sys.exit(0)
@@ -886,11 +1072,45 @@ Examples:
                 """Callback triggered by UI Launch button"""
                 participant_id = config.get("id")
                 target_condition = config.get("target")
+                control_condition = config.get("control") or DEFAULT_CONTROL_CONDITION
                 
                 # Apply Dynamic Settings
                 from multi_agent_system.config.settings import get_settings, LLMBackend
                 settings = get_settings()
                 
+                backend = (config.get("backend") or "openai").lower()
+                if backend == "local":
+                    settings.models.backend = LLMBackend.LOCAL
+                else:
+                    settings.models.backend = LLMBackend.OPENAI
+
+                if config.get("model"):
+                    settings.models.local_model_name = str(config.get("model"))
+                if config.get("max_tokens"):
+                    settings.models.local_max_tokens = int(config.get("max_tokens"))
+                if config.get("local_engine"):
+                    settings.models.local_backend_type = str(config.get("local_engine"))
+                if config.get("local_dtype"):
+                    settings.models.local_dtype = str(config.get("local_dtype"))
+                if config.get("local_quant") is not None:
+                    settings.models.local_quantization = config.get("local_quant")
+                if config.get("local_kv_cache_dtype"):
+                    settings.models.local_kv_cache_dtype = str(config.get("local_kv_cache_dtype"))
+                if config.get("local_attn"):
+                    settings.models.local_attn_implementation = str(config.get("local_attn"))
+                if config.get("local_tensor_parallel"):
+                    settings.models.local_tensor_parallel_size = int(config.get("local_tensor_parallel"))
+                if config.get("local_pipeline_parallel"):
+                    settings.models.local_pipeline_parallel_size = int(config.get("local_pipeline_parallel"))
+                if config.get("local_gpu_mem_util"):
+                    settings.models.local_gpu_memory_utilization = float(config.get("local_gpu_mem_util"))
+                if config.get("local_max_model_len"):
+                    settings.models.local_max_model_len = int(config.get("local_max_model_len"))
+                if config.get("local_enforce_eager") is not None:
+                    settings.models.local_enforce_eager = bool(config.get("local_enforce_eager"))
+                if config.get("local_trust_remote_code") is not None:
+                    settings.models.local_trust_remote_code = bool(config.get("local_trust_remote_code"))
+
                 # Apply Token Limits from UI
                 if config.get("total_budget"):
                     settings.token_budget.total_budget = int(config.get("total_budget"))
@@ -903,7 +1123,7 @@ Examples:
                 if config.get("max_tool_output"):
                     settings.token_budget.max_tool_output_tokens = int(config.get("max_tool_output"))
 
-                print(f"[*] UI Triggered Launch: {participant_id} -> {target_condition}")
+                print(f"[*] UI Triggered Launch: {participant_id} -> {target_condition} (control: {control_condition})")
                 
                 # Construct full path
                 p_dir = compass_data_root / participant_id
@@ -921,6 +1141,7 @@ Examples:
                 run_compass_pipeline(
                     participant_dir=p_dir,
                     target_condition=target_condition,
+                    control_condition=control_condition,
                     max_iterations=args.iterations,
                     verbose=not args.quiet,
                     interactive_ui=args.ui
@@ -932,10 +1153,11 @@ Examples:
             if args.participant_dir and args.participant_dir.exists():
                 participant_id = args.participant_dir.name
                 target_condition = args.target or "neuropsychiatric"
+                control_condition = args.control or DEFAULT_CONTROL_CONDITION
                 # Small delay to ensure server is up before first event
                 def auto_launch():
                     time.sleep(2)
-                    launch_wrapper({"id": participant_id, "target": target_condition})
+                    launch_wrapper({"id": participant_id, "target": target_condition, "control": control_condition})
                 threading.Thread(target=auto_launch, daemon=True).start()
 
             start_ui_loop(launch_wrapper)
@@ -951,6 +1173,19 @@ Examples:
                 settings.models.backend = LLMBackend.LOCAL
                 settings.models.local_model_name = args.model
                 settings.models.local_max_tokens = args.max_tokens
+                settings.models.local_backend_type = args.local_engine
+                settings.models.local_dtype = args.local_dtype
+                settings.models.local_quantization = args.local_quant
+                settings.models.local_kv_cache_dtype = args.local_kv_cache_dtype
+                settings.models.local_tensor_parallel_size = args.local_tensor_parallel
+                settings.models.local_pipeline_parallel_size = args.local_pipeline_parallel
+                settings.models.local_gpu_memory_utilization = args.local_gpu_mem_util
+                settings.models.local_max_model_len = args.local_max_model_len
+                if args.local_enforce_eager:
+                    settings.models.local_enforce_eager = True
+                if args.local_trust_remote_code:
+                    settings.models.local_trust_remote_code = True
+                settings.models.local_attn_implementation = args.local_attn
                 print(f"[Init] Switching to LOCAL Backend with model: {args.model}")
             else:
                 settings.models.backend = LLMBackend.OPENAI
@@ -971,6 +1206,7 @@ Examples:
             result = run_compass_pipeline(
                 participant_dir=args.participant_dir,
                 target_condition=args.target,
+                control_condition=args.control or DEFAULT_CONTROL_CONDITION,
                 max_iterations=args.iterations,
                 verbose=not args.quiet,
                 interactive_ui=False

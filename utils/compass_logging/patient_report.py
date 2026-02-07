@@ -50,7 +50,8 @@ class PatientReportGenerator:
                 "classification": prediction.binary_classification.value,
                 "probability": prediction.probability_score,
                 "confidence": prediction.confidence_level.value,
-                "target_condition": prediction.target_condition
+                "target_condition": prediction.target_condition,
+                "control_condition": prediction.control_condition
             },
             
             "evaluation": {
@@ -77,6 +78,7 @@ class PatientReportGenerator:
                 "selected_iteration": execution_summary.get("selected_iteration", 1),
                 "selection_reason": execution_summary.get("selection_reason", ""),
                 "coverage_summary": execution_summary.get("coverage_summary", {}),
+                "dataflow_summary": execution_summary.get("dataflow_summary", {}),
                 "tokens_used": execution_summary.get("tokens_used", 0),
                 "domains_processed": execution_summary.get("domains_processed", []),
                 "detailed_logs": execution_summary.get("detailed_logs", [])
@@ -116,11 +118,14 @@ class PatientReportGenerator:
         
         classification = pred.get('classification', 'N/A')
         target = pred.get('target_condition', 'N/A')
+        control = pred.get('control_condition', 'N/A')
         
         display_classification = classification
-        # Re-inject target for CASE results to match user's exact specification
+        # Re-inject target/control for readability
         if "CASE" in classification:
             display_classification = f"CASE (Phenotype match found for: {target})"
+        elif "CONTROL" in classification:
+            display_classification = f"CONTROL (Closer to: {control})"
 
         lines = [
             f"# Patient Report: {report.get('participant_id', 'Unknown')}",
@@ -130,6 +135,7 @@ class PatientReportGenerator:
             f"- **Probability**: {pred.get('probability', 0):.1%}",
             f"- **Confidence**: {pred.get('confidence', 'N/A')}",
             f"- **Target Condition**: {target}",
+            f"- **Control Condition**: {control}",
             
             f"\n## Evaluation",
             f"- **Verdict**: {eval_data.get('verdict', 'N/A')}",

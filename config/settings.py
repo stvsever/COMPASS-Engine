@@ -1,5 +1,5 @@
 """
-COMPASS - Clinical Orchestrated Multi-modal Predictive Agentic Support System
+COMPASS - Clinical Ontology-driven Multi-modal Predictive Agentic Support System
 
 Global Configuration Settings
 
@@ -17,7 +17,7 @@ from dotenv import load_dotenv
 load_dotenv()
 
 # System branding
-COMPASS_FULL_NAME = "Clinical Orchestrated Multi-modal Predictive Agentic Support System"
+COMPASS_FULL_NAME = "Clinical Ontology-driven Multi-modal Predictive Agentic Support System"
 COMPASS_VERSION = "1.0.0"
 
 
@@ -41,15 +41,27 @@ class ModelConfig:
     backend: LLMBackend = LLMBackend.OPENAI
     local_model_name: str = "Qwen/Qwen2.5-0.5B-Instruct"  # Corrected ID for Qwen2.5 0.5B Instruct
     local_max_tokens: int = 2048
+    # Local backend advanced configuration
+    local_backend_type: str = "auto"  # auto|vllm|transformers
+    local_dtype: str = "auto"  # auto|float16|bfloat16|float32|fp8
+    local_quantization: Optional[str] = None  # e.g., awq|gptq|4bit|8bit|fp8
+    local_tensor_parallel_size: int = 1
+    local_pipeline_parallel_size: int = 1
+    local_gpu_memory_utilization: float = 0.9
+    local_max_model_len: int = 0  # 0 = use local_max_tokens / backend default
+    local_kv_cache_dtype: Optional[str] = None  # e.g., fp8_e4m3|fp8_e5m2
+    local_enforce_eager: bool = False
+    local_trust_remote_code: bool = True
+    local_attn_implementation: str = "auto"  # transformers: auto|flash_attention_2|sdpa|eager
     
     # TESTING MODE: All gpt-5-nano
-    # PRODUCTION: Change orchestrator/critic/predictor to "gpt-5"
-    orchestrator_model: str = "gpt-5-mini"       # Production: "gpt-5"
+    # PRODUCTION: Change orchestrator/critic/predictor/integrator/communicator to "gpt-5"
+    orchestrator_model: str = "gpt-5-nano"       # Production: "gpt-5"
     critic_model: str = "gpt-5-nano"             # Production: "gpt-5"
-    predictor_model: str = "gpt-5-mini"          # Production: "gpt-5"
+    predictor_model: str = "gpt-5-nano"          # Production: "gpt-5"
     integrator_model: str = "gpt-5-nano"         # Production: "gpt-5"
     communicator_model: str = "gpt-5-nano"       # Production: "gpt-5"
-    tool_model: str = "gpt-5-nano"          # Always gpt-5-nano
+    tool_model: str = "gpt-5-nano"               # Always gpt-5-nano
     
     orchestrator_max_tokens: int = 64000
     critic_max_tokens: int = 64000

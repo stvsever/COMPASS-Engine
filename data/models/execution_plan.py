@@ -83,6 +83,7 @@ class ExecutionPlan(BaseModel):
     plan_id: str = Field(..., description="Unique plan identifier")
     participant_id: str
     target_condition: str = Field(..., description="neuropsychiatric or neurologic")
+    control_condition: str = Field("", description="control comparator string")
     created_at: datetime = Field(default_factory=datetime.now)
     
     # Planning metadata
@@ -153,6 +154,7 @@ class ExecutionPlan(BaseModel):
             "plan_id": self.plan_id,
             "participant_id": self.participant_id,
             "target": self.target_condition,
+            "control": self.control_condition,
             "total_steps": self.total_steps,
             "completed": self.completed_steps,
             "priority_domains": self.priority_domains,

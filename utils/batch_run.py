@@ -63,6 +63,30 @@ def run_participant(pid_info):
         cmd.extend(["--backend", BATCH_ARGS["backend"]])
     if BATCH_ARGS.get("model"):
         cmd.extend(["--model", BATCH_ARGS["model"]])
+    if BATCH_ARGS.get("max_tokens") is not None:
+        cmd.extend(["--max_tokens", str(BATCH_ARGS["max_tokens"])])
+    if BATCH_ARGS.get("local_engine"):
+        cmd.extend(["--local_engine", BATCH_ARGS["local_engine"]])
+    if BATCH_ARGS.get("local_dtype"):
+        cmd.extend(["--local_dtype", BATCH_ARGS["local_dtype"]])
+    if BATCH_ARGS.get("local_quant"):
+        cmd.extend(["--local_quant", BATCH_ARGS["local_quant"]])
+    if BATCH_ARGS.get("local_kv_cache_dtype"):
+        cmd.extend(["--local_kv_cache_dtype", BATCH_ARGS["local_kv_cache_dtype"]])
+    if BATCH_ARGS.get("local_tensor_parallel") is not None:
+        cmd.extend(["--local_tensor_parallel", str(BATCH_ARGS["local_tensor_parallel"])])
+    if BATCH_ARGS.get("local_pipeline_parallel") is not None:
+        cmd.extend(["--local_pipeline_parallel", str(BATCH_ARGS["local_pipeline_parallel"])])
+    if BATCH_ARGS.get("local_gpu_mem_util") is not None:
+        cmd.extend(["--local_gpu_mem_util", str(BATCH_ARGS["local_gpu_mem_util"])])
+    if BATCH_ARGS.get("local_max_model_len") is not None:
+        cmd.extend(["--local_max_model_len", str(BATCH_ARGS["local_max_model_len"])])
+    if BATCH_ARGS.get("local_enforce_eager"):
+        cmd.extend(["--local_enforce_eager"])
+    if BATCH_ARGS.get("local_trust_remote_code"):
+        cmd.extend(["--local_trust_remote_code"])
+    if BATCH_ARGS.get("local_attn"):
+        cmd.extend(["--local_attn", BATCH_ARGS["local_attn"]])
     
     print(f"Launching {pid}...")
     print(f"  > Target: {target_str[:50]}...")
@@ -77,10 +101,34 @@ def main():
     parser = argparse.ArgumentParser()
     parser.add_argument("--backend", choices=["openai", "local"], default="openai")
     parser.add_argument("--model", type=str, default="gpt-5-mini")
+    parser.add_argument("--max_tokens", type=int, default=2048)
+    parser.add_argument("--local_engine", type=str, default="auto")
+    parser.add_argument("--local_dtype", type=str, default="auto")
+    parser.add_argument("--local_quant", type=str, default=None)
+    parser.add_argument("--local_kv_cache_dtype", type=str, default=None)
+    parser.add_argument("--local_tensor_parallel", type=int, default=1)
+    parser.add_argument("--local_pipeline_parallel", type=int, default=1)
+    parser.add_argument("--local_gpu_mem_util", type=float, default=0.9)
+    parser.add_argument("--local_max_model_len", type=int, default=0)
+    parser.add_argument("--local_enforce_eager", action="store_true")
+    parser.add_argument("--local_trust_remote_code", action="store_true")
+    parser.add_argument("--local_attn", type=str, default="auto")
     args = parser.parse_args()
     
     BATCH_ARGS["backend"] = args.backend
     BATCH_ARGS["model"] = args.model
+    BATCH_ARGS["max_tokens"] = args.max_tokens
+    BATCH_ARGS["local_engine"] = args.local_engine
+    BATCH_ARGS["local_dtype"] = args.local_dtype
+    BATCH_ARGS["local_quant"] = args.local_quant
+    BATCH_ARGS["local_kv_cache_dtype"] = args.local_kv_cache_dtype
+    BATCH_ARGS["local_tensor_parallel"] = args.local_tensor_parallel
+    BATCH_ARGS["local_pipeline_parallel"] = args.local_pipeline_parallel
+    BATCH_ARGS["local_gpu_mem_util"] = args.local_gpu_mem_util
+    BATCH_ARGS["local_max_model_len"] = args.local_max_model_len
+    BATCH_ARGS["local_enforce_eager"] = args.local_enforce_eager
+    BATCH_ARGS["local_trust_remote_code"] = args.local_trust_remote_code
+    BATCH_ARGS["local_attn"] = args.local_attn
     
     print(f"Found {len(PARTICIPANTS)} participants to run.")
     results = {}

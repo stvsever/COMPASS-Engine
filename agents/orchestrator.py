@@ -1,5 +1,5 @@
 """
-COMPASS Orchestrator Agent (Clinical Orchestrated Multi-modal Predictive Agentic Support System)
+COMPASS Orchestrator Agent (Clinical Ontology-driven Multi-modal Predictive Agentic Support System)
 
 Main planning agent that creates execution plans for processing participant data.
 """
@@ -51,6 +51,7 @@ class Orchestrator(BaseAgent):
         self,
         participant_data: ParticipantData,
         target_condition: str,
+        control_condition: str,
         token_budget: Optional[int] = None,
         previous_feedback: Optional[str] = None,
         iteration: int = 1
@@ -74,6 +75,7 @@ class Orchestrator(BaseAgent):
         user_prompt = self._build_prompt(
             participant_data=participant_data,
             target_condition=target_condition,
+            control_condition=control_condition,
             token_budget=token_budget or self.settings.token_budget.total_budget,
             previous_feedback=previous_feedback
         )
@@ -88,6 +90,10 @@ class Orchestrator(BaseAgent):
         # Call LLM with auto-repair parsing
         plan_data = self._call_llm(user_prompt)
         
+        # Ensure required fields exist for validation/compatibility
+        if isinstance(plan_data, dict) and "target_condition" not in plan_data:
+            plan_data["target_condition"] = target_condition
+
         # Validate plan
         is_valid, errors = validate_execution_plan(plan_data)
         if not is_valid:
@@ -99,6 +105,7 @@ class Orchestrator(BaseAgent):
             plan_data=plan_data,
             participant_id=participant_data.participant_id,
             target_condition=target_condition,
+            control_condition=control_condition,
             iteration=iteration,
             previous_feedback=previous_feedback
         )
@@ -123,6 +130,7 @@ class Orchestrator(BaseAgent):
         self,
         participant_data: ParticipantData,
         target_condition: str,
+        control_condition: str,
         token_budget: int,
         previous_feedback: Optional[str]
     ) -> str:
@@ -220,6 +228,7 @@ If a specific domain (e.g., BRAIN_MRI, GENOMICS) often has >5-15k tokens, DO NOT
             volume_context,
             f"\n## PREDICTION TARGET",
             f"Target: {target_condition}",
+            f"Control: {control_condition}",
             f"\n## AVAILABLE TOOLS",
             tools_desc,
         ]
@@ -286,6 +295,7 @@ Return a JSON object with:
         plan_data: Dict[str, Any],
         participant_id: str,
         target_condition: str,
+        control_condition: str,
         iteration: int,
         previous_feedback: Optional[str]
     ) -> ExecutionPlan:
@@ -318,6 +328,7 @@ Return a JSON object with:
             plan_id=plan_data.get("plan_id", str(uuid.uuid4())[:8]),
             participant_id=participant_id,
             target_condition=target_condition,
+            control_condition=control_condition,
             created_at=datetime.now(),
             total_estimated_tokens=plan_data.get("total_estimated_tokens", 0),
             priority_domains=plan_data.get("priority_domains", []),

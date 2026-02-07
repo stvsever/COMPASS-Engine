@@ -1,4 +1,4 @@
-# COMPASS: Clinical Orchestrated Multi-modal Predictive Agentic Support System
+# COMPASS: Clinical Ontology-driven Multi-modal Predictive Agentic Support System
 
 <!--
 <div align="center">
@@ -65,7 +65,7 @@ Through the dashboard, you can:
 Run the pipeline on a participant folder:
 
 ```bash
-python main.py data/pseudo_data/SUBJ_001_PSEUDO --target "Major Depressive Disorder" --backend local
+python main.py data/pseudo_data/SUBJ_001_PSEUDO --target "Major Depressive Disorder" --control "brain-implicated pathology, but NOT psychiatric" --backend local
 ```
 
 Each participant folder must contain four core input files (see data/pseudo_data/):
@@ -81,7 +81,7 @@ Pipeline outputs (per participant) include:
 ```text
 - report_{participant_id}.md        (standard clinical report)
 - deep_phenotype.md                 (communicator deep phenotyping report)
-- execution_log_{participant_id}.json
+- execution_log_{participant_id}.json (structured execution log + dataflow summary/assertions)
 ```
 
 > [!NOTE]

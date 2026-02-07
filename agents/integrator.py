@@ -12,6 +12,7 @@ from typing import Dict, Any, Optional, List, Sequence, Set
 from .base_agent import BaseAgent
 from ..utils.core.fusion_layer import FusionLayer, FusionResult
 from ..utils.core.predictor_input_assembler import PredictorInputAssembler, PredictorSection
+from ..utils.token_packer import count_tokens
 from ..tools import get_tool
 from ..frontend.compass_ui import get_ui
 
@@ -46,13 +47,14 @@ class Integrator(BaseAgent):
 
     def _chunk_budget_tokens(self) -> int:
         max_tool_input = int(getattr(self.settings.token_budget, "max_tool_input_tokens", 20000) or 20000)
-        return max(1200, min(30000, int(max_tool_input * 0.80)))
+        return max(30000, min(60000, int(max_tool_input * 2.0)))
         
     def execute(
         self, 
         step_outputs: Dict[int, Dict[str, Any]], 
         context: Dict[str, Any], 
-        target_condition: str
+        target_condition: str,
+        control_condition: str
     ) -> Dict[str, Any]:
         """
         Execute the integration process.
@@ -61,6 +63,7 @@ class Integrator(BaseAgent):
             step_outputs: Outputs from execution steps
             context: Execution context containing raw data (deviation, notes, etc.)
             target_condition: The target prediction condition
+            control_condition: The control comparator
             
         Returns:
             Dict containing:
@@ -82,6 +85,7 @@ class Integrator(BaseAgent):
             non_numerical_data=non_numerical_data,
             multimodal_data=multimodal_data,
             target_condition=target_condition,
+            control_condition=control_condition,
             system_prompt=self.system_prompt # Pass the prompt loaded by BaseAgent
         )
         
@@ -110,6 +114,8 @@ class Integrator(BaseAgent):
         hierarchical_deviation: Dict[str, Any],
         non_numerical_data: str,
         target_condition: str,
+        control_condition: str,
+        iteration: int = 1,
     ) -> Dict[str, Any]:
         """
         Build chunk evidence for Predictor using the ChunkEvidenceExtractor tool.
@@ -167,20 +173,80 @@ class Integrator(BaseAgent):
             }
 
         total = len(chunks)
-        rows: List[Dict[str, Any]] = []
+        rows_by_idx: Dict[int, Dict[str, Any]] = {}
+        base_step_id = 90500 + (iteration * 1000)
+        chunk_meta: Dict[int, Dict[str, Any]] = {}
 
         for idx, chunk_sections in enumerate(chunks, 1):
-            if ui and ui.enabled:
-                ui.set_status(f"Integration evidence extraction (chunk {idx}/{total})", stage=3)
-            row = self._extract_chunk_with_fallback(
-                tool=tool,
-                assembler=assembler,
-                chunk_sections=list(chunk_sections),
-                target_condition=target_condition,
-                chunk_index=idx,
-                chunk_total=total,
-            )
-            rows.append(row)
+            chunk_text = assembler.chunk_to_text(chunk_sections, idx, total)
+            token_est = count_tokens(chunk_text, model_hint=self.settings.models.tool_model)
+            section_names = [s.name for s in chunk_sections]
+            preview = ", ".join(section_names[:3])
+            if len(section_names) > 3:
+                preview = f"{preview}, +{len(section_names) - 3} more"
+            chunk_meta[idx] = {
+                "chunk_text": chunk_text,
+                "token_est": token_est,
+                "section_count": len(section_names),
+                "section_preview": preview,
+            }
+
+        if ui and ui.enabled:
+            reason = "payload exceeds single-chunk limit" if total > 1 else "single chunk"
+            ui.set_status(f"Integration evidence extraction ({total} chunks; {reason})", stage=3)
+
+        from concurrent.futures import ThreadPoolExecutor, as_completed
+        max_workers = min(10, total)
+        with ThreadPoolExecutor(max_workers=max_workers) as pool:
+            future_map = {}
+            for idx, chunk_sections in enumerate(chunks, 1):
+                step_id = base_step_id + idx
+                meta = chunk_meta.get(idx, {})
+                token_est = int(meta.get("token_est") or 0)
+                section_count = int(meta.get("section_count") or 0)
+                section_preview = str(meta.get("section_preview") or "").strip()
+                if ui and ui.enabled:
+                    extra = f" (~{token_est} tokens, {section_count} sections)"
+                    if section_preview:
+                        extra = f"{extra} [{section_preview}]"
+                    ui.on_step_start(
+                        step_id=step_id,
+                        tool_name="ChunkEvidenceExtractor",
+                        description=f"Integration evidence chunk {idx}/{total}{extra}",
+                        stage=3,
+                    )
+                future = pool.submit(
+                    self._extract_chunk_with_fallback,
+                    tool=tool,
+                    assembler=assembler,
+                    chunk_sections=list(chunk_sections),
+                    target_condition=target_condition,
+                    control_condition=control_condition,
+                    chunk_index=idx,
+                    chunk_total=total,
+                    chunk_text=meta.get("chunk_text"),
+                )
+                future_map[future] = (idx, step_id, token_est, section_count)
+
+            completed = 0
+            for future in as_completed(future_map):
+                idx, step_id, token_est, section_count = future_map[future]
+                row = future.result()
+                rows_by_idx[idx] = row
+                completed += 1
+                if ui and ui.enabled:
+                    ui.on_step_complete(
+                        step_id=step_id,
+                        tokens=0,
+                        duration_ms=0,
+                        preview=f"Chunk evidence ready (~{token_est} tokens; {section_count} sections).",
+                    )
+                    ui.set_status(
+                        f"Integration evidence extraction (chunk {completed}/{total})",
+                        stage=3,
+                    )
+
+        rows = [rows_by_idx[i] for i in sorted(rows_by_idx)]
 
         return {
             "chunk_evidence": rows,
@@ -194,17 +260,21 @@ class Integrator(BaseAgent):
         assembler: PredictorInputAssembler,
         chunk_sections: List[PredictorSection],
         target_condition: str,
+        control_condition: str,
         chunk_index: int,
         chunk_total: int,
+        chunk_text: Optional[str] = None,
         depth: int = 0,
     ) -> Dict[str, Any]:
-        chunk_text = assembler.chunk_to_text(chunk_sections, chunk_index, chunk_total)
+        if chunk_text is None:
+            chunk_text = assembler.chunk_to_text(chunk_sections, chunk_index, chunk_total)
         source_sections = [s.name for s in chunk_sections]
         hinted_keys = self._chunk_feature_keys(chunk_sections)
 
         output = tool.execute({
             "chunk_text": chunk_text,
             "target_condition": target_condition,
+            "control_condition": control_condition,
             "chunk_index": chunk_index,
             "chunk_total": chunk_total,
             "hinted_feature_keys": hinted_keys,
@@ -226,8 +296,10 @@ class Integrator(BaseAgent):
                 assembler=assembler,
                 chunk_sections=chunk_sections[:mid],
                 target_condition=target_condition,
+                control_condition=control_condition,
                 chunk_index=chunk_index,
                 chunk_total=chunk_total,
+                chunk_text=None,
                 depth=depth + 1,
             )
             right = self._extract_chunk_with_fallback(
@@ -235,8 +307,10 @@ class Integrator(BaseAgent):
                 assembler=assembler,
                 chunk_sections=chunk_sections[mid:],
                 target_condition=target_condition,
+                control_condition=control_condition,
                 chunk_index=chunk_index,
                 chunk_total=chunk_total,
+                chunk_text=None,
                 depth=depth + 1,
             )
             return self._merge_chunk_evidence(

@@ -44,7 +44,8 @@ class Executor(BaseAgent):
         self,
         plan: ExecutionPlan,
         participant_data: ParticipantData,
-        target_condition: str
+        target_condition: str,
+        control_condition: str
     ) -> Dict[str, Any]:
         """
         Execute the plan and return fused outputs.
@@ -53,6 +54,7 @@ class Executor(BaseAgent):
             plan: ExecutionPlan from Orchestrator
             participant_data: Loaded participant data
             target_condition: Prediction target
+            control_condition: Control comparator
         
         Returns:
             Dict with fused outputs ready for Predictor
@@ -60,7 +62,7 @@ class Executor(BaseAgent):
         self._log_start(f"executing plan {plan.plan_id}")
         
         # Build execution context
-        context = self._build_context(participant_data, target_condition)
+        context = self._build_context(participant_data, target_condition, control_condition)
         context["iteration"] = getattr(plan, "iteration", 1)
         
         print(f"[Executor] Plan ID: {plan.plan_id}")
@@ -98,7 +100,8 @@ class Executor(BaseAgent):
             integration_output = self.integrator.execute(
                 step_outputs=execution_result.step_outputs,
                 context=context,
-                target_condition=target_condition
+                target_condition=target_condition,
+                control_condition=control_condition,
             )
         except Exception as e:
             if ui:
@@ -125,6 +128,8 @@ class Executor(BaseAgent):
             hierarchical_deviation=context.get("hierarchical_deviation") or {},
             non_numerical_data=context.get("non_numerical_data") or "",
             target_condition=target_condition,
+            control_condition=control_condition,
+            iteration=int(context.get("iteration") or 1),
         )
 
         if ui:
@@ -157,6 +162,7 @@ class Executor(BaseAgent):
             "plan_id": plan.plan_id,
             "participant_id": participant_data.participant_id,
             "target_condition": target_condition,
+            "control_condition": control_condition,
             "domains_processed": plan.priority_domains,
             "total_tokens_used": execution_result.total_tokens_used,
             "coverage_ledger": coverage_ledger,
@@ -278,7 +284,8 @@ class Executor(BaseAgent):
     def _build_context(
         self,
         participant_data: ParticipantData,
-        target_condition: str
+        target_condition: str,
+        control_condition: str
     ) -> Dict[str, Any]:
         """Build execution context with all required data."""
         # Convert hierarchical deviation to dict for serialization
@@ -323,6 +330,7 @@ class Executor(BaseAgent):
         context = {
             "participant_id": participant_data.participant_id,
             "target_condition": target_condition,
+            "control_condition": control_condition,
             "data_overview": self._serialize_data_overview(participant_data.data_overview),
             "hierarchical_deviation": hierarchical_deviation_dict,
             "non_numerical_data": non_numerical_str,

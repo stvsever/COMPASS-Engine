@@ -35,6 +35,7 @@ class EventStore:
             "participant_id": "Unknown",
             "participant_dir": None,
             "target": "None",
+            "control": None,
             "status": "Ready to Launch",
             "start_time": None,
             "total_tokens": 0,
@@ -77,6 +78,7 @@ class EventStore:
             elif event_type == "INIT":
                 self.state["participant_id"] = data["participant_id"]
                 self.state["target"] = data["target"]
+                self.state["control"] = data.get("control")
                 self.state["max_iterations"] = data.get("max_iterations", 1)
                 self.state["config"] = data.get("config", {}) # Store token config
                 self.state["start_time"] = timestamp
@@ -346,9 +348,21 @@ def launch():
     config = {
         "id": data.get('id'),
         "target": data.get('target', 'neuropsychiatric'),
+        "control": data.get('control'),
         "backend": data.get('backend'),
         "model": data.get('model'),
         "max_tokens": data.get('max_tokens'),
+        "local_engine": data.get('local_engine'),
+        "local_dtype": data.get('local_dtype'),
+        "local_quant": data.get('local_quant'),
+        "local_kv_cache_dtype": data.get('local_kv_cache_dtype'),
+        "local_attn": data.get('local_attn'),
+        "local_tensor_parallel": data.get('local_tensor_parallel'),
+        "local_pipeline_parallel": data.get('local_pipeline_parallel'),
+        "local_gpu_mem_util": data.get('local_gpu_mem_util'),
+        "local_max_model_len": data.get('local_max_model_len'),
+        "local_enforce_eager": data.get('local_enforce_eager'),
+        "local_trust_remote_code": data.get('local_trust_remote_code'),
         "total_budget": data.get('total_budget'),
         "max_agent_input": data.get('max_agent_input'),
         "max_tool_output": data.get('max_tool_output'),
@@ -449,10 +463,11 @@ class FlaskUI:
         if iteration is not None: data["iteration"] = iteration
         _event_store.add_event("STATUS", data)
 
-    def on_pipeline_start(self, participant_id, target, participant_dir=None, max_iterations=3, token_config=None):
+    def on_pipeline_start(self, participant_id, target, control=None, participant_dir=None, max_iterations=3, token_config=None):
         _event_store.add_event("INIT", {
             "participant_id": participant_id, 
             "target": target,
+            "control": control,
             "max_iterations": max_iterations,
             "config": token_config or {}
         })

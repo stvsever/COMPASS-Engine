@@ -34,6 +34,7 @@ class HypothesisGenerator(BaseTool):
     def _build_prompt(self, input_data: Dict[str, Any]) -> str:
         """Build the hypothesis generation prompt."""
         target = input_data.get("target_condition", "neuropsychiatric")
+        control = input_data.get("control_condition", "")
         
         # Get abnormality data from dependency outputs or hierarchical deviation
         dep_outputs = input_data.get("dependency_outputs", {})
@@ -47,6 +48,7 @@ class HypothesisGenerator(BaseTool):
         
         prompt_parts = [
             f"## TARGET CONDITION: {target}",
+            f"## CONTROL CONDITION: {control}",
             f"## PARTICIPANT: {participant_id}",
             
             f"\n## DETECTED ABNORMALITIES",
@@ -81,12 +83,17 @@ class HypothesisGenerator(BaseTool):
         # From domain summaries
         if "domain_summaries" in hierarchical_deviation:
             for domain, summary in hierarchical_deviation["domain_summaries"].items():
-                if isinstance(summary, dict) and summary.get("severity") in ["SEVERE", "MODERATE"]:
-                    abnormalities.append({
-                        "domain": domain,
-                        "severity": summary.get("severity"),
-                        "description": f"{domain} shows {summary.get('severity')} abnormality"
-                    })
+                if isinstance(summary, dict):
+                    severity = summary.get("severity")
+                    mean_abs = summary.get("mean_abs_score")
+                    if not severity and mean_abs is not None:
+                        severity = self._severity_from_mean(mean_abs)
+                    if severity in ["SEVERE", "MODERATE"]:
+                        abnormalities.append({
+                            "domain": domain,
+                            "severity": severity,
+                            "description": f"{domain} shows {severity} abnormality"
+                        })
         
         return abnormalities[:15]  # Limit to top 15
     
@@ -99,8 +106,31 @@ class HypothesisGenerator(BaseTool):
         if "domain_summaries" in deviation:
             for domain, summary in deviation["domain_summaries"].items():
                 if isinstance(summary, dict):
-                    parts.append(f"- {domain}: {summary.get('severity', 'UNKNOWN')}")
+                    severity = summary.get("severity")
+                    mean_abs = summary.get("mean_abs_score")
+                    n_leaves = summary.get("n_leaves")
+                    if not severity and mean_abs is not None:
+                        severity = self._severity_from_mean(mean_abs)
+                    if mean_abs is not None:
+                        suffix = f"mean_abs={mean_abs:.3f}"
+                        if n_leaves is not None:
+                            suffix += f", n={n_leaves}"
+                        parts.append(f"- {domain}: {severity or 'UNKNOWN'} ({suffix})")
+                    else:
+                        parts.append(f"- {domain}: {severity or 'UNKNOWN'}")
                 else:
                     parts.append(f"- {domain}: {str(summary)[:100]}")
         
         return "\n".join(parts) if parts else "Deviation format not recognized"
+
+    def _severity_from_mean(self, mean_abs: Optional[float]) -> str:
+        """Infer severity from mean_abs_score (UKB format)."""
+        if mean_abs is None:
+            return "UNKNOWN"
+        if mean_abs > 3.0:
+            return "SEVERE"
+        if mean_abs > 2.0:
+            return "MODERATE"
+        if mean_abs > 1.5:
+            return "MILD"
+        return "NORMAL"

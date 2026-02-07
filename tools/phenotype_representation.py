@@ -31,12 +31,14 @@ class PhenotypeRepresentation(BaseTool):
     def _build_prompt(self, input_data: Dict[str, Any]) -> str:
         """Build the phenotype representation prompt."""
         target = input_data.get("target_condition", "neuropsychiatric")
+        control = input_data.get("control_condition", "")
         hierarchical_deviation = input_data.get("hierarchical_deviation", {})
         non_numerical_data = input_data.get("non_numerical_data", "")
         domain_data = input_data.get("domain_data", {})
         
         prompt_parts = [
             f"## TARGET CONDITION: {target}",
+            f"## CONTROL CONDITION: {control}",
             
             "\n## TASK",
             f"Generate a comprehensive, general 'Gold Standard' phenotype definition for {target}.",

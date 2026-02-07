@@ -98,6 +98,7 @@ class FusionLayer:
         non_numerical_data: str,
         multimodal_data: Dict[str, Any],
         target_condition: str,
+        control_condition: str,
         system_prompt: str = ""
     ) -> FusionResult:
         """
@@ -481,6 +482,9 @@ class FusionLayer:
 
 ## TARGET CONDITION
 {target_condition}
+
+## CONTROL CONDITION
+{control_condition}
 
 Please fuse these outputs into a unified representation. PRESERVE all clinical notes and deviation data."""
         

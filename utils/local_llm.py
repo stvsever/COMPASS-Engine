@@ -52,24 +52,52 @@ class LocalLLMHandler:
         logger.info(f"Initializing Local LLM: {self.model_name}")
         
         # 1. Try vLLM (Preferred for speed, but often CUDA only)
-        if VLLM_AVAILABLE:
+        backend_pref = (self.settings.models.local_backend_type or "auto").lower()
+        if VLLM_AVAILABLE and backend_pref in ["auto", "vllm"]:
             try:
                 logger.info(f"Attempting to load {self.model_name} with vLLM...")
                 # vLLM is heavy, parameters usually need tuning for specific GPUs
                 # We use defaults here but this might fail on Mac (MPS)
-                self.llm_engine = LLM(
-                    model=self.model_name,
-                    trust_remote_code=True,
-                    dtype="auto"
-                )
+                dtype = (self.settings.models.local_dtype or "auto").lower()
+                kv_cache_dtype = self.settings.models.local_kv_cache_dtype
+                if dtype == "fp8":
+                    # vLLM does not always accept dtype=fp8; prefer FP8 KV cache.
+                    dtype = "auto"
+                    if not kv_cache_dtype:
+                        kv_cache_dtype = "fp8_e4m3"
+                quant = self.settings.models.local_quantization
+                max_len = self.settings.models.local_max_model_len or self.settings.models.local_max_tokens
+                llm_kwargs = {
+                    "model": self.model_name,
+                    "trust_remote_code": bool(self.settings.models.local_trust_remote_code),
+                    "dtype": dtype,
+                }
+                if quant:
+                    llm_kwargs["quantization"] = str(quant)
+                if self.settings.models.local_tensor_parallel_size and self.settings.models.local_tensor_parallel_size > 1:
+                    llm_kwargs["tensor_parallel_size"] = int(self.settings.models.local_tensor_parallel_size)
+                if self.settings.models.local_pipeline_parallel_size and self.settings.models.local_pipeline_parallel_size > 1:
+                    llm_kwargs["pipeline_parallel_size"] = int(self.settings.models.local_pipeline_parallel_size)
+                if self.settings.models.local_gpu_memory_utilization:
+                    llm_kwargs["gpu_memory_utilization"] = float(self.settings.models.local_gpu_memory_utilization)
+                if max_len and int(max_len) > 0:
+                    llm_kwargs["max_model_len"] = int(max_len)
+                if kv_cache_dtype:
+                    llm_kwargs["kv_cache_dtype"] = str(kv_cache_dtype)
+                if self.settings.models.local_enforce_eager:
+                    llm_kwargs["enforce_eager"] = True
+
+                self.llm_engine = LLM(**llm_kwargs)
                 self.backend_type = "vllm"
                 logger.info("✓ vLLM loaded successfully")
                 return
             except Exception as e:
                 logger.warning(f"vLLM initialization failed: {e}. Falling back to Transformers.")
+        elif backend_pref == "vllm" and not VLLM_AVAILABLE:
+            raise RuntimeError("vLLM requested but not installed. Install vLLM or switch to transformers.")
         
         # 2. Fallback to Transformers (Better Mac/CPU support)
-        if TRANSFORMERS_AVAILABLE:
+        if TRANSFORMERS_AVAILABLE and backend_pref in ["auto", "transformers"]:
             try:
                 logger.info(f"Attempting to load {self.model_name} with Transformers (MPS/CPU)...")
                 
@@ -85,14 +113,42 @@ class LocalLLMHandler:
                 
                 self.tokenizer = AutoTokenizer.from_pretrained(
                     self.model_name, 
-                    trust_remote_code=True
+                    trust_remote_code=bool(self.settings.models.local_trust_remote_code)
                 )
+
+                torch_dtype = None
+                dtype = (self.settings.models.local_dtype or "auto").lower()
+                if dtype in ["float16", "fp16", "half"]:
+                    torch_dtype = torch.float16
+                elif dtype in ["bfloat16", "bf16"]:
+                    torch_dtype = torch.bfloat16
+                elif dtype in ["float32", "fp32"]:
+                    torch_dtype = torch.float32
+                elif dtype == "fp8":
+                    logger.warning("FP8 dtype is not supported in Transformers; falling back to float16.")
+                    torch_dtype = torch.float16
+
+                quant = (self.settings.models.local_quantization or "").lower()
+                quant_kwargs = {}
+                if quant in ["4bit", "int4", "bnb_4bit"]:
+                    quant_kwargs["load_in_4bit"] = True
+                elif quant in ["8bit", "int8", "bnb_8bit"]:
+                    quant_kwargs["load_in_8bit"] = True
+                elif quant in ["awq", "gptq", "fp8"]:
+                    logger.warning(f"Quantization '{quant}' is not supported in Transformers path; use vLLM.")
+
+                attn_impl = (self.settings.models.local_attn_implementation or "auto").lower()
+                attn_kwargs = {}
+                if attn_impl != "auto":
+                    attn_kwargs["attn_implementation"] = attn_impl
                 
                 self.hf_model = AutoModelForCausalLM.from_pretrained(
                     self.model_name,
-                    torch_dtype=torch.float16 if self.device != "cpu" else torch.float32,
-                    trust_remote_code=True,
-                    device_map="auto" if self.device == "cuda" else None 
+                    torch_dtype=torch_dtype or (torch.float16 if self.device != "cpu" else torch.float32),
+                    trust_remote_code=bool(self.settings.models.local_trust_remote_code),
+                    device_map="auto" if self.device == "cuda" else None,
+                    **quant_kwargs,
+                    **attn_kwargs,
                 )
                 
                 if self.device != "cuda": # "auto" handles cuda move
@@ -104,6 +160,8 @@ class LocalLLMHandler:
             except Exception as e:
                 logger.error(f"Transformers initialization failed: {e}")
                 raise RuntimeError(f"Could not load Local LLM {self.model_name}. Ensure `transformers` and `torch` are installed.")
+        elif backend_pref == "transformers" and not TRANSFORMERS_AVAILABLE:
+            raise RuntimeError("Transformers requested but not installed. Install transformers/torch or switch to vLLM.")
         else:
             raise RuntimeError("Neither vLLM nor Transformers is available. Please install dependencies.")
 

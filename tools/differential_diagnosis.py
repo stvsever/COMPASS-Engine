@@ -31,6 +31,7 @@ class DifferentialDiagnosis(BaseTool):
     def _build_prompt(self, input_data: Dict[str, Any]) -> str:
         """Build the differential diagnosis prompt."""
         target = input_data.get("target_condition", "neuropsychiatric")
+        control = input_data.get("control_condition", "")
         hierarchical_deviation = input_data.get("hierarchical_deviation", {})
         non_numerical_data = input_data.get("non_numerical_data", "")
         dep_outputs = input_data.get("dependency_outputs", {})
@@ -45,6 +46,7 @@ class DifferentialDiagnosis(BaseTool):
         
         prompt_parts = [
             f"## TARGET CONDITION: {target}",
+            f"## CONTROL CONDITION: {control}",
             
             f"\n## PHENOTYPE REPRESENTATION",
             phenotype if phenotype else "Not available",
@@ -115,8 +117,30 @@ class DifferentialDiagnosis(BaseTool):
             lines = []
             for domain, summary in deviation["domain_summaries"].items():
                 if isinstance(summary, dict):
-                    severity = summary.get("severity", "UNKNOWN")
-                    lines.append(f"- {domain}: {severity}")
+                    severity = summary.get("severity")
+                    mean_abs = summary.get("mean_abs_score")
+                    n_leaves = summary.get("n_leaves")
+                    if not severity and mean_abs is not None:
+                        severity = self._severity_from_mean(mean_abs)
+                    if mean_abs is not None:
+                        suffix = f"mean_abs={mean_abs:.3f}"
+                        if n_leaves is not None:
+                            suffix += f", n={n_leaves}"
+                        lines.append(f"- {domain}: {severity or 'UNKNOWN'} ({suffix})")
+                    else:
+                        lines.append(f"- {domain}: {severity or 'UNKNOWN'}")
             return "\n".join(lines)
         
         return "Deviation data available but not summarized"
+
+    def _severity_from_mean(self, mean_abs: Optional[float]) -> str:
+        """Infer severity from mean_abs_score (UKB format)."""
+        if mean_abs is None:
+            return "UNKNOWN"
+        if mean_abs > 3.0:
+            return "SEVERE"
+        if mean_abs > 2.0:
+            return "MODERATE"
+        if mean_abs > 1.5:
+            return "MILD"
+        return "NORMAL"

@@ -71,11 +71,12 @@ class ExecutionLogger:
         # Log entries for structured access
         self.entries = []
     
-    def log_pipeline_start(self, target_condition: str):
+    def log_pipeline_start(self, target_condition: str, control_condition: str):
         """Log pipeline start."""
         self._log_entry("PIPELINE_START", {
             "participant_id": self.participant_id,
             "target_condition": target_condition,
+            "control_condition": control_condition,
             "timestamp": datetime.now().isoformat()
         })
         
@@ -83,6 +84,7 @@ class ExecutionLogger:
         self.logger.info(f"COMPASS Pipeline Started")
         self.logger.info(f"Participant: {self.participant_id}")
         self.logger.info(f"Target: {target_condition}")
+        self.logger.info(f"Control: {control_condition}")
         self.logger.info("=" * 60)
     
     def log_pipeline_end(self, success: bool, summary: dict):
@@ -147,6 +149,21 @@ class ExecutionLogger:
         
         if verdict == "UNSATISFACTORY":
             self.logger.warning("Re-orchestration triggered")
+
+    def log_dataflow_summary(self, summary: dict, iteration: Optional[int] = None):
+        """Log dataflow integrity summary and assertions."""
+        payload = {
+            "iteration": iteration,
+            **(summary or {})
+        }
+        self._log_entry("DATAFLOW_SUMMARY", payload)
+        if self.verbose:
+            missing = payload.get("coverage", {}).get("missing_feature_count")
+            chunks = payload.get("chunking", {}).get("predictor_chunk_count")
+            invariant_ok = payload.get("assertions", {}).get("invariant_ok")
+            self.logger.info(
+                f"Dataflow summary: missing={missing} chunks={chunks} invariant_ok={invariant_ok}"
+            )
     
     def log_error(self, component: str, error: str):
         """Log an error."""

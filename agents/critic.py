@@ -60,7 +60,8 @@ class Critic(BaseAgent):
         executor_output: Dict[str, Any],
         data_overview: Dict[str, Any],
         hierarchical_deviation: Dict[str, Any] = None,
-        non_numerical_data: str = None
+        non_numerical_data: str = None,
+        control_condition: Optional[str] = None,
     ) -> CriticEvaluation:
         """
         Evaluate a prediction result.
@@ -87,7 +88,8 @@ class Critic(BaseAgent):
             executor_output, 
             data_overview,
             hierarchical_deviation,
-            non_numerical_data
+            non_numerical_data,
+            control_condition=control_condition,
         )
         
         # Call LLM with auto-repair parsing
@@ -110,14 +112,16 @@ class Critic(BaseAgent):
         executor_output: Dict[str, Any],
         data_overview: Dict[str, Any],
         hierarchical_deviation: Dict[str, Any] = None,
-        non_numerical_data: str = None
+        non_numerical_data: str = None,
+        control_condition: Optional[str] = None,
     ) -> str:
         """Build user prompt for critic evaluation."""
 
         max_in = int(getattr(self.settings.token_budget, "max_agent_input_tokens", 20000) or 20000)
-        pred_input_budget = int(max_in * 0.45)
-        dev_budget = int(max_in * 0.30)
-        notes_budget = int(max_in * 0.25)
+        pred_input_budget = int(max_in * 0.38)
+        dev_budget = int(max_in * 0.25)
+        notes_budget = int(max_in * 0.22)
+        dataflow_budget = int(max_in * 0.15)
         
         # Format prediction summary
         prediction_summary = {
@@ -175,12 +179,31 @@ class Critic(BaseAgent):
             pred_input_budget,
             model_hint="gpt-5",
         )
+        dataflow_summary = executor_output.get("dataflow_summary") or {}
+        dataflow_text = truncate_text_by_tokens(
+            json_to_toon(dataflow_summary),
+            dataflow_budget,
+            model_hint="gpt-5",
+        )
         prompt_parts.extend([
             f"\n## PREDICTOR INPUT (EVIDENCE SNAPSHOT)",
             f"Use this to verify whether cited findings are present in the provided context.",
             f"```text\n{predictor_input_text}\n```",
         ])
+        if dataflow_summary:
+            prompt_parts.extend([
+                f"\n## DATAFLOW SUMMARY & ASSERTIONS",
+                f"Objective coverage/chunking/context-fill status for this iteration.",
+                f"```text\n{dataflow_text}\n```",
+            ])
         
+        ctrl = (
+            getattr(prediction, "control_condition", None)
+            or control_condition
+            or executor_output.get("control_condition")
+            or "Control condition not provided"
+        )
+
         prompt_parts.extend([
             f"\n## HIERARCHICAL DEVIATION PROFILE (INPUT DATA)",
             f"Note: This is the mean aggregated hierarchy of the multi-modal data (so there is no direction; only means 'abnormal' without necesarilly implying pathology ; Use this to verify if cited findings exist. The actual multi-modal data is NOT always given to you; just a compressed summary.",
@@ -193,7 +216,7 @@ class Critic(BaseAgent):
             prediction.target_condition,
             
             f"\n## CONTROL CONDITION",
-            "Evaluate whether the 'target phenotype' is present (case) VS whether this data matches better a profile of 'a brain-implicated pathology, but non-psychiatric' (control)!"
+            f"Evaluate whether the 'target phenotype' is present (case) VS whether this data matches better a profile of: {ctrl}",
             
             "\n## EVALUATION TASK",
             "Evaluate this prediction using the following Hierarchical Multi-composite Satisfaction Scoring Matrix.",

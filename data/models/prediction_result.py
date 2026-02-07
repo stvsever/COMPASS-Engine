@@ -12,8 +12,8 @@ from datetime import datetime
 
 class BinaryClassification(str, Enum):
     """Binary prediction outcome."""
-    CASE = "CASE (likely has target phenotype)"
-    CONTROL = "CONTROL (Likely brain-related implication, however NOT psychiatric profile)"
+    CASE = "CASE"
+    CONTROL = "CONTROL"
 
 
 class ConfidenceLevel(str, Enum):
@@ -58,6 +58,7 @@ class PredictionResult(BaseModel):
     prediction_id: str = Field(..., description="Unique prediction identifier")
     participant_id: str
     target_condition: str = Field(..., description="neuropsychiatric or neurologic")
+    control_condition: str = Field(..., description="control comparator string")
     created_at: datetime = Field(default_factory=datetime.now)
     
     # Core prediction
@@ -101,6 +102,7 @@ class PredictionResult(BaseModel):
         return {
             "participant_id": self.participant_id,
             "condition": self.target_condition,
+            "control_condition": self.control_condition,
             "prediction": self.binary_classification.value,
             "probability": f"{self.probability_score:.2%}",
             "confidence": self.confidence_level.value,

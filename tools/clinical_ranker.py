@@ -31,6 +31,7 @@ class ClinicalRelevanceRanker(BaseTool):
     def _build_prompt(self, input_data: Dict[str, Any]) -> str:
         """Build the clinical ranking prompt."""
         target = input_data.get("target_condition", "neuropsychiatric")
+        control = input_data.get("control_condition", "")
         
         # Get features from dependency outputs or hierarchical deviation
         dep_outputs = input_data.get("dependency_outputs", {})
@@ -40,6 +41,7 @@ class ClinicalRelevanceRanker(BaseTool):
         
         prompt_parts = [
             f"## TARGET CONDITION: {target}",
+            f"## CONTROL CONDITION: {control}",
             
             f"\n## FEATURES TO RANK",
             f"```json\n{json.dumps(features[:30], indent=2)}\n```",
@@ -122,10 +124,33 @@ class ClinicalRelevanceRanker(BaseTool):
             lines = []
             for domain, summary in deviation["domain_summaries"].items():
                 if isinstance(summary, dict):
-                    lines.append(f"- {domain}: {summary.get('severity', 'UNKNOWN')}")
+                    severity = summary.get("severity")
+                    mean_abs = summary.get("mean_abs_score")
+                    n_leaves = summary.get("n_leaves")
+                    if not severity and mean_abs is not None:
+                        severity = self._severity_from_mean(mean_abs)
+                    if mean_abs is not None:
+                        suffix = f"mean_abs={mean_abs:.3f}"
+                        if n_leaves is not None:
+                            suffix += f", n={n_leaves}"
+                        lines.append(f"- {domain}: {severity or 'UNKNOWN'} ({suffix})")
+                    else:
+                        lines.append(f"- {domain}: {severity or 'UNKNOWN'}")
             return "\n".join(lines)
         
         return "Deviation structure available but not summarized"
+
+    def _severity_from_mean(self, mean_abs: Optional[float]) -> str:
+        """Infer severity from mean_abs_score (UKB format)."""
+        if mean_abs is None:
+            return "UNKNOWN"
+        if mean_abs > 3.0:
+            return "SEVERE"
+        if mean_abs > 2.0:
+            return "MODERATE"
+        if mean_abs > 1.5:
+            return "MILD"
+        return "NORMAL"
     
     def _get_clinical_guidelines(self, target: str) -> str:
         """Get condition-specific clinical guidelines."""

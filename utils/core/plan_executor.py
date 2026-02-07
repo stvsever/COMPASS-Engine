@@ -360,6 +360,7 @@ class PlanExecutor:
             "hierarchical_deviation": hierarchical_deviation,
             "non_numerical_data": context.get("non_numerical_data"),
             "target_condition": context.get("target_condition"),
+            "control_condition": context.get("control_condition"),
             "participant_id": context.get("participant_id"),
         }
         consumed_feature_keys: set[str] = set()

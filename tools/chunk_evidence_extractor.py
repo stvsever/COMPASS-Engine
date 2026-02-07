@@ -18,7 +18,7 @@ class ChunkEvidenceExtractor(BaseTool):
     PROMPT_FILE = "chunk_evidence_extractor.txt"
 
     def _validate_input(self, input_data: Dict[str, Any]) -> Optional[str]:
-        required = ["chunk_text", "target_condition", "chunk_index", "chunk_total"]
+        required = ["chunk_text", "target_condition", "control_condition", "chunk_index", "chunk_total"]
         for key in required:
             if key not in input_data:
                 return f"Missing required input: {key}"
@@ -27,12 +27,14 @@ class ChunkEvidenceExtractor(BaseTool):
     def _build_prompt(self, input_data: Dict[str, Any]) -> str:
         chunk_text = input_data.get("chunk_text", "")
         target = input_data.get("target_condition", "")
+        control = input_data.get("control_condition", "")
         chunk_index = input_data.get("chunk_index", 0)
         chunk_total = input_data.get("chunk_total", 0)
         hinted_keys = input_data.get("hinted_feature_keys") or []
 
         return "\n".join([
             f"Target condition: {target}",
+            f"Control condition: {control}",
             f"Chunk: {chunk_index}/{chunk_total}",
             "",
             "Chunk feature key hints (may be partial):",

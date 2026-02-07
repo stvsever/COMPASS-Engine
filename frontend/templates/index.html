@@ -673,6 +673,8 @@
             opacity: 0;
             pointer-events: none;
             transition: opacity 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+            overflow-y: auto;
+            padding: 2rem 1rem;
         }
 
         .modal-overlay.active {
@@ -686,6 +688,8 @@
             border-radius: 16px;
             padding: 2.5rem;
             width: 520px;
+            max-height: 90vh;
+            overflow-y: auto;
             box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.5);
             transform: translateY(30px);
             transition: transform 0.4s cubic-bezier(0.34, 1.56, 0.64, 1);
@@ -1051,10 +1055,10 @@
     <div id="setup-modal" class="modal-overlay active">
         <div class="glass-panel">
 
-            <!-- STEP 1: Mission Data (Only Step) -->
+            <!-- STEP 1: Run Setup (Only Step) -->
             <div id="wiz-1" class="wizard-step active">
                 <i class="fas fa-satellite-dish launch-icon"></i>
-                <h2 style="font-size: 1.5rem; text-align: center; margin-bottom: 0.5rem;">Mission Data</h2>
+                <h2 style="font-size: 1.5rem; text-align: center; margin-bottom: 0.5rem;">Run Setup</h2>
                 <div style="margin-bottom: 1.5rem;">
                     <label class="form-label">PARTICIPANT IDENTIFIER (or path)</label>
                     <input type="text" id="input-pid" class="form-input"
@@ -1065,6 +1069,12 @@
                     <label class="form-label">TARGET PHENOTYPE</label>
                     <input type="text" id="input-target" class="form-input" placeholder="e.g. neuropsychiatric"
                         value="neuropsychiatric">
+                </div>
+                <div style="margin-top:0.9rem;">
+                    <label class="form-label">CONTROL COMPARATOR</label>
+                    <input type="text" id="input-control" class="form-input"
+                        placeholder="e.g. brain-implicated pathology, but NOT psychiatric"
+                        value="brain-implicated pathology, but NOT psychiatric">
                 </div>
 
                 <!-- ADVANCED SETTINGS TOGGLE -->
@@ -1079,8 +1089,8 @@
                             <label class="form-label">LLM Backend</label>
                             <select id="input-backend" class="form-input" onchange="toggleModelInput()"
                                 style="padding:0.6rem;">
-                                <option value="openai" selected>GPT-5 (default)</option>
-                                <option value="local">Local (vLLM/Ollama)</option>
+                                <option value="openai" selected>OpenAI (gpt-5-nano)</option>
+                                <option value="local">Local (vLLM/Transformers)</option>
                             </select>
                         </div>
 
@@ -1092,6 +1102,95 @@
                             <label class="form-label" style="margin-top:5px;">Max Context Tokens</label>
                             <input type="number" id="input-max-tokens" class="form-input" placeholder="2048"
                                 value="2048">
+                        </div>
+
+                        <div id="group-local-advanced"
+                            style="display:none; margin-bottom:10px; border-left: 2px solid var(--primary); padding-left:10px;">
+                            <label class="form-label">Local Engine</label>
+                            <select id="input-local-engine" class="form-input" style="padding:0.6rem;">
+                                <option value="auto" selected>Auto</option>
+                                <option value="vllm">vLLM</option>
+                                <option value="transformers">Transformers</option>
+                            </select>
+
+                            <div style="display:grid; grid-template-columns: 1fr 1fr; gap:10px; margin-top:10px;">
+                                <div>
+                                    <label class="form-label">Local Dtype</label>
+                                    <select id="input-local-dtype" class="form-input" style="padding:0.6rem;">
+                                        <option value="auto" selected>Auto</option>
+                                        <option value="float16">float16</option>
+                                        <option value="bfloat16">bfloat16</option>
+                                        <option value="float32">float32</option>
+                                        <option value="fp8">fp8</option>
+                                    </select>
+                                </div>
+                                <div>
+                                    <label class="form-label">Quantization</label>
+                                    <select id="input-local-quant" class="form-input" style="padding:0.6rem;">
+                                        <option value="" selected>None</option>
+                                        <option value="awq">AWQ</option>
+                                        <option value="gptq">GPTQ</option>
+                                        <option value="4bit">4-bit (bnb)</option>
+                                        <option value="8bit">8-bit (bnb)</option>
+                                        <option value="fp8">FP8</option>
+                                    </select>
+                                </div>
+                            </div>
+
+                            <div style="display:grid; grid-template-columns: 1fr 1fr; gap:10px; margin-top:10px;">
+                                <div>
+                                    <label class="form-label">KV Cache Dtype</label>
+                                    <select id="input-local-kv" class="form-input" style="padding:0.6rem;">
+                                        <option value="" selected>Auto</option>
+                                        <option value="fp8_e4m3">fp8_e4m3 (L40S)</option>
+                                        <option value="fp8_e5m2">fp8_e5m2</option>
+                                    </select>
+                                </div>
+                                <div>
+                                    <label class="form-label">Attention Impl</label>
+                                    <select id="input-local-attn" class="form-input" style="padding:0.6rem;">
+                                        <option value="auto" selected>Auto</option>
+                                        <option value="flash_attention_2">FlashAttention2</option>
+                                        <option value="sdpa">SDPA</option>
+                                        <option value="eager">Eager</option>
+                                    </select>
+                                </div>
+                            </div>
+
+                            <div style="display:grid; grid-template-columns: 1fr 1fr; gap:10px; margin-top:10px;">
+                                <div>
+                                    <label class="form-label">Tensor Parallel</label>
+                                    <input type="number" id="input-local-tp" class="form-input" placeholder="1" value="1"
+                                        style="padding:0.6rem;">
+                                </div>
+                                <div>
+                                    <label class="form-label">Pipeline Parallel</label>
+                                    <input type="number" id="input-local-pp" class="form-input" placeholder="1" value="1"
+                                        style="padding:0.6rem;">
+                                </div>
+                            </div>
+
+                            <div style="display:grid; grid-template-columns: 1fr 1fr; gap:10px; margin-top:10px;">
+                                <div>
+                                    <label class="form-label">GPU Memory Utilization</label>
+                                    <input type="number" id="input-local-mem" class="form-input" placeholder="0.9"
+                                        value="0.9" step="0.01" min="0.1" max="1.0" style="padding:0.6rem;">
+                                </div>
+                                <div>
+                                    <label class="form-label">Max Model Length</label>
+                                    <input type="number" id="input-local-maxlen" class="form-input" placeholder="auto"
+                                        style="padding:0.6rem;">
+                                </div>
+                            </div>
+
+                            <div style="display:flex; gap:12px; margin-top:10px; align-items:center;">
+                                <label style="display:flex; align-items:center; gap:6px; font-size:0.8rem; color:#cbd5f5;">
+                                    <input type="checkbox" id="input-local-eager"> Enforce eager
+                                </label>
+                                <label style="display:flex; align-items:center; gap:6px; font-size:0.8rem; color:#cbd5f5;">
+                                    <input type="checkbox" id="input-local-trust" checked> Trust remote code
+                                </label>
+                            </div>
                         </div>
 
                         <label class="form-label">Total Token Budget</label>
@@ -1141,7 +1240,7 @@
         <div class="glass-panel" id="result-panel" style="text-align:center; border: 1px solid var(--verdict_ok);">
             <i class="fas fa-check-circle" id="result-icon"
                 style="font-size: 4rem; color: var(--verdict_ok); margin-bottom: 1rem;"></i>
-            <h2 style="margin-bottom:0.5rem;">MISSION DE-BRIEF</h2>
+            <h2 style="margin-bottom:0.5rem;">RUN SUMMARY</h2>
             <div id="final-verdict" class="verdict-badge" style="margin: 0.6rem auto 1rem auto;">Pending</div>
             <div
                 style="display:flex; justify-content:center; gap:12px; font-size:0.8rem; color:#a1a1aa; margin-bottom:1rem;">
@@ -1155,7 +1254,7 @@
             <div id="final-checklist" class="verdict-checklist" style="justify-content:center; margin-bottom:1rem;">
             </div>
             <button class="btn-launch" onclick="closeResultModal()" style="background:var(--primary);">
-                Review Mission Data
+                Review Run Setup
             </button>
         </div>
     </div>
@@ -1234,7 +1333,7 @@
                     <div class="step-list" id="steps-container">
                         <div style="text-align:center; padding: 4rem; color: var(--text-muted); opacity: 0.5;">
                             <i class="fas fa-satellite-dish" style="font-size: 3rem; margin-bottom: 1rem;"></i>
-                            <p>Pipeline is ready. Launching mission...</p>
+                            <p>Pipeline is ready. Launching run...</p>
                         </div>
                     </div>
                 </div>
@@ -1365,6 +1464,7 @@
         function toggleModelInput() {
             const val = document.getElementById('input-backend').value;
             document.getElementById('group-model').style.display = val === 'local' ? 'block' : 'none';
+            document.getElementById('group-local-advanced').style.display = val === 'local' ? 'block' : 'none';
         }
 
         function toggleAdvanced() {
@@ -1384,6 +1484,7 @@
         async function launchPipeline() {
             const pid = document.getElementById('input-pid').value;
             const target = document.getElementById('input-target').value;
+            const control = document.getElementById('input-control').value;
 
             // Advanced settings
             const budget = document.getElementById('input-budget').value;
@@ -1397,6 +1498,17 @@
             const backend = document.getElementById('input-backend').value;
             const model = document.getElementById('input-model').value;
             const maxTokens = document.getElementById('input-max-tokens').value;
+            const localEngine = document.getElementById('input-local-engine').value;
+            const localDtype = document.getElementById('input-local-dtype').value;
+            const localQuant = document.getElementById('input-local-quant').value;
+            const localKv = document.getElementById('input-local-kv').value;
+            const localAttn = document.getElementById('input-local-attn').value;
+            const localTp = document.getElementById('input-local-tp').value;
+            const localPp = document.getElementById('input-local-pp').value;
+            const localMem = document.getElementById('input-local-mem').value;
+            const localMaxLen = document.getElementById('input-local-maxlen').value;
+            const localEager = document.getElementById('input-local-eager').checked;
+            const localTrust = document.getElementById('input-local-trust').checked;
 
             if (!pid) return alert("Participant ID required");
 
@@ -1409,7 +1521,7 @@
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
                     body: JSON.stringify({
-                        id: pid, target: target,
+                        id: pid, target: target, control: control,
                         total_budget: budget ? parseInt(budget) : null,
                         max_agent_input: maxAgent ? parseInt(maxAgent) : null,
                         max_tool_output: maxTool ? parseInt(maxTool) : null,
@@ -1417,7 +1529,18 @@
                         max_tool_input: maxToolInput ? parseInt(maxToolInput) : null,
                         backend: backend,
                         model: model,
-                        max_tokens: maxTokens ? parseInt(maxTokens) : null
+                        max_tokens: maxTokens ? parseInt(maxTokens) : null,
+                        local_engine: localEngine,
+                        local_dtype: localDtype,
+                        local_quant: localQuant || null,
+                        local_kv_cache_dtype: localKv || null,
+                        local_attn: localAttn,
+                        local_tensor_parallel: localTp ? parseInt(localTp) : null,
+                        local_pipeline_parallel: localPp ? parseInt(localPp) : null,
+                        local_gpu_mem_util: localMem ? parseFloat(localMem) : null,
+                        local_max_model_len: localMaxLen ? parseInt(localMaxLen) : null,
+                        local_enforce_eager: localEager,
+                        local_trust_remote_code: localTrust
                     })
                 });
                 const data = await res.json();

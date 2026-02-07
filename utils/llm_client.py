@@ -371,6 +371,13 @@ _llm_client_instance: Optional[LLMClient] = None
 def get_llm_client() -> LLMClient:
     """Get the global LLM client instance."""
     global _llm_client_instance
+    desired_backend = get_settings().models.backend
     if _llm_client_instance is None:
         _llm_client_instance = LLMClient()
+    else:
+        # Recreate if backend changed to ensure correct client initialization.
+        if desired_backend == LLMBackend.LOCAL and not _llm_client_instance.local_llm:
+            _llm_client_instance = LLMClient()
+        if desired_backend == LLMBackend.OPENAI and not hasattr(_llm_client_instance, "client"):
+            _llm_client_instance = LLMClient()
     return _llm_client_instance

@@ -34,6 +34,7 @@ class AnomalyNarrativeBuilder(BaseTool):
     def _build_prompt(self, input_data: Dict[str, Any]) -> str:
         """Build the narrative building prompt."""
         target = input_data.get("target_condition", "neuropsychiatric")
+        control = input_data.get("control_condition", "")
         hierarchical_deviation = input_data.get("hierarchical_deviation", {})
         
         # Analyze the deviation structure
@@ -41,6 +42,7 @@ class AnomalyNarrativeBuilder(BaseTool):
         
         prompt_parts = [
             f"## TARGET CONDITION: {target}",
+            f"## CONTROL CONDITION: {control}",
             
             f"\n## HIERARCHICAL DEVIATION MAP (high absolute value is not necessary pathological; just abnormal (e.g., high cognitive scores))",
             f"```json\n{json.dumps(analysis, indent=2)}\n```",
