@@ -44,8 +44,8 @@ Through the dashboard, you can:
 
 1. **Clone the repository**:
    ```bash
-   git clone https://github.com/IIS-Biobizkaia/COMPASS.git
-   cd COMPASS
+   git clone https://github.com/stvsever/COMPASS-Engine.git
+   cd COMPASS-Engine
    ```
 
 2. **Install dependencies**:
