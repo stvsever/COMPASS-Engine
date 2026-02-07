@@ -437,7 +437,7 @@ def run_compass_pipeline(
             ui.on_step_start(
                 step_id=910 + iteration,
                 tool_name="Predictor Agent",
-                description="Evaluating integrated evidence for final CASE/CONTROL verdict...",
+                description="Evaluating integrated evidence for final CASE/CONTROL prediction...",
                 stage=4,
             )
 

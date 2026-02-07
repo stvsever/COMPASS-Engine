@@ -2907,13 +2907,45 @@
 
             if (filename.endsWith('.md') && window.marked && typeof window.marked.parse === 'function') {
                 preview.classList.add('markdown-render');
-                preview.innerHTML = window.marked.parse(text);
+                preview.innerHTML = window.marked.parse(normalizeMarkdownForRender(text));
             } else if (filename.endsWith('.md')) {
                 preview.classList.add('markdown-render');
-                preview.textContent = text;
+                preview.textContent = normalizeMarkdownForRender(text);
             } else {
                 preview.textContent = text;
             }
+        }
+
+        function normalizeMarkdownForRender(text) {
+            if (!text || typeof text !== 'string') return text;
+
+            const lines = text.split('\n');
+            const normalized = [];
+
+            for (const rawLine of lines) {
+                const line = String(rawLine || '');
+                if (line.includes('Table:') && line.includes('|') && line.split('|').length > 3) {
+                    const idx = line.indexOf('Table:');
+                    const titleAndMaybeFirstCell = line.slice(idx).trim();
+                    const firstPipe = titleAndMaybeFirstCell.indexOf('|');
+                    if (firstPipe > 0) {
+                        const title = titleAndMaybeFirstCell.slice(0, firstPipe).trim();
+                        const tablePart = titleAndMaybeFirstCell.slice(firstPipe).trim();
+                        normalized.push(title);
+                        normalized.push('');
+                        const repaired = tablePart
+                            .replace(/\s+\|/g, '\n|')
+                            .replace(/(?<!\n)\|---/g, '\n|---')
+                            .replace(/\|\s*\|\s*$/g, '|');
+                        normalized.push(repaired);
+                        normalized.push('');
+                        continue;
+                    }
+                }
+                normalized.push(line);
+            }
+
+            return normalized.join('\n');
         }
 
         async function openStandardReport() {

@@ -66,6 +66,7 @@ Create a clinically meaningful pattern-based overview that is incredibly compreh
 - Do NOT claim patterns exist without providing exact numerical evidence
 - If severity is "MODERATE", specify the z-score range that defines this (e.g., "z=-1.82")
 - Include percentile interpretation where meaningful (e.g., "3rd percentile" for z=-1.88)
+- Currently; demographics in the multi-modal data (if passed to you) are not normativized.
 
 ## HALLUCINATION PREVENTION
 - ONLY reference data that is explicitly provided in the input

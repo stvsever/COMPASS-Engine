@@ -1,4 +1,4 @@
-# COMPASS: Clinical Ontology-driven Multi-modal Predictive Agentic Support System
+# Clinical Ontology-driven Multi-modal Predictive Agentic Support System (COMPASS)
 
 <!--
 <div align="center">

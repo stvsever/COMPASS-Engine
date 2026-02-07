@@ -184,10 +184,14 @@ class Settings:
             return max(1024, int(getattr(self.models, "local_max_tokens", 2048) or 2048))
 
         public_ctx = int(getattr(self.models, "public_max_context_tokens", 0) or 0)
-        if public_ctx > 0:
+        normalized_public = self._normalize_model_name(self.models.public_model_name)
+        normalized_requested = self._normalize_model_name(model_name or self.models.public_model_name)
+        if public_ctx > 0 and (
+            not model_name or normalized_requested == normalized_public
+        ):
             return public_ctx
 
-        normalized = self._normalize_model_name(model_name or self.models.public_model_name)
+        normalized = normalized_requested
         known_ctx = {
             "gpt-5": 128000,
             "gpt-5-mini": 128000,

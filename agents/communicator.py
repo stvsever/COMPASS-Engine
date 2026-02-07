@@ -183,8 +183,97 @@ class Communicator(BaseAgent):
         if final_tokens > threshold:
             user_prompt = truncate_text_by_tokens(user_prompt, threshold, model_hint=model_hint, suffix="")
             final_tokens = threshold
+        max_completion_tokens = int(self.LLM_MAX_TOKENS or self.settings.models.tool_max_tokens or 16000)
+        fallback_used = False
+        fallback_reason = ""
+        fallback_prompt_tokens = 0
+        fallback_max_completion_tokens = 0
+        try:
+            response = self._invoke_llm_with_limits(
+                user_prompt,
+                max_tokens=max_completion_tokens,
+                max_retries=0,
+            )
+        except Exception as exc:
+            if not self._is_length_exhaustion_error(exc):
+                raise
 
-        response = self._call_llm(user_prompt, expect_json=False)
+            fallback_used = True
+            fallback_reason = str(exc)
+            fallback_threshold = threshold
+            fallback_available = max(10000, fallback_threshold - base_tokens)
+
+            # Preserve high-information coverage by compressing primary sections with chunk evidence
+            # before reducing prompt size.
+            compact_primary_text = ""
+            compact_chunk_count = 0
+            if primary_sections:
+                fallback_chunk_budget = max(12000, min(36000, int(fallback_available * 0.45)))
+                fallback_chunks = self._build_chunks(
+                    primary_sections,
+                    chunk_budget=fallback_chunk_budget,
+                    model_hint=model_hint,
+                )
+                compact_chunk_count = len(fallback_chunks)
+                if len(fallback_chunks) > 1:
+                    fallback_chunk_rows = self._extract_chunk_evidence(
+                        chunks=fallback_chunks,
+                        anchors=anchors,
+                        status_callback=None,
+                    )
+                    compact_primary_text = self._render_chunk_evidence(fallback_chunk_rows)
+
+            if not compact_primary_text:
+                compact_primary_text, _ = self._fit_sections(
+                    primary_sections,
+                    token_budget=fallback_available,
+                    model_hint=model_hint,
+                )
+
+            # Refill remaining space with optional/low-priority context.
+            compact_consumed = count_tokens(compact_primary_text, model_hint=model_hint)
+            compact_remaining = max(0, fallback_available - compact_consumed)
+            if compact_remaining > 1200:
+                compact_add_text, _ = self._fit_sections(
+                    optional_sections + low_priority_sections,
+                    token_budget=compact_remaining,
+                    model_hint=model_hint,
+                )
+                if compact_add_text:
+                    compact_primary_text = compact_primary_text + "\n\n" + compact_add_text
+
+            strict_header = (
+                base_prompt_text
+                + "\n\n### Output Constraints\n"
+                + "- Start writing the final report immediately.\n"
+                + "- Keep total output concise and structured; avoid redundant repetition.\n"
+                + "- Prioritize tables and domain summaries over long prose.\n"
+            )
+            compact_prompt = self._compose_prompt(
+                base_header=strict_header,
+                anchors_text=anchors_text,
+                evidence_text=compact_primary_text,
+                rag_text=rag_text if rag_enabled else "",
+            )
+            fallback_prompt_tokens = count_tokens(compact_prompt, model_hint=model_hint)
+            if fallback_prompt_tokens > fallback_threshold:
+                compact_prompt = truncate_text_by_tokens(
+                    compact_prompt,
+                    fallback_threshold,
+                    model_hint=model_hint,
+                    suffix="",
+                )
+                fallback_prompt_tokens = fallback_threshold
+            fallback_max_completion_tokens = min(max_completion_tokens, 24000)
+            response = self._invoke_llm_with_limits(
+                compact_prompt,
+                max_tokens=fallback_max_completion_tokens,
+                max_retries=0,
+            )
+            chunk_count = max(chunk_count, compact_chunk_count)
+            chunking_used = chunking_used or compact_chunk_count > 1
+            if compact_chunk_count > 1:
+                chunking_reason = "length_recovery_chunk_compress"
         content = response.get("content", "").strip()
         content = self._normalize_markdown_tables(content)
         self.last_run_metadata = {
@@ -203,6 +292,10 @@ class Communicator(BaseAgent):
             "embedding_store_path": str(getattr(self.embedding_store, "db_path", "unknown")),
             "embedding_store_fallback": bool(getattr(self.embedding_store, "fallback_reason", None)),
             "embedding_store_fallback_reason": getattr(self.embedding_store, "fallback_reason", None),
+            "fallback_used": fallback_used,
+            "fallback_reason": fallback_reason,
+            "fallback_prompt_tokens": fallback_prompt_tokens,
+            "fallback_max_completion_tokens": fallback_max_completion_tokens,
         }
 
         self._log_complete("deep_phenotype.md created")
@@ -227,6 +320,34 @@ class Communicator(BaseAgent):
             fixed.append(line)
 
         return "\n".join(fixed)
+
+    @staticmethod
+    def _is_length_exhaustion_error(exc: Exception) -> bool:
+        message = str(exc or "").lower()
+        return (
+            "finish_reason=length" in message
+            or "returned empty response" in message
+            or "max_tokens" in message
+            or "max completion" in message
+        )
+
+    def _invoke_llm_with_limits(self, user_prompt: str, *, max_tokens: int, max_retries: int) -> Dict[str, Any]:
+        """
+        Call `_call_llm` with explicit limits, while remaining compatible with tests
+        that monkeypatch `_call_llm` using a simplified signature.
+        """
+        try:
+            return self._call_llm(
+                user_prompt,
+                expect_json=False,
+                max_retries=max_retries,
+                max_tokens=max_tokens,
+            )
+        except TypeError as exc:
+            if "unexpected keyword argument" in str(exc).lower():
+                return self._call_llm(user_prompt, expect_json=False)
+            raise
+
     def _effective_context_limit(self) -> int:
         return int(self.settings.effective_context_window(self.LLM_MODEL))
 

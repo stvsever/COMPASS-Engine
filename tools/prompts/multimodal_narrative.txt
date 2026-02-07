@@ -43,6 +43,7 @@ It might not be possible to create a convergent/divergent pattern ; just think l
 3. **Pattern Identification**: Key cross-modal findings
 4. **Clinical Interpretation**: What this means for the target condition
 5. **Confidence Statement**: How strong is the multimodal evidence
+6. **GOAL**: Your output will be used as input for the Predictor Agent that needs to distinguish between TARGET and CONTROL; provide information that could maximize this performance.
 
 ## OUTPUT FORMAT
 

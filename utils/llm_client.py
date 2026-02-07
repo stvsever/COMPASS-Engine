@@ -1,7 +1,7 @@
 """
 COMPASS LLM Client
 
-Wrapper for OpenAI API with retry logic, token tracking, and logging.
+Wrapper for OpenRouter API with retry logic, token tracking, and logging.
 """
 
 import time
