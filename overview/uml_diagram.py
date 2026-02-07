@@ -56,7 +56,7 @@ flowchart TB
         F2{"> 90% Threshold?"}
         F3_PASS["Pass-Through Mode<br/>(raw + processed evidence)"]
         F3_RAG["RAG Backfill<br/>combined_score = 0.75*semantic + 0.25*abnormality"]
-        F4_CACHE[Embedding Cache<br/>.cache/embeddings]
+        F4_CACHE[Embedding Store<br/>~/.cache/compass/embeddings.sqlite3]
         F5_EMB[On-demand Embeddings<br/>text-embedding-3-large]
         F6_CTX[Predictor Input Assembly]
 

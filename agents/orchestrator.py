@@ -156,13 +156,8 @@ class Orchestrator(BaseAgent):
         except:
             encoder = tiktoken.get_encoding("cl100k_base")
             
-        # Determine threshold based on backend settings
-        from ..config.settings import LLMBackend
-        if self.settings.models.backend == LLMBackend.LOCAL:
-            max_ctx = self.settings.models.local_max_tokens
-            SMART_FUSION_THRESHOLD = int(0.9 * max_ctx)
-        else:
-            SMART_FUSION_THRESHOLD = 115000 # Default for OpenAI (128k) 
+        max_ctx = int(self.settings.effective_context_window(self.settings.models.predictor_model))
+        SMART_FUSION_THRESHOLD = int(0.9 * max_ctx)
         
         
         # Raw components estimation

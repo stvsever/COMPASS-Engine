@@ -382,6 +382,50 @@
             border-top: 1px solid #27272a;
         }
 
+        .deep-report-panel {
+            display: grid;
+            grid-template-columns: 1fr 1fr auto;
+            gap: 10px;
+            align-items: center;
+            padding: 12px 14px;
+            border-top: 1px solid #27272a;
+            border-bottom: 1px solid #27272a;
+            background: #0f0f12;
+        }
+
+        .deep-report-input {
+            width: 100%;
+            background: #121217;
+            border: 1px solid #2f2f35;
+            color: #f4f4f5;
+            border-radius: 6px;
+            padding: 8px 10px;
+            font-size: 0.8rem;
+        }
+
+        .deep-report-btn {
+            background: var(--primary);
+            border: none;
+            color: #fff;
+            border-radius: 6px;
+            padding: 8px 12px;
+            font-size: 0.8rem;
+            font-weight: 600;
+            cursor: pointer;
+            white-space: nowrap;
+        }
+
+        .deep-report-btn:disabled {
+            opacity: 0.6;
+            cursor: default;
+        }
+
+        .deep-report-status {
+            grid-column: 1 / -1;
+            font-size: 0.75rem;
+            color: #a1a1aa;
+        }
+
         .file-list-pane {
             width: 280px;
             background: #0c0c0e;
@@ -1046,6 +1090,49 @@
             transition: width 0.4s ease;
             width: 0%;
         }
+
+        .advanced-section {
+            background: #12141b;
+            border: 1px solid #2b3445;
+            border-radius: 10px;
+            padding: 12px;
+            margin-bottom: 12px;
+        }
+
+        .advanced-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 8px;
+        }
+
+        .advanced-title {
+            font-size: 0.75rem;
+            letter-spacing: 0.08em;
+            text-transform: uppercase;
+            color: #b5c2ff;
+            font-weight: 700;
+        }
+
+        .advanced-subtle {
+            font-size: 0.72rem;
+            color: #8b93a7;
+            margin-top: 6px;
+        }
+
+        .advanced-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(210px, 1fr));
+            gap: 10px;
+        }
+
+        .advanced-meta {
+            margin-top: 8px;
+            padding-top: 6px;
+            border-top: 1px dashed #2b3445;
+            font-size: 0.75rem;
+            color: #9ca3af;
+        }
     </style>
 </head>
 
@@ -1084,28 +1171,93 @@
                         <i id="adv-caret" class="fas fa-caret-right"></i> Advanced Configuration
                     </button>
                     <div id="advanced-opts"
-                        style="display:none; margin-top:10px; padding:10px; background:#18181b; border-radius:8px;">
-                        <div style="margin-bottom:10px;">
-                            <label class="form-label">LLM Backend</label>
+                        style="display:none; margin-top:10px; padding:10px; background:#18181b; border-radius:8px; max-height:56vh; overflow-y:auto;">
+                        <div class="advanced-section">
+                            <div class="advanced-header">
+                                <div class="advanced-title">Backend</div>
+                            </div>
+                            <label class="form-label">Inference Backend</label>
                             <select id="input-backend" class="form-input" onchange="toggleModelInput()"
                                 style="padding:0.6rem;">
-                                <option value="openai" selected>OpenAI (gpt-5-nano)</option>
-                                <option value="local">Local (vLLM/Transformers)</option>
+                                <option value="openrouter" selected>Public API (OpenRouter)</option>
+                                <option value="local">Local (Huggingface)</option>
                             </select>
+                            <div class="advanced-subtle">
+                                Select your runtime backend. Public API uses OpenRouter routing; Local uses Hugging Face
+                                models on this machine.
+                            </div>
                         </div>
 
-                        <div id="group-model"
-                            style="display:none; margin-bottom:10px; border-left: 2px solid var(--primary); padding-left:10px;">
-                            <label class="form-label">Local Model Path/Name</label>
-                            <input type="text" id="input-model" class="form-input" placeholder="e.g. Qwen/Qwen2.5-7B"
-                                value="Qwen/Qwen2.5-0.5B-Instruct">
-                            <label class="form-label" style="margin-top:5px;">Max Context Tokens</label>
-                            <input type="number" id="input-max-tokens" class="form-input" placeholder="2048"
-                                value="2048">
+                        <div id="group-openrouter" class="advanced-section" style="display:block;">
+                            <div class="advanced-header">
+                                <div class="advanced-title">Public API (OpenRouter)</div>
+                                <button type="button" onclick="loadOpenRouterModels()"
+                                    style="height:28px; border:1px solid #2b3445; border-radius:8px; padding:0 10px; background:#0f141d; color:#9fb6ff; cursor:pointer; font-size:0.75rem;">
+                                    Reload catalog
+                                </button>
+                            </div>
+                            <div class="advanced-grid">
+                                <div>
+                                    <label class="form-label">LLM Model</label>
+                                    <input type="text" id="input-public-model" class="form-input"
+                                        placeholder="gpt-5-nano (recommended)" value="gpt-5-nano"
+                                        list="openrouter-models-list" oninput="onPublicModelInput()">
+                                    <datalist id="openrouter-models-list"></datalist>
+                                </div>
+                                <div>
+                                    <label class="form-label">Model Context Window (input tokens)</label>
+                                    <input type="number" id="input-public-max-context" class="form-input"
+                                        placeholder="Auto from model catalog (default 128000)" value="128000">
+                                </div>
+                                <div>
+                                    <label class="form-label">Embedding Model</label>
+                                    <input type="text" id="input-embedding-model" class="form-input"
+                                        placeholder="text-embedding-3-large" value="text-embedding-3-large"
+                                        list="openrouter-embedding-list" oninput="onEmbeddingModelInput()">
+                                    <datalist id="openrouter-embedding-list"></datalist>
+                                </div>
+                            </div>
+                            <div class="advanced-meta" id="openrouter-model-meta"></div>
+                            <div class="advanced-meta" id="openrouter-embedding-meta"></div>
                         </div>
 
-                        <div id="group-local-advanced"
-                            style="display:none; margin-bottom:10px; border-left: 2px solid var(--primary); padding-left:10px;">
+                        <div id="group-model" class="advanced-section" style="display:none;">
+                            <div class="advanced-header">
+                                <div class="advanced-title">Local (Hugging Face)</div>
+                                <button type="button" onclick="loadHfModels()"
+                                    style="height:28px; border:1px solid #2b3445; border-radius:8px; padding:0 10px; background:#0f141d; color:#9fb6ff; cursor:pointer; font-size:0.75rem;">
+                                    Reload catalog
+                                </button>
+                            </div>
+                            <div class="advanced-grid">
+                                <div>
+                                    <label class="form-label">Local LLM Model</label>
+                                    <input type="text" id="input-model" class="form-input"
+                                        placeholder="e.g. Qwen/Qwen2.5-7B" value="Qwen/Qwen2.5-0.5B-Instruct"
+                                        list="hf-models-list" oninput="onLocalModelInput()">
+                                    <datalist id="hf-models-list"></datalist>
+                                </div>
+                                <div>
+                                    <label class="form-label">Local Context Window (input tokens)</label>
+                                    <input type="number" id="input-max-tokens" class="form-input" placeholder="2048"
+                                        value="2048">
+                                </div>
+                                <div>
+                                    <label class="form-label">Local Embedding Model</label>
+                                    <input type="text" id="input-local-embedding-model" class="form-input"
+                                        placeholder="e.g. BAAI/bge-base-en-v1.5" value="BAAI/bge-base-en-v1.5"
+                                        list="hf-embedding-list" oninput="onLocalEmbeddingInput()">
+                                    <datalist id="hf-embedding-list"></datalist>
+                                </div>
+                            </div>
+                            <div class="advanced-meta" id="hf-model-meta"></div>
+                            <div class="advanced-meta" id="hf-embedding-meta"></div>
+                        </div>
+
+                        <div id="group-local-advanced" class="advanced-section" style="display:none;">
+                            <div class="advanced-header">
+                                <div class="advanced-title">Local Runtime Settings</div>
+                            </div>
                             <label class="form-label">Local Engine</label>
                             <select id="input-local-engine" class="form-input" style="padding:0.6rem;">
                                 <option value="auto" selected>Auto</option>
@@ -1160,13 +1312,13 @@
                             <div style="display:grid; grid-template-columns: 1fr 1fr; gap:10px; margin-top:10px;">
                                 <div>
                                     <label class="form-label">Tensor Parallel</label>
-                                    <input type="number" id="input-local-tp" class="form-input" placeholder="1" value="1"
-                                        style="padding:0.6rem;">
+                                    <input type="number" id="input-local-tp" class="form-input" placeholder="1"
+                                        value="1" style="padding:0.6rem;">
                                 </div>
                                 <div>
                                     <label class="form-label">Pipeline Parallel</label>
-                                    <input type="number" id="input-local-pp" class="form-input" placeholder="1" value="1"
-                                        style="padding:0.6rem;">
+                                    <input type="number" id="input-local-pp" class="form-input" placeholder="1"
+                                        value="1" style="padding:0.6rem;">
                                 </div>
                             </div>
 
@@ -1184,43 +1336,88 @@
                             </div>
 
                             <div style="display:flex; gap:12px; margin-top:10px; align-items:center;">
-                                <label style="display:flex; align-items:center; gap:6px; font-size:0.8rem; color:#cbd5f5;">
+                                <label
+                                    style="display:flex; align-items:center; gap:6px; font-size:0.8rem; color:#cbd5f5;">
                                     <input type="checkbox" id="input-local-eager"> Enforce eager
                                 </label>
-                                <label style="display:flex; align-items:center; gap:6px; font-size:0.8rem; color:#cbd5f5;">
+                                <label
+                                    style="display:flex; align-items:center; gap:6px; font-size:0.8rem; color:#cbd5f5;">
                                     <input type="checkbox" id="input-local-trust" checked> Trust remote code
                                 </label>
                             </div>
                         </div>
 
-                        <label class="form-label">Total Token Budget</label>
-                        <input type="number" id="input-budget" class="form-input" placeholder="Default: 1500000"
-                            style="padding:0.6rem;">
-
-                        <div style="display:grid; grid-template-columns: 1fr 1fr; gap:10px;">
-                            <div>
-                                <label class="form-label">Max Agent Input</label>
-                                <input type="number" id="input-max-agent" class="form-input" placeholder="20000"
-                                    style="padding:0.6rem;">
+                        <div class="advanced-section">
+                            <div class="advanced-header">
+                                <div class="advanced-title">Model and Token Routing</div>
+                                <button type="button" onclick="toggleRoleRouting()"
+                                    style="height:28px; border:1px solid #2b3445; border-radius:8px; padding:0 10px; background:#0f141d; color:#9fb6ff; cursor:pointer; font-size:0.75rem;">
+                                    More Details
+                                </button>
                             </div>
-                            <div>
-                                <label class="form-label">Max Tool Output</label>
-                                <input type="number" id="input-max-tool" class="form-input" placeholder="15000"
-                                    style="padding:0.6rem;">
+                            <div id="role-routing-opts" style="display:none; margin-top:8px;">
+                                <div style="display:grid; grid-template-columns: 1fr 1fr; gap:8px;">
+                                    <input id="input-model-orchestrator" class="form-input"
+                                        placeholder="Orchestrator model">
+                                    <input id="input-model-critic" class="form-input" placeholder="Critic model">
+                                    <input id="input-model-integrator" class="form-input"
+                                        placeholder="Integrator model">
+                                    <input id="input-model-predictor" class="form-input" placeholder="Predictor model">
+                                    <input id="input-model-communicator" class="form-input"
+                                        placeholder="Communicator model">
+                                    <input id="input-model-tool" class="form-input" placeholder="Tool model">
+                                </div>
+                                <label class="form-label" style="margin-top:8px;">Per-role Max Completion Tokens
+                                    (optional)</label>
+                                <div style="display:grid; grid-template-columns: 1fr 1fr; gap:8px;">
+                                    <input id="input-max-orchestrator" type="number" class="form-input"
+                                        placeholder="Orchestrator max tokens">
+                                    <input id="input-max-critic" type="number" class="form-input"
+                                        placeholder="Critic max tokens">
+                                    <input id="input-max-integrator" type="number" class="form-input"
+                                        placeholder="Integrator max tokens">
+                                    <input id="input-max-predictor" type="number" class="form-input"
+                                        placeholder="Predictor max tokens">
+                                    <input id="input-max-communicator" type="number" class="form-input"
+                                        placeholder="Communicator max tokens">
+                                    <input id="input-max-tool-role" type="number" class="form-input"
+                                        placeholder="Tool max tokens">
+                                </div>
                             </div>
                         </div>
 
-                        <!-- NEW: GRANULAR CONTROLS -->
-                        <div style="display:grid; grid-template-columns: 1fr 1fr; gap:10px; margin-top:10px;">
-                            <div>
-                                <label class="form-label">Max Agent Output</label>
-                                <input type="number" id="input-max-agent-output" class="form-input" placeholder="4096"
-                                    style="padding:0.6rem;">
+                        <div class="advanced-section">
+                            <div class="advanced-header">
+                                <div class="advanced-title">Token Budgets</div>
                             </div>
-                            <div>
-                                <label class="form-label">Max Tool Input</label>
-                                <input type="number" id="input-max-tool-input" class="form-input" placeholder="20000"
-                                    style="padding:0.6rem;">
+                            <div class="advanced-grid">
+                                <div>
+                                    <label class="form-label">Total Token Budget</label>
+                                    <input type="number" id="input-budget" class="form-input"
+                                        placeholder="Default: 1500000" style="padding:0.6rem;">
+                                </div>
+                                <div>
+                                    <label class="form-label">Max Agent Input</label>
+                                    <input type="number" id="input-max-agent" class="form-input" placeholder="20000"
+                                        style="padding:0.6rem;">
+                                </div>
+                                <div>
+                                    <label class="form-label">Max Tool Output</label>
+                                    <input type="number" id="input-max-tool" class="form-input" placeholder="15000"
+                                        style="padding:0.6rem;">
+                                </div>
+                            </div>
+                            <div class="advanced-grid" style="margin-top:10px;">
+                                <div>
+                                    <label class="form-label">Max Agent Output</label>
+                                    <input type="number" id="input-max-agent-output" class="form-input"
+                                        placeholder="4096" style="padding:0.6rem;">
+                                </div>
+                                <div>
+                                    <label class="form-label">Max Tool Input</label>
+                                    <input type="number" id="input-max-tool-input" class="form-input"
+                                        placeholder="20000" style="padding:0.6rem;">
+                                </div>
                             </div>
                         </div>
                     </div>
@@ -1235,7 +1432,7 @@
         </div>
     </div>
 
-    <!-- RESULT MODAL (DE-BRIEF) -->
+    <!-- RESULT MODAL (RUN SUMMARY) -->
     <div id="result-modal" class="modal-overlay">
         <div class="glass-panel" id="result-panel" style="text-align:center; border: 1px solid var(--verdict_ok);">
             <i class="fas fa-check-circle" id="result-icon"
@@ -1315,13 +1512,16 @@
             <!-- TIMELINE & TABS -->
             <div class="timeline-wrapper">
                 <div class="timeline-tabs" style="display:flex; align-items:center;">
-                    <button class="tab-btn active" data-tab="timeline" onclick="switchTab('timeline', this)"><i class="fas fa-stream"></i> Live
+                    <button class="tab-btn active" data-tab="timeline" onclick="switchTab('timeline', this)"><i
+                            class="fas fa-stream"></i> Live
                         Execution</button>
-                    <button class="tab-btn" data-tab="plan" onclick="switchTab('plan', this);"><i class="fas fa-sitemap"></i> Execution
+                    <button class="tab-btn" data-tab="plan" onclick="switchTab('plan', this);"><i
+                            class="fas fa-sitemap"></i> Execution
                         Plan</button>
                     <button class="tab-btn" data-tab="results" onclick="switchTab('results', this); loadResults();"><i
                             class="fas fa-file-alt"></i> Results</button>
-                    <button class="tab-btn" data-tab="inspector" onclick="switchTab('inspector', this); loadInputs();"><i class="fas fa-code"></i>
+                    <button class="tab-btn" data-tab="inspector"
+                        onclick="switchTab('inspector', this); loadInputs();"><i class="fas fa-code"></i>
                         Data Inspector</button>
                     <button onclick="toggleTimelineScroll()" id="btn-timeline-scroll"
                         style="margin-left:auto; background:none; border:none; color:var(--primary); cursor:pointer; font-size:0.7rem; font-weight:600; padding:0 10px;">AUTO-FOLLOW:
@@ -1356,6 +1556,15 @@
 
                 <!-- RESULTS TAB -->
                 <div id="tab-results" class="tab-content" style="padding:0;">
+                    <div class="deep-report-panel" id="deep-report-panel" style="display:none;">
+                        <input id="deep-focus-modalities" class="deep-report-input" type="text"
+                            placeholder="Clinical Focus Areas (optional)" />
+                        <input id="deep-general-instruction" class="deep-report-input" type="text"
+                            placeholder="Additional Guidance (optional)" />
+                        <button id="btn-generate-deep" class="deep-report-btn"
+                            onclick="generateDeepPhenotype()">Generate Deep Phenotype</button>
+                        <div id="deep-report-status" class="deep-report-status"></div>
+                    </div>
                     <div class="results-container">
                         <div class="file-list-pane">
                             <div class="file-list-header">Generated Artifacts</div>
@@ -1422,12 +1631,12 @@
                         <div class="verdict-checklist" id="critic-checklist"></div>
                     </div>
                 </div>
-            <div class="verdict-actions">
-                <button onclick="document.getElementById('result-modal').classList.add('active')"
-                    style="background:none; border:1px solid var(--verdict_ok); color:var(--verdict_ok); padding:6px 12px; border-radius:4px; cursor:pointer;">
-                    View De-brief
-                </button>
-            </div>
+                <div class="verdict-actions">
+                    <button onclick="document.getElementById('result-modal').classList.add('active')"
+                        style="background:none; border:1px solid var(--verdict_ok); color:var(--verdict_ok); padding:6px 12px; border-radius:4px; cursor:pointer;">
+                        View Run Summary
+                    </button>
+                </div>
             </div>
 
         </main>
@@ -1459,12 +1668,284 @@
         let currentIteration = 1;
         let hasShownResultModal = false;
         let uiSelectedPlanIter = null; // Track user selection for Plan view
+        let deepReportStatusSeen = 'idle';
+        let openRouterModels = [];
+        let openRouterEmbeddingModels = [];
+        let openRouterCatalogLoaded = false;
+        let openRouterCatalogLoading = false;
+        let hfModels = [];
+        let hfCatalogLoaded = false;
+        let hfCatalogLoading = false;
+        let hfEmbeddingModels = [];
+        let hfEmbeddingCatalogLoaded = false;
+        let hfEmbeddingCatalogLoading = false;
+        let hfModelDetailCache = {};
 
         // WIZARD LOGIC
         function toggleModelInput() {
             const val = document.getElementById('input-backend').value;
-            document.getElementById('group-model').style.display = val === 'local' ? 'block' : 'none';
-            document.getElementById('group-local-advanced').style.display = val === 'local' ? 'block' : 'none';
+            const isLocal = val === 'local';
+            document.getElementById('group-model').style.display = isLocal ? 'block' : 'none';
+            document.getElementById('group-local-advanced').style.display = isLocal ? 'block' : 'none';
+            document.getElementById('group-openrouter').style.display = isLocal ? 'none' : 'block';
+        }
+
+        function toggleRoleRouting() {
+            const wrap = document.getElementById('role-routing-opts');
+            if (!wrap) return;
+            wrap.style.display = wrap.style.display === 'none' ? 'block' : 'none';
+        }
+
+        function normalizeModelId(raw) {
+            const v = String(raw || '').trim();
+            if (!v) return '';
+            if (v.includes('/')) return v;
+            if (v.startsWith('gpt-') || v.startsWith('text-embedding-') || v.startsWith('o1') || v.startsWith('o3') || v.startsWith('o4')) {
+                return `openai/${v}`;
+            }
+            return v;
+        }
+
+        function isEmbeddingModelId(modelId) {
+            const v = String(modelId || '').toLowerCase();
+            if (!v) return false;
+            return (
+                v.includes('embedding') ||
+                v.includes('embed') ||
+                v.includes('text-embedding') ||
+                v.includes('bge') ||
+                v.includes('e5') ||
+                v.includes('gte')
+            );
+        }
+
+        function isOpenRouterEmbeddingRecord(model) {
+            if (!model) return false;
+            if (typeof model.is_embedding === 'boolean') {
+                return model.is_embedding;
+            }
+            return isEmbeddingModelId(model.id);
+        }
+
+        function _stripVariantSuffix(modelId) {
+            const value = String(modelId || '');
+            const idx = value.indexOf(':');
+            return idx >= 0 ? value.slice(0, idx) : value;
+        }
+
+        function _modelSlug(modelId) {
+            const base = _stripVariantSuffix(String(modelId || '').trim().toLowerCase());
+            const parts = base.split('/');
+            return parts[parts.length - 1] || base;
+        }
+
+        function resolveOpenRouterModel(rawInput, modelPool = null) {
+            const pool = Array.isArray(modelPool) ? modelPool : openRouterModels;
+            const query = String(rawInput || '').trim();
+            if (!query) return null;
+            const normalized = normalizeModelId(query);
+            const direct = pool.find((m) => m.id === query || m.id === normalized);
+            if (direct) return direct;
+
+            const normalizedBase = _stripVariantSuffix(normalized);
+            const byBase = pool.filter((m) => _stripVariantSuffix(m.id) === normalizedBase);
+            if (byBase.length === 1) return byBase[0];
+            if (byBase.length > 1) {
+                const exactProvider = byBase.find((m) => m.id.startsWith(normalizedBase + ':')) || byBase[0];
+                return exactProvider;
+            }
+
+            // Provider-less fallback (e.g. text-embedding-3-large -> openai/text-embedding-3-large:free).
+            const querySlug = _modelSlug(query);
+            const bySlug = pool.filter((m) => _modelSlug(m.id) === querySlug);
+            if (bySlug.length === 1) return bySlug[0];
+            if (bySlug.length > 1) return bySlug[0];
+            return null;
+        }
+
+        function _fillOpenRouterDatalist(listId, models) {
+            const list = document.getElementById(listId);
+            if (!list) return;
+            list.innerHTML = '';
+            (models || []).forEach((m) => {
+                const opt = document.createElement('option');
+                opt.value = m.id;
+                list.appendChild(opt);
+            });
+        }
+
+        function _scoreMatch(query, candidate) {
+            if (!query || !candidate) return -1;
+            const q = query.toLowerCase();
+            const c = candidate.toLowerCase();
+            if (c === q) return 100;
+            if (c.startsWith(q)) return 50 + q.length;
+            if (c.includes(q)) return 25 + q.length;
+            if (q.includes(c)) return 10;
+            return -1;
+        }
+
+        function _bestMatchModel(inputValue, filterFn = null) {
+            const normalized = normalizeModelId(inputValue);
+            const candidates = (openRouterModels || []).filter((m) => m && m.id);
+            let best = null;
+            let bestScore = -1;
+            candidates.forEach((m) => {
+                if (filterFn && !filterFn(m)) return;
+                const score = Math.max(_scoreMatch(normalized, m.id), _scoreMatch(inputValue, m.id));
+                if (score > bestScore) {
+                    bestScore = score;
+                    best = m;
+                }
+            });
+            if (bestScore <= 0) return null;
+            return best;
+        }
+
+        async function loadOpenRouterModels() {
+            const meta = document.getElementById('openrouter-model-meta');
+            if (!meta) return;
+            if (openRouterCatalogLoading) return;
+            openRouterCatalogLoading = true;
+            meta.textContent = 'Loading model catalog...';
+            try {
+                const res = await fetch('/api/openrouter/models');
+                const data = await res.json();
+                if (!res.ok || !data.models) {
+                    throw new Error(data.error || 'Model catalog unavailable');
+                }
+                openRouterModels = data.models || [];
+                _fillOpenRouterDatalist('openrouter-models-list', openRouterModels);
+                try {
+                    const embRes = await fetch('/api/openrouter/embedding-models');
+                    const embData = await embRes.json();
+                    if (embRes.ok && embData.models) {
+                        openRouterEmbeddingModels = embData.models || [];
+                    } else {
+                        openRouterEmbeddingModels = openRouterModels.filter((m) => isOpenRouterEmbeddingRecord(m));
+                    }
+                } catch (e) {
+                    openRouterEmbeddingModels = openRouterModels.filter((m) => isOpenRouterEmbeddingRecord(m));
+                }
+                _fillOpenRouterDatalist(
+                    'openrouter-embedding-list',
+                    openRouterEmbeddingModels.length ? openRouterEmbeddingModels : openRouterModels.filter((m) => isOpenRouterEmbeddingRecord(m))
+                );
+                openRouterCatalogLoaded = true;
+                meta.textContent = 'Catalog loaded.';
+                onPublicModelInput(true);
+                onEmbeddingModelInput(true);
+            } catch (e) {
+                meta.textContent = `Model catalog lookup failed: ${e.message}`;
+            } finally {
+                openRouterCatalogLoading = false;
+            }
+        }
+
+        function updateOpenRouterContextFromCatalog(selectedModelId = null) {
+            const rawSelected = selectedModelId || document.getElementById('input-public-model').value;
+            const found = resolveOpenRouterModel(rawSelected);
+            const maxCtxInput = document.getElementById('input-public-max-context');
+            const meta = document.getElementById('openrouter-model-meta');
+            if (!found || !meta) return;
+            if (maxCtxInput && found.context_length) {
+                maxCtxInput.value = found.context_length;
+            }
+            const eurRate = parseFloat(String(window.__compassEurPerUsd || '')) || parseFloat(String((window.localStorage && localStorage.getItem('COMPASS_EUR_PER_USD')) || '')) || 1.0;
+            const promptPerM = found.prompt_price ? (parseFloat(found.prompt_price) * 1_000_000 * eurRate) : null;
+            const completionPerM = found.completion_price ? (parseFloat(found.completion_price) * 1_000_000 * eurRate) : null;
+            const promptLine = promptPerM !== null ? `€${promptPerM.toFixed(2)} / 1M input tokens` : 'Not provided';
+            const completionLine = completionPerM !== null ? `€${completionPerM.toFixed(2)} / 1M output tokens` : 'Not provided';
+            meta.innerHTML = [
+                `Catalog info retrieved for ${found.id}.`,
+                `Context window: ${found.context_length ? found.context_length.toLocaleString() : 'Unknown'} tokens`,
+                `Price (input): ${promptLine}`,
+                `Price (output): ${completionLine}`
+            ].map(line => `<div>${line}</div>`).join('');
+        }
+
+        function updateEmbeddingMetaFromCatalog(selectedModelId = null) {
+            const rawSelected = selectedModelId || document.getElementById('input-embedding-model').value;
+            const found = resolveOpenRouterModel(rawSelected, openRouterEmbeddingModels)
+                || resolveOpenRouterModel(rawSelected, openRouterModels.filter((m) => isOpenRouterEmbeddingRecord(m)));
+            const meta = document.getElementById('openrouter-embedding-meta');
+            if (!meta) return;
+            if (!found) {
+                meta.textContent = '';
+                return;
+            }
+            if (!isOpenRouterEmbeddingRecord(found)) {
+                meta.textContent = 'Selected model is not an embedding model in catalog.';
+                return;
+            }
+            const eurRate = parseFloat(String(window.__compassEurPerUsd || '')) || parseFloat(String((window.localStorage && localStorage.getItem('COMPASS_EUR_PER_USD')) || '')) || 1.0;
+            const promptPerM = found.prompt_price ? (parseFloat(found.prompt_price) * 1_000_000 * eurRate) : null;
+            const promptLine = promptPerM !== null ? `€${promptPerM.toFixed(2)} / 1M input tokens` : 'Not provided';
+            meta.innerHTML = [
+                `Catalog info retrieved for ${found.id}.`,
+                `Price (input): ${promptLine}`,
+                `Output-token pricing: Not applicable for embedding requests.`
+            ].map(line => `<div>${line}</div>`).join('');
+        }
+
+        function onPublicModelInput(fromCatalogLoad = false) {
+            const input = document.getElementById('input-public-model');
+            if (!input) return;
+            if (!openRouterCatalogLoaded && !fromCatalogLoad) {
+                loadOpenRouterModels();
+                return;
+            }
+            if (!input.value) {
+                document.getElementById('openrouter-model-meta').textContent = '';
+                return;
+            }
+            const exact = resolveOpenRouterModel(input.value);
+            if (exact) {
+                updateOpenRouterContextFromCatalog(exact.id);
+                return;
+            }
+            document.getElementById('openrouter-model-meta').textContent = 'LLM model not found in catalog; using manual value.';
+        }
+
+        function onEmbeddingModelInput(fromCatalogLoad = false) {
+            const input = document.getElementById('input-embedding-model');
+            const meta = document.getElementById('openrouter-embedding-meta');
+            if (!input || !meta) return;
+            if (!openRouterCatalogLoaded && !fromCatalogLoad) {
+                loadOpenRouterModels();
+                return;
+            }
+            if (!input.value) {
+                meta.textContent = '';
+                return;
+            }
+            const exact = resolveOpenRouterModel(input.value, openRouterEmbeddingModels)
+                || resolveOpenRouterModel(input.value, openRouterModels.filter((m) => isOpenRouterEmbeddingRecord(m)));
+            if (exact) {
+                updateEmbeddingMetaFromCatalog(exact.id);
+                return;
+            }
+            meta.textContent = 'Embedding model not found in catalog; using manual value.';
+        }
+
+        function collectRoleSettings() {
+            const roleModels = {
+                orchestrator: document.getElementById('input-model-orchestrator').value || null,
+                critic: document.getElementById('input-model-critic').value || null,
+                integrator: document.getElementById('input-model-integrator').value || null,
+                predictor: document.getElementById('input-model-predictor').value || null,
+                communicator: document.getElementById('input-model-communicator').value || null,
+                tool: document.getElementById('input-model-tool').value || null,
+            };
+            const roleMaxTokens = {
+                orchestrator: document.getElementById('input-max-orchestrator').value || null,
+                critic: document.getElementById('input-max-critic').value || null,
+                integrator: document.getElementById('input-max-integrator').value || null,
+                predictor: document.getElementById('input-max-predictor').value || null,
+                communicator: document.getElementById('input-max-communicator').value || null,
+                tool: document.getElementById('input-max-tool-role').value || null,
+            };
+            return { roleModels, roleMaxTokens };
         }
 
         function toggleAdvanced() {
@@ -1496,7 +1977,13 @@
             const maxToolInput = document.getElementById('input-max-tool-input').value;
 
             const backend = document.getElementById('input-backend').value;
+            const publicModel = document.getElementById('input-public-model').value;
+            const publicMaxContext = document.getElementById('input-public-max-context').value;
+            const embeddingModel = document.getElementById('input-embedding-model').value;
             const model = document.getElementById('input-model').value;
+            const localEmbeddingModel = document.getElementById('input-local-embedding-model')
+                ? document.getElementById('input-local-embedding-model').value
+                : null;
             const maxTokens = document.getElementById('input-max-tokens').value;
             const localEngine = document.getElementById('input-local-engine').value;
             const localDtype = document.getElementById('input-local-dtype').value;
@@ -1509,6 +1996,7 @@
             const localMaxLen = document.getElementById('input-local-maxlen').value;
             const localEager = document.getElementById('input-local-eager').checked;
             const localTrust = document.getElementById('input-local-trust').checked;
+            const routing = collectRoleSettings();
 
             if (!pid) return alert("Participant ID required");
 
@@ -1528,7 +2016,11 @@
                         max_agent_output: maxAgentOutput ? parseInt(maxAgentOutput) : null,
                         max_tool_input: maxToolInput ? parseInt(maxToolInput) : null,
                         backend: backend,
+                        public_model: publicModel || null,
+                        public_max_context_tokens: publicMaxContext ? parseInt(publicMaxContext) : null,
+                        embedding_model: embeddingModel || null,
                         model: model,
+                        local_embedding_model: localEmbeddingModel || null,
                         max_tokens: maxTokens ? parseInt(maxTokens) : null,
                         local_engine: localEngine,
                         local_dtype: localDtype,
@@ -1540,7 +2032,9 @@
                         local_gpu_mem_util: localMem ? parseFloat(localMem) : null,
                         local_max_model_len: localMaxLen ? parseInt(localMaxLen) : null,
                         local_enforce_eager: localEager,
-                        local_trust_remote_code: localTrust
+                        local_trust_remote_code: localTrust,
+                        role_models: routing.roleModels,
+                        role_max_tokens: routing.roleMaxTokens
                     })
                 });
                 const data = await res.json();
@@ -1560,6 +2054,221 @@
                 alert("Connection failed.");
             }
         }
+
+        async function loadHfModels(query = '') {
+            const meta = document.getElementById('hf-model-meta');
+            if (!meta) return;
+            if (hfCatalogLoading) return;
+            hfCatalogLoading = true;
+            meta.textContent = 'Loading Hugging Face catalog...';
+            try {
+                const url = query
+                    ? `/api/hf/models?task=llm&q=${encodeURIComponent(query)}`
+                    : '/api/hf/models?task=llm';
+                const res = await fetch(url);
+                const data = await res.json();
+                if (!res.ok || !data.models) {
+                    throw new Error(data.error || 'Catalog unavailable');
+                }
+                hfModels = data.models || [];
+                const list = document.getElementById('hf-models-list');
+                if (list) {
+                    list.innerHTML = '';
+                    hfModels.forEach((m) => {
+                        const opt = document.createElement('option');
+                        opt.value = m.id;
+                        list.appendChild(opt);
+                    });
+                }
+                hfCatalogLoaded = true;
+                meta.textContent = 'Catalog loaded.';
+                onLocalModelInput(true);
+            } catch (e) {
+                meta.textContent = `Catalog lookup failed: ${e.message}`;
+            } finally {
+                hfCatalogLoading = false;
+            }
+        }
+
+        async function loadHfEmbeddings(query = '') {
+            const meta = document.getElementById('hf-embedding-meta');
+            if (!meta) return;
+            if (hfEmbeddingCatalogLoading) return;
+            hfEmbeddingCatalogLoading = true;
+            meta.textContent = 'Loading Hugging Face embeddings...';
+            try {
+                const q = query || '';
+                const url = q
+                    ? `/api/hf/models?task=embedding&q=${encodeURIComponent(q)}`
+                    : '/api/hf/models?task=embedding';
+                const res = await fetch(url);
+                const data = await res.json();
+                if (!res.ok || !data.models) {
+                    throw new Error(data.error || 'Catalog unavailable');
+                }
+                hfEmbeddingModels = data.models || [];
+                const list = document.getElementById('hf-embedding-list');
+                if (list) {
+                    list.innerHTML = '';
+                    hfEmbeddingModels.forEach((m) => {
+                        const opt = document.createElement('option');
+                        opt.value = m.id;
+                        list.appendChild(opt);
+                    });
+                }
+                hfEmbeddingCatalogLoaded = true;
+                meta.textContent = 'Catalog loaded.';
+                onLocalEmbeddingInput(true);
+            } catch (e) {
+                meta.textContent = `Catalog lookup failed: ${e.message}`;
+            } finally {
+                hfEmbeddingCatalogLoading = false;
+            }
+        }
+
+        async function fetchHfModelDetail(modelId, metaEl, maxCtxEl = null) {
+            const cached = hfModelDetailCache[modelId];
+            if (cached) return cached;
+            const res = await fetch(`/api/hf/model/${encodeURIComponent(modelId)}`);
+            const data = await res.json();
+            if (!res.ok) {
+                throw new Error(data.error || 'Model detail unavailable');
+            }
+            hfModelDetailCache[modelId] = data;
+            return data;
+        }
+
+        async function onLocalModelInput(fromCatalogLoad = false) {
+            const input = document.getElementById('input-model');
+            const meta = document.getElementById('hf-model-meta');
+            const maxCtx = document.getElementById('input-max-tokens');
+            if (!input || !meta) return;
+            if (!hfCatalogLoaded && !fromCatalogLoad) {
+                loadHfModels(input.value || '');
+                return;
+            }
+            if (!input.value) {
+                meta.textContent = '';
+                return;
+            }
+            const exact = hfModels.find((m) => m.id === input.value);
+            if (!exact) {
+                meta.textContent = 'Model not found in catalog; using manual value.';
+                if (!fromCatalogLoad && input.value.length >= 2) {
+                    loadHfModels(input.value);
+                }
+                if (input.value.length >= 3) {
+                    try {
+                        const data = await fetchHfModelDetail(input.value, meta, maxCtx);
+                        if (data.is_embedding) {
+                            meta.textContent = 'Selected model is an embedding model; choose it in Local Embedding Model.';
+                            return;
+                        }
+                        const ctxVal = parseInt(data.context_length || 0, 10);
+                        if (ctxVal && maxCtx) {
+                            maxCtx.value = ctxVal;
+                        }
+                        const downloads = data.downloads ? data.downloads.toLocaleString() : 'N/A';
+                        const likes = data.likes ? data.likes.toLocaleString() : 'N/A';
+                        meta.innerHTML = [
+                            `Catalog info retrieved for ${data.id || input.value}.`,
+                            `Context window: ${ctxVal ? ctxVal.toLocaleString() : 'Unknown'} tokens`,
+                            `Downloads: ${downloads}`,
+                            `Likes: ${likes}`
+                        ].map(line => `<div>${line}</div>`).join('');
+                    } catch (e) {
+                        meta.textContent = `Model detail lookup failed: ${e.message}`;
+                    }
+                }
+                return;
+            }
+            try {
+                const data = await fetchHfModelDetail(exact.id, meta, maxCtx);
+                if (data.is_embedding) {
+                    meta.textContent = 'Selected model is an embedding model; choose it in Local Embedding Model.';
+                    return;
+                }
+                const ctxVal = parseInt(data.context_length || 0, 10);
+                if (ctxVal && maxCtx) {
+                    maxCtx.value = ctxVal;
+                }
+                const downloads = data.downloads ? data.downloads.toLocaleString() : 'N/A';
+                const likes = data.likes ? data.likes.toLocaleString() : 'N/A';
+                meta.innerHTML = [
+                    `Catalog info retrieved for ${data.id || exact.id}.`,
+                    `Context window: ${ctxVal ? ctxVal.toLocaleString() : 'Unknown'} tokens`,
+                    `Downloads: ${downloads}`,
+                    `Likes: ${likes}`
+                ].map(line => `<div>${line}</div>`).join('');
+            } catch (e) {
+                meta.textContent = `Model detail lookup failed: ${e.message}`;
+            }
+        }
+
+        async function onLocalEmbeddingInput(fromCatalogLoad = false) {
+            const input = document.getElementById('input-local-embedding-model');
+            const meta = document.getElementById('hf-embedding-meta');
+            if (!input || !meta) return;
+            if (!hfEmbeddingCatalogLoaded && !fromCatalogLoad) {
+                loadHfEmbeddings(input.value || '');
+                return;
+            }
+            if (!input.value) {
+                meta.textContent = '';
+                return;
+            }
+            const exact = hfEmbeddingModels.find((m) => m.id === input.value);
+            if (!exact) {
+                meta.textContent = 'Embedding model not found in catalog; using manual value.';
+                if (!fromCatalogLoad && input.value.length >= 2) {
+                    loadHfEmbeddings(input.value);
+                }
+                if (input.value.length >= 3) {
+                    try {
+                        const data = await fetchHfModelDetail(input.value, meta);
+                        if (!data.is_embedding) {
+                            meta.textContent = 'Selected model is not classified as an embedding model.';
+                            return;
+                        }
+                        const downloads = data.downloads ? data.downloads.toLocaleString() : 'N/A';
+                        const likes = data.likes ? data.likes.toLocaleString() : 'N/A';
+                        meta.innerHTML = [
+                            `Catalog info retrieved for ${data.id || input.value}.`,
+                            `Token billing: Not applicable (local runtime).`,
+                            `Downloads: ${downloads}`,
+                            `Likes: ${likes}`
+                        ].map(line => `<div>${line}</div>`).join('');
+                    } catch (e) {
+                        meta.textContent = `Model detail lookup failed: ${e.message}`;
+                    }
+                }
+                return;
+            }
+            try {
+                const data = await fetchHfModelDetail(exact.id, meta);
+                if (!data.is_embedding) {
+                    meta.textContent = 'Selected model is not classified as an embedding model.';
+                    return;
+                }
+                const downloads = data.downloads ? data.downloads.toLocaleString() : 'N/A';
+                const likes = data.likes ? data.likes.toLocaleString() : 'N/A';
+                meta.innerHTML = [
+                    `Catalog info retrieved for ${data.id || exact.id}.`,
+                    `Token billing: Not applicable (local runtime).`,
+                    `Downloads: ${downloads}`,
+                    `Likes: ${likes}`
+                ].map(line => `<div>${line}</div>`).join('');
+            } catch (e) {
+                meta.textContent = `Model detail lookup failed: ${e.message}`;
+            }
+        }
+
+        window.addEventListener('DOMContentLoaded', () => {
+            toggleModelInput();
+            loadOpenRouterModels();
+            loadHfModels();
+            loadHfEmbeddings();
+        });
 
         function toggleLogScroll() {
             autoScrollLogs = !autoScrollLogs;
@@ -1586,6 +2295,81 @@
             switchTab('results');
             await loadResults();
             await openStandardReport();
+        }
+
+        async function generateDeepPhenotype() {
+            const btn = document.getElementById('btn-generate-deep');
+            const statusEl = document.getElementById('deep-report-status');
+            const focus = document.getElementById('deep-focus-modalities').value || '';
+            const guidance = document.getElementById('deep-general-instruction').value || '';
+            btn.disabled = true;
+            btn.innerHTML = '<i class="fas fa-circle-notch spin"></i> Generating...';
+            statusEl.textContent = 'Queued deep phenotype generation...';
+            try {
+                const res = await fetch('/api/deep_phenotype/generate', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        focus_modalities: focus,
+                        general_instruction: guidance
+                    })
+                });
+                const data = await res.json();
+                if (!res.ok || data.status !== 'started') {
+                    throw new Error(data.error || 'Failed to start deep phenotype generation.');
+                }
+            } catch (e) {
+                statusEl.textContent = `Deep phenotype failed to start: ${e.message}`;
+                btn.disabled = false;
+                btn.textContent = 'Generate Deep Phenotype';
+            }
+        }
+
+        function updateDeepReportUi(state) {
+            const status = (state.deep_report_status || 'idle').toLowerCase();
+            const statusEl = document.getElementById('deep-report-status');
+            const btn = document.getElementById('btn-generate-deep');
+            const panel = document.getElementById('deep-report-panel');
+            if (!statusEl || !btn) return;
+
+            const maxIters = state.max_iterations || 1;
+            const criticIter = state.critic && state.critic.iteration ? state.critic.iteration : null;
+            const isFinalVerdict = Boolean(
+                state.completed ||
+                (state.critic && (
+                    state.critic.verdict === 'SATISFACTORY' ||
+                    (criticIter !== null ? criticIter >= maxIters : false)
+                ))
+            );
+
+            const shouldShow = isFinalVerdict && status !== 'completed';
+            if (panel) {
+                panel.style.display = shouldShow ? 'grid' : 'none';
+            }
+            if (!shouldShow) {
+                statusEl.textContent = '';
+                return;
+            }
+
+            if (status === 'running' || status === 'queued') {
+                btn.disabled = true;
+                btn.innerHTML = '<i class="fas fa-circle-notch spin"></i> Generating...';
+            } else {
+                btn.disabled = false;
+                btn.textContent = 'Generate Deep Phenotype';
+            }
+
+            if (status === 'completed') {
+                statusEl.textContent = '';
+            } else if (status === 'failed') {
+                statusEl.textContent = `Deep phenotype generation failed: ${state.deep_report_error || 'Unknown error'}`;
+            } else if (status === 'running') {
+                statusEl.textContent = 'Generating deep phenotype report...';
+            } else if (status === 'queued') {
+                statusEl.textContent = 'Deep phenotype generation queued...';
+            } else {
+                statusEl.textContent = '';
+            }
         }
 
         function dismissCriticToast() {
@@ -1754,12 +2538,11 @@
                             <div class="step-card">
                                 <div class="step-header">
                                     <div class="step-tool"><i class="fas fa-wrench"></i> ${step.tool}</div>
-                                    <div class="step-meta">${
-                                        step.duration ? (step.duration + 's')
-                                        : (step.status === 'running' ? 'running'
-                                            : (step.status === 'failed' ? 'failed'
-                                                : (step.status === 'complete' ? 'complete' : 'pending')))
-                                    }</div>
+                                    <div class="step-meta">${step.duration ? (step.duration + 's')
+                            : (step.status === 'running' ? 'running'
+                                : (step.status === 'failed' ? 'failed'
+                                    : (step.status === 'complete' ? 'complete' : 'pending')))
+                        }</div>
                                 </div>
                                 <div class="step-desc">${step.desc}</div>
                                 ${step.preview ? `<div class="step-preview">${step.preview}</div>` : ''}
@@ -1870,6 +2653,14 @@
                 const data = await res.json();
                 const state = data.state;
                 window.__lastState = state;
+                updateDeepReportUi(state);
+
+                const currentDeep = (state.deep_report_status || 'idle').toLowerCase();
+                if (deepReportStatusSeen !== 'completed' && currentDeep === 'completed') {
+                    await loadResults();
+                    await openDeepPhenotypeReport();
+                }
+                deepReportStatusSeen = currentDeep;
 
                 // Reset client-side session flags when a new pipeline run starts.
                 const sessionKey = `${state.participant_id || ''}|${state.start_time || ''}`;
@@ -1905,10 +2696,10 @@
                     (criticIter !== null ? criticIter >= maxIters : false)
                 );
 
-                if (state.completed || state.status === "Pipeline Completed" || state.status.includes("Mission Complete") || isFinalCritic) {
+                if (state.completed || state.status === "Pipeline Completed" || state.status.includes("Run Complete") || isFinalCritic) {
                     if (isRunning) {
                         isRunning = false;
-                        document.getElementById('session-status').textContent = "Mission Complete";
+                        document.getElementById('session-status').textContent = "Run Complete";
                         document.getElementById('status-dot').classList.remove('pulse');
                         document.getElementById('global-progress').style.width = '100%';
                     }
@@ -1984,7 +2775,7 @@
                     hasShownResultModal = false;
                 }
 
-                // Result Modal (Mission De-brief)
+                // Result Modal (Run Summary)
                 // Trigger when critic verdict is FINAL (SATISFACTORY or last iteration reached).
                 if (state.critic && !hasShownResultModal && isFinalCritic) {
                     hasShownResultModal = true;
@@ -2014,7 +2805,7 @@
                     }
 
                     document.getElementById('result-modal').classList.add('active');
-                    document.getElementById('session-status').textContent = "Mission Complete";
+                    document.getElementById('session-status').textContent = "Run Complete";
                     document.getElementById('status-dot').classList.remove('pulse');
                     isRunning = false;
                 }
@@ -2125,6 +2916,17 @@
                 const res = await fetch('/api/outputs');
                 const files = await res.json();
                 const file = files.find(f => f === targetName) || files.find(f => f.startsWith(`report_${pid}`) && f.endsWith('.md'));
+                if (file) {
+                    await loadFile(file);
+                }
+            } catch (e) { console.error(e); }
+        }
+
+        async function openDeepPhenotypeReport() {
+            try {
+                const res = await fetch('/api/outputs');
+                const files = await res.json();
+                const file = files.find(f => f === 'deep_phenotype.md');
                 if (file) {
                     await loadFile(file);
                 }

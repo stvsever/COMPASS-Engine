@@ -78,21 +78,111 @@ class LLMClient:
     
     def __init__(self, api_key: Optional[str] = None):
         settings = get_settings()
-        self.api_key = api_key or settings.openai_api_key
-        
         self.settings = settings
         self.token_tracker = TokenTracker()
+        self.backend = self.settings.models.backend
+        self.api_key = api_key or settings.openai_api_key
         
         self.local_llm = None
-        if self.settings.models.backend == LLMBackend.LOCAL:
+        self.client = None
+        self.embedding_client = None
+
+        if self.backend == LLMBackend.LOCAL:
             from .local_llm import get_local_llm
             self.local_llm = get_local_llm()
             logger.info("LLM Client initialized (LOCAL Backend)")
-        else:
-            if not self.api_key:
-                raise ValueError("OpenAI API key not provided for OpenAI Backend")
-            self.client = OpenAI(api_key=self.api_key)
+        elif self.backend == LLMBackend.OPENROUTER:
+            if not self.settings.openrouter_api_key:
+                raise ValueError("OPENROUTER_API_KEY not provided for OpenRouter backend")
+            self.client = self._build_openrouter_client()
+            self.embedding_client = self.client
+            logger.info("LLM Client initialized (OpenRouter Backend)")
+        elif self.backend == LLMBackend.OPENAI:
+            if not self.settings.openai_api_key:
+                raise ValueError("OPENAI_API_KEY not provided for OpenAI backend")
+            self.client = OpenAI(api_key=self.settings.openai_api_key)
+            self.embedding_client = self.client
             logger.info("LLM Client initialized (OpenAI Backend)")
+        else:
+            raise ValueError(f"Unsupported backend: {self.backend}")
+
+    def _build_openrouter_client(self) -> OpenAI:
+        headers: Dict[str, str] = {}
+        referer = (self.settings.openrouter_site_url or "").strip()
+        title = (self.settings.openrouter_app_name or "").strip()
+        if referer:
+            headers["HTTP-Referer"] = referer
+        if title:
+            headers["X-Title"] = title
+        kwargs: Dict[str, Any] = {
+            "api_key": self.settings.openrouter_api_key,
+            "base_url": self.settings.openrouter_base_url,
+        }
+        if headers:
+            kwargs["default_headers"] = headers
+        return OpenAI(**kwargs)
+
+    def _provider_label(self) -> str:
+        if self.backend == LLMBackend.OPENROUTER:
+            return "OpenRouter"
+        if self.backend == LLMBackend.OPENAI:
+            return "OpenAI"
+        if self.backend == LLMBackend.LOCAL:
+            return "Local"
+        return str(self.backend)
+
+    def _resolve_model_name(self, model: str) -> str:
+        resolved = str(model or "").strip()
+        if self.backend == LLMBackend.OPENROUTER and resolved and "/" not in resolved:
+            if resolved.startswith(("gpt-", "o1", "o3", "o4", "text-embedding-")):
+                return f"openai/{resolved}"
+        return resolved
+
+    @staticmethod
+    def _strip_provider_prefix(model: str) -> str:
+        text = str(model or "").strip()
+        if not text:
+            return ""
+        if "/" in text:
+            return text.split("/", 1)[1].strip()
+        return text
+
+    def _can_fallback_to_openai(self, error: Exception) -> bool:
+        if self.backend != LLMBackend.OPENROUTER:
+            return False
+        if not self.settings.openai_api_key:
+            return False
+        msg = str(error).lower()
+        network_markers = (
+            "ssl",
+            "certificate",
+            "timed out",
+            "timeout",
+            "name or service not known",
+            "temporary failure",
+            "connection error",
+            "max retries exceeded",
+        )
+        return any(marker in msg for marker in network_markers)
+
+    def _switch_to_openai_fallback(self, reason: str) -> None:
+        role_names = ("orchestrator", "critic", "integrator", "predictor", "communicator", "tool")
+        self.backend = LLMBackend.OPENAI
+        self.settings.models.backend = LLMBackend.OPENAI
+        self.settings.models.public_model_name = (
+            self._strip_provider_prefix(self.settings.models.public_model_name) or "gpt-5-nano"
+        )
+        for role in role_names:
+            attr = f"{role}_model"
+            current = getattr(self.settings.models, attr, "")
+            setattr(
+                self.settings.models,
+                attr,
+                self._strip_provider_prefix(current) or self.settings.models.public_model_name,
+            )
+        self.client = OpenAI(api_key=self.settings.openai_api_key)
+        self.embedding_client = self.client
+        logger.warning("OpenRouter transport failure. Falling back to OpenAI backend: %s", reason)
     
     @retry(
         stop=stop_after_attempt(3),
@@ -120,6 +210,7 @@ class LLMClient:
             LLMResponse with content and metadata
         """
         model = model or self.settings.models.tool_model
+        model = self._resolve_model_name(model)
         max_tokens = max_tokens or self.settings.models.tool_max_tokens
         temperature = temperature or self.settings.models.tool_temperature
         
@@ -145,7 +236,7 @@ class LLMClient:
                 logger.error(f"Local LLM call failed: {str(e)}")
                 raise
 
-        # --- OPENAI BACKEND ---
+        # --- Public API backends (OpenRouter/OpenAI) ---
         
         
         # Log call details for debugging
@@ -155,19 +246,31 @@ class LLMClient:
         start_time = time.time()
         
         try:
-            # Use max_completion_tokens for newer models (GPT-5, etc.)
-            # Note: GPT-5 only supports default temperature (1.0), so we omit it
             kwargs = {
                 "model": model,
                 "messages": messages,
                 "max_completion_tokens": int(max_tokens),
             }
+            if not str(model).lower().startswith("gpt-5"):
+                kwargs["temperature"] = float(temperature)
             
             if response_format:
                 kwargs["response_format"] = response_format
             
             print(f"[LLMClient] Sending request to {model} (max_completion_tokens={max_tokens})...")
-            response = self.client.chat.completions.create(**kwargs)
+            try:
+                response = self.client.chat.completions.create(**kwargs)
+            except Exception as first_error:
+                if self._can_fallback_to_openai(first_error):
+                    self._switch_to_openai_fallback(str(first_error))
+                    fallback_model = self._strip_provider_prefix(model) or model
+                    fallback_kwargs = dict(kwargs)
+                    fallback_kwargs["model"] = fallback_model
+                    print(f"[LLMClient] Retrying on OpenAI fallback using model {fallback_model}...")
+                    response = self.client.chat.completions.create(**fallback_kwargs)
+                    model = fallback_model
+                else:
+                    raise
             
             latency_ms = int((time.time() - start_time) * 1000)
             
@@ -291,20 +394,23 @@ class LLMClient:
     
     def ping(self, model: Optional[str] = None, timeout_s: int = 10) -> bool:
         """
-        Lightweight connectivity check for the OpenAI backend.
+        Lightweight connectivity check for configured backend.
         """
-        if self.settings.models.backend == LLMBackend.LOCAL:
+        if self.backend == LLMBackend.LOCAL:
             return True
-        if not self.api_key:
-            raise ValueError("OpenAI API key not provided for OpenAI Backend")
-        if not hasattr(self, "client") or self.client is None:
-            self.client = OpenAI(api_key=self.api_key)
+        if not self.client:
+            if self.backend == LLMBackend.OPENROUTER:
+                self.client = self._build_openrouter_client()
+            elif self.backend == LLMBackend.OPENAI:
+                self.client = OpenAI(api_key=self.settings.openai_api_key)
+            else:
+                raise ValueError(f"Unsupported backend during ping: {self.backend}")
         try:
-            # Prefer a non-generation endpoint to avoid max_tokens edge cases.
             self.client.models.list()
             return True
-        except Exception as e:
+        except Exception:
             model = model or self.settings.models.tool_model
+            model = self._resolve_model_name(model)
             try:
                 for max_tokens in (128, 256, 512):
                     try:
@@ -319,8 +425,9 @@ class LLMClient:
                         if max_tokens == 512:
                             raise inner
             except Exception as inner:
-                logger.error(f"OpenAI connectivity check failed: {str(inner)}")
-                raise RuntimeError(f"OpenAI connectivity check failed: {inner}") from inner
+                provider = self._provider_label()
+                logger.error(f"{provider} connectivity check failed: {str(inner)}")
+                raise RuntimeError(f"{provider} connectivity check failed: {inner}") from inner
 
     def get_token_usage(self) -> Dict[str, Any]:
         """Get current token usage summary."""
@@ -334,9 +441,35 @@ class LLMClient:
         stop=stop_after_attempt(3),
         wait=wait_exponential(multiplier=1, min=1, max=10)
     )
-    def get_embedding(self, text: str, model: str = "text-embedding-3-large") -> List[float]:
+    def _embedding_backend(self) -> str:
+        if self.backend == LLMBackend.OPENROUTER:
+            return "openrouter"
+        if self.backend == LLMBackend.OPENAI:
+            return "openai"
+        if self.settings.openrouter_api_key:
+            return "openrouter"
+        if self.settings.openai_api_key:
+            return "openai"
+        raise ValueError("No embedding provider configured (OPENROUTER_API_KEY or OPENAI_API_KEY required)")
+
+    def _ensure_embedding_client(self, backend: str) -> OpenAI:
+        if backend == "openrouter":
+            if not self.settings.openrouter_api_key:
+                raise ValueError("OPENROUTER_API_KEY not provided for embeddings")
+            if self.embedding_client is None or self.backend != LLMBackend.OPENROUTER:
+                self.embedding_client = self._build_openrouter_client()
+            return self.embedding_client
+        if backend == "openai":
+            if not self.settings.openai_api_key:
+                raise ValueError("OPENAI_API_KEY not provided for embeddings")
+            if self.embedding_client is None or self.backend != LLMBackend.OPENAI:
+                self.embedding_client = OpenAI(api_key=self.settings.openai_api_key)
+            return self.embedding_client
+        raise ValueError(f"Unsupported embedding backend: {backend}")
+
+    def get_embedding(self, text: str, model: str = "") -> List[float]:
         """
-        Get embedding for text using OpenAI API.
+        Get embedding for text using configured provider.
         
         Args:
             text: Text to embed
@@ -346,18 +479,15 @@ class LLMClient:
             List of floats representing the embedding vector
         """
         try:
-            # Ensure text is not too long for embedding model (approx 8k token limit usually)
-            # Truncate if necessary (naive truncation, better handled upstream but safety net here)
             if len(text) > 30000:
                 text = text[:30000]
-
-            # Even when the chat backend is LOCAL, embeddings may still use OpenAI.
-            if not hasattr(self, "client") or self.client is None:
-                if not self.api_key:
-                    raise ValueError("OpenAI API key not provided for embeddings")
-                self.client = OpenAI(api_key=self.api_key)
-
-            response = self.client.embeddings.create(input=text, model=model)
+            backend = self._embedding_backend()
+            client = self._ensure_embedding_client(backend)
+            embed_model = (model or self.settings.models.embedding_model or "").strip()
+            if not embed_model:
+                embed_model = "text-embedding-3-large"
+            embed_model = self._resolve_model_name(embed_model)
+            response = client.embeddings.create(input=text, model=embed_model)
             return response.data[0].embedding
         except Exception as e:
             logger.error(f"Embedding generation failed: {str(e)}")
@@ -375,9 +505,20 @@ def get_llm_client() -> LLMClient:
     if _llm_client_instance is None:
         _llm_client_instance = LLMClient()
     else:
-        # Recreate if backend changed to ensure correct client initialization.
-        if desired_backend == LLMBackend.LOCAL and not _llm_client_instance.local_llm:
+        if getattr(_llm_client_instance, "backend", None) != desired_backend:
             _llm_client_instance = LLMClient()
-        if desired_backend == LLMBackend.OPENAI and not hasattr(_llm_client_instance, "client"):
+        elif desired_backend == LLMBackend.LOCAL and not _llm_client_instance.local_llm:
+            _llm_client_instance = LLMClient()
+        elif desired_backend in (LLMBackend.OPENAI, LLMBackend.OPENROUTER) and not _llm_client_instance.client:
             _llm_client_instance = LLMClient()
     return _llm_client_instance
+
+
+def reset_llm_client() -> None:
+    global _llm_client_instance
+    _llm_client_instance = None
+    try:
+        from .local_llm import reset_local_llm
+        reset_local_llm()
+    except Exception:
+        pass

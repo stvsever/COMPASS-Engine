@@ -1,250 +1,148 @@
 """
-Pre-compute embeddings for all unique hierarchical features in the dataset.
-Optimized with ThreadPoolExecutor for high concurrency (200 workers).
-Self-contained imports for standalone execution.
+Pre-compute global feature-path embeddings into the SQLite embedding store.
 
-Logic:
-1. Scan all participant directories for `multimodal_data.json`.
-2. Recursively parse the JSON to extract leaf nodes.
-3. Construct hierarchical feature strings: "feature <- parent1 <- parent2 <- parent3".
-4. Deduplicate strings across the entire dataset.
-5. Generate embeddings using OpenAI (text-embedding-3-large) and cache them.
-6. Report statistics.
+This script populates reusable path embeddings of the form:
+    feature <- parent1 <- parent2 <- parent3
 """
 
+from __future__ import annotations
+
+import json
 import os
 import sys
-import json
-import hashlib
-import pickle
-import time
-import threading
-from pathlib import Path
-from typing import Dict, Any, List, Set, Optional
 from concurrent.futures import ThreadPoolExecutor, as_completed
+from pathlib import Path
+from typing import Any, Dict, List, Set
 
-from tqdm import tqdm
 from dotenv import load_dotenv
 from openai import OpenAI
-from tenacity import retry, stop_after_attempt, wait_exponential, retry_if_exception_type
 
-# --- Import Robustness ---
-# Add project root to path if running as script from utils/
 if __name__ == "__main__":
     sys.path.append(str(Path(__file__).parent.parent))
 
-try:
-    from config.settings import get_settings
-    # We can try to use the centralized client or just direct OpenAI for simplicity logic here
-    # to avoid the circular dependency hell we saw earlier.
-    # The user wants "joint functions", so let's try to be consistent,
-    # but direct use of OpenAI library here guarantees standalone stability.
-except ImportError:
-    pass
+from config.settings import get_settings, LLMBackend
+from utils.core.embedding_store import get_embedding_store
 
-# Load environment variables
 load_dotenv()
 
-# Configuration
-DATA_DIR = Path(__file__).resolve().parent.parent.parent / "data" / "__FEATURES__" / "COMPASS_data"
-# Handle running from root or utils
-if Path(".cache").exists():
-    CACHE_DIR = Path(".cache/embeddings")
-else:
-    # Assume we might be in utils or root, aim for relative to project root
-    # Best guess: ../.cache/embeddings if running from utils, or .cache/embeddings if root
-    # We'll default to absolute path based on file location to be safe
-    CACHE_DIR = Path(__file__).parent.parent / ".cache" / "embeddings"
 
-EMBEDDING_MODEL = "text-embedding-3-large"
-MAX_WORKERS = 200
-API_KEY = os.getenv("OPENAI_API_KEY")
+def _feature_strings(data: Any, parents: List[str] | None = None) -> Set[str]:
+    parents = parents or []
+    out: Set[str] = set()
 
-if not API_KEY:
-    print("Error: OPENAI_API_KEY not found in environment.")
-    # Attempt to load from settings if env fail
-    try:
-        from config.settings import get_settings
-        settings = get_settings()
-        API_KEY = settings.openai_api_key
-    except:
-        pass
-
-if not API_KEY:
-    print("CRITICAL: Could not find OpenAI API Key.")
-    sys.exit(1)
-
-client = OpenAI(api_key=API_KEY)
-
-# Thread-safe counters
-stats_lock = threading.Lock()
-stats = {
-    "processed": 0,
-    "skipped": 0,
-    "errors": 0,
-    "retries": 0
-}
-
-@retry(
-    stop=stop_after_attempt(5), 
-    wait=wait_exponential(multiplier=1, min=1, max=20),
-    retry=retry_if_exception_type(Exception)
-)
-def get_embedding_safe(text: str) -> List[float]:
-    """Get embedding with retry logic."""
-    try:
-        # Pre-truncation (naive)
-        if len(text) > 30000:
-            text = text[:30000]
-            
-        response = client.embeddings.create(input=text, model=EMBEDDING_MODEL)
-        return response.data[0].embedding
-    except Exception as e:
-        # Check for rate limit specifically to log it?
-        # print(f"Retry needed for '{text[:20]}...': {e}")
-        raise
-
-def process_single_embedding(text: str) -> str:
-    """Worker function to process a single text string."""
-    text_hash = hashlib.md5(text.encode('utf-8')).hexdigest()
-    cache_file = CACHE_DIR / f"{text_hash}.pkl"
-    
-    if cache_file.exists():
-        with stats_lock:
-            stats["skipped"] += 1
-        return "skipped"
-        
-    try:
-        emb = get_embedding_safe(text)
-        
-        # Atomic write pattern not strictly needed for cache (idempotent), but good practice
-        # Direct dump is fine for now
-        with open(cache_file, "wb") as f:
-            pickle.dump(emb, f)
-            
-        with stats_lock:
-            stats["processed"] += 1
-        return "processed"
-        
-    except Exception as e:
-        with stats_lock:
-            stats["errors"] += 1
-        return f"error: {str(e)}"
-
-def get_hierarchical_strings(data: Dict[str, Any], parents: List[str] = None) -> Set[str]:
-    """Recursively extract feature strings."""
-    if parents is None:
-        parents = []
-        
-    strings = set()
-    
     if isinstance(data, dict):
-        if "_leaves" in data:
-            for leaf in data["_leaves"]:
-                if isinstance(leaf, dict) and "feature" in leaf:
-                    # feature <- p1 <- p2 <- p3
-                    context_parents = parents[-3:][::-1]
-                    parts = [leaf["feature"]]
-                    parts.extend(context_parents)
-                    feature_str = " <- ".join(parts)
-                    strings.add(feature_str)
-        
+        leaves = data.get("_leaves")
+        if isinstance(leaves, list):
+            for leaf in leaves:
+                if not isinstance(leaf, dict):
+                    continue
+                name = leaf.get("feature") or leaf.get("field_name")
+                if not name:
+                    continue
+                path = [str(p) for p in parents if str(p).strip()]
+                out.add(" <- ".join([str(name), *path[-3:][::-1]]))
         for key, value in data.items():
-            if key != "_leaves":
-                new_parents = parents + [key]
-                strings.update(get_hierarchical_strings(value, new_parents))
-                
+            if key == "_leaves":
+                continue
+            if isinstance(value, (dict, list)):
+                out |= _feature_strings(value, parents + [str(key)])
     elif isinstance(data, list):
         for item in data:
-            if isinstance(item, dict) and "feature" in item:
-                 context_parents = parents[-3:][::-1]
-                 parts = [item["feature"]]
-                 parts.extend(context_parents)
-                 feature_str = " <- ".join(parts)
-                 strings.add(feature_str)
-            else:
-                strings.update(get_hierarchical_strings(item, parents))
+            if isinstance(item, dict):
+                if "feature" in item or "field_name" in item:
+                    name = item.get("feature") or item.get("field_name")
+                    path = item.get("path_in_hierarchy") or []
+                    if not isinstance(path, list):
+                        path = []
+                    out.add(" <- ".join([str(name), *[str(p) for p in path[-3:][::-1]]]))
+                else:
+                    out |= _feature_strings(item, parents)
+    return out
 
-    return strings
 
-def main():
-    print("="*60)
-    print("COMPASS Feature Embedding Pre-computation (Optimized)")
-    print("="*60)
-    print(f"Concurrency: {MAX_WORKERS} threads")
-    print(f"Data Dir:    {DATA_DIR}")
-    print(f"Cache Dir:   {CACHE_DIR}")
-    
-    CACHE_DIR.mkdir(parents=True, exist_ok=True)
-    
-    # 1. Scanning
-    print("\nScanning for data files...")
-    files = list(DATA_DIR.rglob("multimodal_data.json"))
-    print(f"Found {len(files)} multimodal data files.")
-    
-    all_unique_strings = set()
-    demographic_strings = set() # Track for cleanup
-    
-    print("Extracting hierarchical feature strings (Excluding DEMOGRAPHICS)...")
-    
-    for f in tqdm(files, desc="Parsing Files"):
+def main() -> None:
+    settings = get_settings()
+    if settings.models.backend == LLMBackend.OPENROUTER:
+        api_key = settings.openrouter_api_key or os.getenv("OPENROUTER_API_KEY")
+        if not api_key:
+            raise RuntimeError("OPENROUTER_API_KEY not found.")
+        client = OpenAI(
+            api_key=api_key,
+            base_url=settings.openrouter_base_url,
+            default_headers={
+                k: v
+                for k, v in {
+                    "HTTP-Referer": settings.openrouter_site_url,
+                    "X-Title": settings.openrouter_app_name,
+                }.items()
+                if v
+            } or None,
+        )
+    else:
+        api_key = settings.openai_api_key or os.getenv("OPENAI_API_KEY")
+        if not api_key:
+            raise RuntimeError("OPENAI_API_KEY not found.")
+        client = OpenAI(api_key=api_key)
+    store = get_embedding_store()
+    model = settings.models.embedding_model or "text-embedding-3-large"
+    if settings.models.backend == LLMBackend.OPENROUTER and "/" not in model:
+        if model.startswith(("gpt-", "o1", "o3", "o4", "text-embedding-")):
+            model = f"openai/{model}"
+
+    data_root = settings.paths.base_dir.parent / "data" / "__FEATURES__" / "COMPASS_data"
+    files = list(data_root.rglob("multimodal_data.json"))
+    if not files:
+        print(f"No multimodal_data.json files found under {data_root}")
+        return
+
+    all_strings: Set[str] = set()
+    for path in files:
         try:
-            with open(f, 'r') as fd:
-                data = json.load(fd)
-            for domain, content in data.items():
-                # EXCLUSION LOGIC
-                if domain == "DEMOGRAPHICS":
-                    # Collect these for cleanup, but do NOT add to all_unique_strings
-                    demographic_strings.update(get_hierarchical_strings(content, [domain]))
-                    continue
-                    
-                all_unique_strings.update(get_hierarchical_strings(content, [domain]))
-        except Exception as e:
-            pass # Ignore read errors
+            with open(path, "r") as f:
+                payload = json.load(f)
+            for domain, content in payload.items():
+                all_strings |= _feature_strings(content, [str(domain)])
+        except Exception:
+            continue
 
-    total_strings = len(all_unique_strings)
-    
-    # --- CLEANUP PHASE ---
-    if demographic_strings:
-        print(f"\nPerforming DEMOGRAPHICS Cleanup ({len(demographic_strings)} variants found)...")
-        cleaned_count = 0
-        for text in demographic_strings:
-            text_hash = hashlib.md5(text.encode('utf-8')).hexdigest()
-            cache_file = CACHE_DIR / f"{text_hash}.pkl"
-            if cache_file.exists():
-                try:
-                    os.remove(cache_file)
-                    cleaned_count += 1
-                except OSError:
-                    pass
-        print(f"Removed {cleaned_count} cached demographic embeddings.")
-        
-    print(f"\nTotal Valid Unique Feature Strings: {total_strings}")
+    strings = sorted(s for s in all_strings if s.strip())
+    if not strings:
+        print("No feature-path strings extracted.")
+        return
 
-    # 2. Embedding
-    print(f"\nGeneratring embeddings with {MAX_WORKERS} workers...")
-    
-    sorted_strings = sorted(list(all_unique_strings))
-    start_time = time.time()
-    
-    with ThreadPoolExecutor(max_workers=MAX_WORKERS) as executor:
-        # Submit all tasks
-        futures = [executor.submit(process_single_embedding, text) for text in sorted_strings]
-        
-        # Monitor with tqdm
-        for _ in tqdm(as_completed(futures), total=len(futures), desc="Embedding"):
-            pass
+    try:
+        max_workers = int(os.getenv("COMPASS_EMBEDDING_MAX_WORKERS", "200"))
+    except Exception:
+        max_workers = 200
+    workers = max(1, min(max_workers, len(strings)))
 
-    duration = time.time() - start_time
-    print("\n" + "="*60)
-    print("COMPLETE")
-    print("="*60)
-    print(f"Time Taken:     {duration:.1f} seconds")
-    print(f"Total Features: {total_strings}")
-    print(f"New Embeddings: {stats['processed']}")
-    print(f"Cached/Skipped: {stats['skipped']}")
-    print(f"Errors:         {stats['errors']}")
-    print("="*60)
+    def embed_fn(text: str, embed_model: str):
+        response = client.embeddings.create(input=text, model=embed_model)
+        return response.data[0].embedding
+
+    print(f"Embedding {len(strings)} path strings with {workers} workers...")
+    completed = 0
+    errors = 0
+    with ThreadPoolExecutor(max_workers=workers) as pool:
+        futures = [
+            pool.submit(
+                store.get_or_create_global,
+                text,
+                model,
+                embed_fn,
+                "feature_path",
+            )
+            for text in strings
+        ]
+        for fut in as_completed(futures):
+            try:
+                fut.result()
+                completed += 1
+            except Exception:
+                errors += 1
+
+    print(f"Done. completed={completed} errors={errors} db={store.db_path}")
+
 
 if __name__ == "__main__":
     main()

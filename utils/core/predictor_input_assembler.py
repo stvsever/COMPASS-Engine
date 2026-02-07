@@ -109,13 +109,22 @@ class PredictorInputAssembler:
         unprocessed_raw = predictor_input.get("multimodal_unprocessed_raw") or {}
         processed_raw = predictor_input.get("multimodal_processed_raw_low_priority") or {}
         rag_fill = (predictor_input.get("context_fill_report") or {}).get("top_added") or []
+        context_fill = predictor_input.get("context_fill_report") or {}
+        payload_estimate = context_fill.get("predictor_payload_estimate") or {}
         aux = {
             "mode": predictor_input.get("mode"),
-            "evidence_summary": predictor_input.get("evidence_summary"),
-            "domain_summaries": predictor_input.get("domain_summaries"),
-            "key_findings": predictor_input.get("key_findings"),
-            "cross_modal_patterns": predictor_input.get("cross_modal_patterns"),
-            "coverage_ledger": coverage_ledger,
+            "step_output_count": len(step_rows),
+            "coverage_summary": (coverage_ledger or {}).get("summary") or {},
+            "context_fill_summary": {
+                "processed_raw_full_included": context_fill.get("processed_raw_full_included"),
+                "rag_added_count": len(context_fill.get("top_added") or []),
+                "predictor_payload_estimate": {
+                    "baseline_tokens": payload_estimate.get("baseline_tokens"),
+                    "final_tokens": payload_estimate.get("final_tokens"),
+                    "single_chunk_limit": payload_estimate.get("single_chunk_limit"),
+                    "threshold": payload_estimate.get("threshold"),
+                },
+            },
         }
 
         unprocessed_keys = sorted(list(feature_key_set(unprocessed_raw)))

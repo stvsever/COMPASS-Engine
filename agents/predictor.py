@@ -80,7 +80,10 @@ class Predictor(BaseAgent):
             or predictor_input.get("coverage_ledger")
             or {}
         )
-        chunk_evidence = self._require_chunk_evidence(executor_output)
+        chunk_evidence = executor_output.get("chunk_evidence") or []
+        chunking_skipped = bool(executor_output.get("chunking_skipped"))
+        if not chunk_evidence and not chunking_skipped:
+            raise ValueError("chunk_evidence missing; Integrator must run chunk extraction before Predictor.")
 
         print(f"[Predictor] Participant: {participant_id}")
         print(f"[Predictor] Target condition: {target_condition}")
@@ -94,14 +97,23 @@ class Predictor(BaseAgent):
         )
         executor_output["coverage_summary"] = coverage_summary
 
-        final_prompt = self._build_final_synthesis_prompt(
-            target_condition=target_condition,
-            control_condition=control_condition,
-            chunk_evidence=chunk_evidence,
-            predictor_input=predictor_input,
-            executor_output=executor_output,
-            coverage_summary=coverage_summary,
-        )
+        if chunking_skipped:
+            final_prompt = self._build_direct_synthesis_prompt(
+                target_condition=target_condition,
+                control_condition=control_condition,
+                predictor_input=predictor_input,
+                executor_output=executor_output,
+                coverage_summary=coverage_summary,
+            )
+        else:
+            final_prompt = self._build_final_synthesis_prompt(
+                target_condition=target_condition,
+                control_condition=control_condition,
+                chunk_evidence=chunk_evidence,
+                predictor_input=predictor_input,
+                executor_output=executor_output,
+                coverage_summary=coverage_summary,
+            )
         prediction_data = self._call_predictor_json(
             system_prompt=self.system_prompt,
             user_prompt=final_prompt,
@@ -183,6 +195,8 @@ class Predictor(BaseAgent):
                 "Respect calibration and avoid false positives.",
                 "Default to CONTROL if class text is ambiguous.",
                 "You MUST integrate all chunk evidence rows.",
+                "Note: processed raw low-priority multimodal data was excluded from chunk evidence to avoid re-processing."
+                if executor_output.get("processed_raw_excluded") else "",
                 "",
                 "## High-priority context (triad)",
                 f"```text\n{high_priority_context}\n```",
@@ -247,6 +261,7 @@ class Predictor(BaseAgent):
 
         phenotype_text = _tool_text("PhenotypeRepresentation")
         feature_text = _tool_text("FeatureSynthesizer")
+        differential_text = _tool_text("DifferentialDiagnosis")
 
         rows = [
             f"## non_numerical_data_raw\n{_limit(str(non_num))}",
@@ -254,6 +269,7 @@ class Predictor(BaseAgent):
             f"## data_overview\n{_limit(json_to_toon(overview))}",
             f"## phenotype_representation\n{_limit(phenotype_text)}",
             f"## feature_synthesizer\n{_limit(feature_text)}",
+            f"## differential_diagnosis\n{_limit(differential_text)}",
         ]
         return "\n\n".join(rows)
 
@@ -294,11 +310,61 @@ class Predictor(BaseAgent):
             )
         return summary
 
-    def _require_chunk_evidence(self, executor_output: Dict[str, Any]) -> List[Dict[str, Any]]:
-        chunk_evidence = executor_output.get("chunk_evidence")
-        if not chunk_evidence:
-            raise ValueError("chunk_evidence missing; Integrator must run chunk extraction before Predictor.")
-        return chunk_evidence
+    def _build_direct_synthesis_prompt(
+        self,
+        *,
+        target_condition: str,
+        control_condition: str,
+        predictor_input: Dict[str, Any],
+        executor_output: Dict[str, Any],
+        coverage_summary: Dict[str, Any],
+    ) -> str:
+        high_priority_context = self._build_high_priority_context(predictor_input, executor_output)
+        non_core_context = executor_output.get("non_core_context_text") or "Not provided"
+        coverage_text = json_to_toon(coverage_summary)
+
+        return "\n".join(
+            [
+                "Synthesize final CASE/CONTROL verdict from full non-core context (no chunk evidence required).",
+                f"Target condition: {target_condition}",
+                f"Control condition: {control_condition}",
+                "Respect calibration and avoid false positives.",
+                "Default to CONTROL if class text is ambiguous.",
+                "",
+                "## High-priority context (triad)",
+                f"```text\n{high_priority_context}\n```",
+                "",
+                "## Non-core context (direct, unchunked)",
+                f"```text\n{non_core_context}\n```",
+                "",
+                "## Coverage summary",
+                f"```text\n{coverage_text}\n```",
+                "",
+                "Return JSON with fields:",
+                "{",
+                '  "prediction_id": "string",',
+                '  "binary_classification": "CASE|CONTROL|free-text",',
+                '  "probability_score": 0.0,',
+                '  "confidence_level": "HIGH|MEDIUM|LOW",',
+                '  "key_findings": [',
+                "    {",
+                '      "domain": "domain_name",',
+                '      "finding": "Description",',
+                '      "direction": "ABNORMAL_HIGH|ABNORMAL_LOW|NORMAL",',
+                '      "z_score": float|null,',
+                '      "relevance_to_prediction": "Explanation"',
+                "    }",
+                "  ],",
+                '  "reasoning_chain": ["Step 1", "Step 2"],',
+                '  "clinical_summary": "Detailed summary",',
+                '  "supporting_evidence": {',
+                '    "for_case": ["evidence1"],',
+                '    "for_control": ["evidence2"]',
+                "  },",
+                '  "uncertainty_factors": ["factor1"]',
+                "}",
+            ]
+        )
 
     def _parse_prediction(
         self,

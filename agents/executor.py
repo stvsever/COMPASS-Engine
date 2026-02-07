@@ -133,16 +133,25 @@ class Executor(BaseAgent):
         )
 
         if ui:
+            chunk_count = int(chunk_result.get("predictor_chunk_count") or 0)
+            chunking_skipped = bool(chunk_result.get("chunking_skipped"))
+            chunk_reason = str(chunk_result.get("chunking_reason") or "").strip()
+            if chunking_skipped:
+                preview = "Integration complete (chunking not required)."
+                if chunk_reason:
+                    preview = f"{preview} Reason: {chunk_reason}."
+            else:
+                preview = f"Integration complete (chunk evidence: {chunk_count} chunks)."
             ui.on_step_complete(
                 step_id=fusion_step_id,
                 tokens=0,
                 duration_ms=0,
-                preview="Integration complete.",
+                preview=preview,
             )
 
         # Generate prediction status
         if ui:
-            ui.set_status("Predictor analyzing fused data...", stage=4)
+            ui.set_status("Predictor evaluating CASE vs CONTROL...", stage=4)
         
         # Build output
         output = {
@@ -152,6 +161,11 @@ class Executor(BaseAgent):
             "step_outputs": execution_result.step_outputs,
             "chunk_evidence": chunk_result.get("chunk_evidence") or [],
             "predictor_chunk_count": int(chunk_result.get("predictor_chunk_count") or 0),
+            "chunking_skipped": bool(chunk_result.get("chunking_skipped")),
+            "chunking_reason": chunk_result.get("chunking_reason"),
+            "non_core_context_text": chunk_result.get("non_core_context_text") or "",
+            "non_core_context_tokens": int(chunk_result.get("non_core_context_tokens") or 0),
+            "processed_raw_excluded": bool(chunk_result.get("processed_raw_excluded")),
             
             # Always include these
             "data_overview": context.get("data_overview"),

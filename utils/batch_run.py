@@ -12,18 +12,18 @@ DATA_ROOT = PROJECT_ROOT.parent / "data" / "__FEATURES__" / "COMPASS_data"
 MAIN_SCRIPT = PROJECT_ROOT / "main.py"
 RESULTS_DIR = PROJECT_ROOT.parent / "results"
 
-# To be processed participants (Requested by user)
+# To be processed participants
 PARTICIPANTS = [
-    {"id": "1386427", "expected": "CASE", "target_str": "ANXIETY_DISORDERS | F419:Anxiety disorder, unspecified"},
-    {"id": "4414177", "expected": "CASE", "target_str": "MAJOR_DEPRESSIVE_DISORDER | F329:Major depressive disorder, single episode, unspecified"},
-    {"id": "4073873", "expected": "CASE", "target_str": "MAJOR_DEPRESSIVE_DISORDER | F329:Major depressive disorder, single episode, unspecified"},
-    {"id": "2636640", "expected": "CONTROL", "target_str": "ANXIETY_DISORDERS"},
-    {"id": "5022191", "expected": "CONTROL", "target_str": "ANXIETY_DISORDERS"},
-    {"id": "3759408", "expected": "CONTROL", "target_str": "BIPOLAR_AND_MANIC_DISORDERS"},
-    {"id": "1385600", "expected": "CONTROL", "target_str": "MAJOR_DEPRESSIVE_DISORDER"},
-    {"id": "1364077", "expected": "CONTROL", "target_str": "MAJOR_DEPRESSIVE_DISORDER"},
-    {"id": "3026819", "expected": "CONTROL", "target_str": "MAJOR_DEPRESSIVE_DISORDER"},
-    {"id": "2546474", "expected": "CONTROL", "target_str": "SLEEP_WAKE_DISORDERS"}
+    {"id": "01", "expected": "CASE", "target_str": "ANXIETY_DISORDERS | F419:Anxiety disorder, unspecified"},
+    {"id": "02", "expected": "CASE", "target_str": "MAJOR_DEPRESSIVE_DISORDER | F329:Major depressive disorder, single episode, unspecified"},
+    {"id": "03", "expected": "CASE", "target_str": "MAJOR_DEPRESSIVE_DISORDER | F329:Major depressive disorder, single episode, unspecified"},
+    {"id": "04", "expected": "CONTROL", "target_str": "ANXIETY_DISORDERS"},
+    {"id": "05", "expected": "CONTROL", "target_str": "MAJOR_DEPRESSIVE_DISORDER"},
+    {"id": "06", "expected": "CASE", "target_str": "ANXIETY_DISORDERS | F419:Anxiety disorder, unspecified"},
+    {"id": "07", "expected": "CASE", "target_str": "MAJOR_DEPRESSIVE_DISORDER | F329:Major depressive disorder, single episode, unspecified"},
+    {"id": "08", "expected": "CASE", "target_str": "MAJOR_DEPRESSIVE_DISORDER | F329:Major depressive disorder, single episode, unspecified"},
+    {"id": "09", "expected": "CONTROL", "target_str": "ANXIETY_DISORDERS"},
+    {"id": "10", "expected": "CONTROL", "target_str": "MAJOR_DEPRESSIVE_DISORDER"},
 ]
 
 def run_participant(pid_info):
@@ -99,8 +99,8 @@ BATCH_ARGS = {}
 def main():
     import argparse
     parser = argparse.ArgumentParser()
-    parser.add_argument("--backend", choices=["openai", "local"], default="openai")
-    parser.add_argument("--model", type=str, default="gpt-5-mini")
+    parser.add_argument("--backend", choices=["openrouter", "openai", "local"], default="openrouter")
+    parser.add_argument("--model", type=str, default="gpt-5-nano")
     parser.add_argument("--max_tokens", type=int, default=2048)
     parser.add_argument("--local_engine", type=str, default="auto")
     parser.add_argument("--local_dtype", type=str, default="auto")

@@ -6,6 +6,7 @@ Wraps the core FusionLayer logic to provide a consistent agent interface.
 Ensures that data flow remains optimal for the Predictor agent, respecting token limits.
 """
 
+import json
 import logging
 from typing import Dict, Any, Optional, List, Sequence, Set
 
@@ -141,11 +142,91 @@ class Integrator(BaseAgent):
             "data_overview",
             "phenotype_representation",
             "feature_synthesizer",
+            "differential_diagnosis",
         }
+        processed_raw_names = {"processed_multimodal_raw_low_priority"}
         def _is_core(name: str) -> bool:
             base = name.split("#", 1)[0]
             return base in core_names
-        chunk_sections = [s for s in sections if not _is_core(s.name)]
+        def _is_processed_raw(name: str) -> bool:
+            base = name.split("#", 1)[0]
+            return base in processed_raw_names
+
+        chunk_candidate_sections = [s for s in sections if not _is_core(s.name) and not _is_processed_raw(s.name)]
+        processed_raw_sections = [s for s in sections if _is_processed_raw(s.name)]
+
+        total_candidate_tokens = 0
+        for sec in chunk_candidate_sections:
+            total_candidate_tokens += count_tokens(sec.text, model_hint=self.settings.models.tool_model)
+
+        # Chunking decision is driven by payload fit excluding processed-raw low priority.
+        # Processed-raw may be attached only if there is remaining room, but it must never force chunking.
+        payload_estimate = (predictor_input.get("context_fill_report") or {}).get("predictor_payload_estimate") or {}
+        threshold = payload_estimate.get("threshold") or getattr(self.fusion_layer, "threshold", None)
+        if not isinstance(threshold, int) or threshold <= 0:
+            predictor_model = self.settings.models.predictor_model or "gpt-5"
+            threshold = int(0.9 * self.settings.effective_context_window(predictor_model))
+
+        payload_tokens: Optional[int] = payload_estimate.get("final_tokens") if isinstance(payload_estimate.get("final_tokens"), int) else None
+        payload_without_processed_tokens: Optional[int] = None
+        try:
+            model_hint = self.settings.models.predictor_model or "gpt-5"
+            if payload_tokens is None:
+                payload_tokens = count_tokens(json.dumps(predictor_input, default=str), model_hint=model_hint)
+            probe_input = dict(predictor_input)
+            probe_input.pop("multimodal_processed_raw_low_priority", None)
+            payload_without_processed_tokens = count_tokens(json.dumps(probe_input, default=str), model_hint=model_hint)
+        except Exception:
+            payload_without_processed_tokens = None
+
+        include_processed_raw_direct = (
+            bool(processed_raw_sections)
+            and isinstance(payload_tokens, int)
+            and isinstance(threshold, int)
+            and payload_tokens <= threshold
+        )
+        payload_without_processed_fits = (
+            isinstance(payload_without_processed_tokens, int)
+            and isinstance(threshold, int)
+            and payload_without_processed_tokens <= threshold
+        )
+        chunk_budget = self._chunk_budget_tokens()
+        payload_fits = (
+            isinstance(payload_without_processed_tokens, int)
+            and isinstance(threshold, int)
+            and payload_without_processed_tokens <= threshold
+        )
+
+        fallback_noncore_fit = not isinstance(threshold, int) and total_candidate_tokens <= chunk_budget
+        if payload_fits or fallback_noncore_fit:
+            direct_sections = list(chunk_candidate_sections)
+            if include_processed_raw_direct:
+                direct_sections.extend(processed_raw_sections)
+            direct_text = ""
+            if direct_sections:
+                direct_text = assembler.chunk_to_text(direct_sections, 1, 1)
+            direct_tokens = 0
+            if direct_text:
+                try:
+                    model_hint = self.settings.models.predictor_model or "gpt-5"
+                    direct_tokens = count_tokens(direct_text, model_hint=model_hint)
+                except Exception:
+                    direct_tokens = 0
+            return {
+                "chunk_evidence": [],
+                "predictor_chunk_count": 0,
+                "chunking_skipped": True,
+                "chunking_reason": (
+                    "payload_fit_excluding_processed_raw"
+                    if payload_without_processed_fits
+                    else "non_core_fit_under_budget"
+                ),
+                "non_core_context_text": direct_text,
+                "non_core_context_tokens": direct_tokens,
+                "processed_raw_excluded": bool(processed_raw_sections) and not include_processed_raw_direct,
+            }
+
+        chunk_sections = chunk_candidate_sections
         chunks = assembler.build_chunks(chunk_sections)
 
         tool = get_tool("ChunkEvidenceExtractor")
@@ -170,12 +251,17 @@ class Integrator(BaseAgent):
                     }
                 ],
                 "predictor_chunk_count": 1,
+                "chunking_skipped": False,
+                "chunking_reason": "no_chunkable_sections",
+                "non_core_context_text": "",
+                "non_core_context_tokens": total_candidate_tokens,
+                "processed_raw_excluded": bool(processed_raw_sections),
             }
 
         total = len(chunks)
         rows_by_idx: Dict[int, Dict[str, Any]] = {}
-        base_step_id = 90500 + (iteration * 1000)
         chunk_meta: Dict[int, Dict[str, Any]] = {}
+        fusion_step_id = 900 + int(iteration or 1)
 
         for idx, chunk_sections in enumerate(chunks, 1):
             chunk_text = assembler.chunk_to_text(chunk_sections, idx, total)
@@ -194,27 +280,22 @@ class Integrator(BaseAgent):
         if ui and ui.enabled:
             reason = "payload exceeds single-chunk limit" if total > 1 else "single chunk"
             ui.set_status(f"Integration evidence extraction ({total} chunks; {reason})", stage=3)
+            ui.on_step_start(
+                step_id=fusion_step_id,
+                tool_name="Fusion Layer",
+                description=f"Integrating domain outputs (chunk evidence enabled: {total} chunks).",
+                stage=3,
+            )
 
         from concurrent.futures import ThreadPoolExecutor, as_completed
         max_workers = min(10, total)
         with ThreadPoolExecutor(max_workers=max_workers) as pool:
             future_map = {}
             for idx, chunk_sections in enumerate(chunks, 1):
-                step_id = base_step_id + idx
                 meta = chunk_meta.get(idx, {})
                 token_est = int(meta.get("token_est") or 0)
                 section_count = int(meta.get("section_count") or 0)
                 section_preview = str(meta.get("section_preview") or "").strip()
-                if ui and ui.enabled:
-                    extra = f" (~{token_est} tokens, {section_count} sections)"
-                    if section_preview:
-                        extra = f"{extra} [{section_preview}]"
-                    ui.on_step_start(
-                        step_id=step_id,
-                        tool_name="ChunkEvidenceExtractor",
-                        description=f"Integration evidence chunk {idx}/{total}{extra}",
-                        stage=3,
-                    )
                 future = pool.submit(
                     self._extract_chunk_with_fallback,
                     tool=tool,
@@ -226,23 +307,26 @@ class Integrator(BaseAgent):
                     chunk_total=total,
                     chunk_text=meta.get("chunk_text"),
                 )
-                future_map[future] = (idx, step_id, token_est, section_count)
+                future_map[future] = (idx, token_est, section_count, section_preview)
 
             completed = 0
             for future in as_completed(future_map):
-                idx, step_id, token_est, section_count = future_map[future]
+                idx, token_est, section_count, section_preview = future_map[future]
                 row = future.result()
                 rows_by_idx[idx] = row
                 completed += 1
                 if ui and ui.enabled:
-                    ui.on_step_complete(
-                        step_id=step_id,
-                        tokens=0,
-                        duration_ms=0,
-                        preview=f"Chunk evidence ready (~{token_est} tokens; {section_count} sections).",
-                    )
                     ui.set_status(
-                        f"Integration evidence extraction (chunk {completed}/{total})",
+                        f"Integration evidence extraction ({completed}/{total} chunks done)",
+                        stage=3,
+                    )
+                    chunk_detail = f"Chunk evidence {completed}/{total} (~{token_est} tokens, {section_count} sections)"
+                    if section_preview:
+                        chunk_detail = f"{chunk_detail} [{section_preview}]"
+                    ui.on_step_start(
+                        step_id=fusion_step_id,
+                        tool_name="Fusion Layer",
+                        description=chunk_detail,
                         stage=3,
                     )
 
@@ -251,6 +335,11 @@ class Integrator(BaseAgent):
         return {
             "chunk_evidence": rows,
             "predictor_chunk_count": len(chunks),
+            "chunking_skipped": False,
+            "chunking_reason": "non_core_exceeds_budget",
+            "non_core_context_text": "",
+            "non_core_context_tokens": total_candidate_tokens,
+            "processed_raw_excluded": bool(processed_raw_sections),
         }
 
     def _extract_chunk_with_fallback(

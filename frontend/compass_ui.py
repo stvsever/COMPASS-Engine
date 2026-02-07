@@ -13,11 +13,19 @@ import json
 import logging
 import webbrowser
 import queue
+import ssl
 from flask import Flask, render_template, jsonify, request, send_file, make_response
 from flask.json.provider import DefaultJSONProvider
 import os
 from datetime import datetime
 from typing import List, Dict, Any, Optional, Callable
+from urllib.request import Request, urlopen
+from urllib.error import URLError, HTTPError
+
+try:
+    import certifi
+except Exception:  # pragma: no cover - optional dependency
+    certifi = None
 
 # Disable flask logging for a cleaner terminal
 log = logging.getLogger('werkzeug')
@@ -51,7 +59,11 @@ class EventStore:
             "latest_update_id": 0,
             "current_stage": -1, # -1: Setup, 0:Init, 1:Plan, 2:Exec, 3:Predict, 4:Evaluate
             "stages": ["Initialization", "Orchestration", "Execution", "Integration", "Prediction", "Evaluation", "Communication"],
-            "iteration": 1
+            "iteration": 1,
+            "deep_report_status": "idle",
+            "deep_report_available": False,
+            "deep_report_error": None,
+            "deep_report_last_generated_at": None,
         }
 
     def add_event(self, event_type, data):
@@ -94,6 +106,10 @@ class EventStore:
                 self.state["progress"] = 0
                 self.state["completed"] = False
                 self.state["completion"] = None
+                self.state["deep_report_status"] = "idle"
+                self.state["deep_report_available"] = False
+                self.state["deep_report_error"] = None
+                self.state["deep_report_last_generated_at"] = None
                 
             elif event_type == "PLAN":
                 current_iter = self.state.get("iteration", 1)
@@ -132,6 +148,12 @@ class EventStore:
                         "duration": 0,
                         "iteration": self.state.get("iteration", 1)
                     })
+                else:
+                    # Allow repeated STEP_START for the same step id to refresh live descriptions
+                    # (used for dynamic fusion/chunking progress without creating extra timeline rows).
+                    existing["tool"] = data.get("tool", existing.get("tool"))
+                    existing["desc"] = data.get("desc", existing.get("desc"))
+                    existing["status"] = "running"
                 if "stage" in data and data["stage"] is not None:
                     self.state["current_stage"] = data["stage"]
                 else:
@@ -238,6 +260,16 @@ class EventStore:
                 self.state["current_stage"] = max(0, len(self.state.get("stages", [])) - 1)
                 self.state["completed"] = True
                 self.state["completion"] = data
+            elif event_type == "DEEP_REPORT":
+                status = str(data.get("status") or "").lower().strip()
+                if status:
+                    self.state["deep_report_status"] = status
+                if "available" in data:
+                    self.state["deep_report_available"] = bool(data.get("available"))
+                if "error" in data:
+                    self.state["deep_report_error"] = data.get("error")
+                if status == "completed":
+                    self.state["deep_report_last_generated_at"] = datetime.now().isoformat()
 
     def get_snapshot(self, since_id=0):
         with self._lock:
@@ -259,6 +291,7 @@ class EventStore:
 _event_store = EventStore()
 _ui_instance = None
 _launcher_callback: Optional[Callable[[Dict], None]] = None
+_deep_report_callback: Optional[Callable[[Dict], Dict[str, Any]]] = None
 
 # --- CUSTOM JSON ENCODER ---
 from enum import Enum
@@ -350,8 +383,14 @@ def launch():
         "target": data.get('target', 'neuropsychiatric'),
         "control": data.get('control'),
         "backend": data.get('backend'),
+        "public_model": data.get('public_model'),
+        "public_max_context_tokens": data.get('public_max_context_tokens'),
+        "embedding_model": data.get('embedding_model'),
+        "local_embedding_model": data.get('local_embedding_model'),
         "model": data.get('model'),
         "max_tokens": data.get('max_tokens'),
+        "role_models": data.get('role_models'),
+        "role_max_tokens": data.get('role_max_tokens'),
         "local_engine": data.get('local_engine'),
         "local_dtype": data.get('local_dtype'),
         "local_quant": data.get('local_quant'),
@@ -376,32 +415,434 @@ def launch():
         return jsonify({"status": "started"})
     return jsonify({"status": "no_callback"}), 500
 
+
+def _open_url_json(req: Request, timeout: int = 15) -> Dict[str, Any]:
+    contexts = []
+    if certifi is not None:
+        try:
+            contexts.append(ssl.create_default_context(cafile=certifi.where()))
+        except Exception:
+            pass
+    contexts.append(ssl.create_default_context())
+    last_error: Optional[Exception] = None
+    for ctx in contexts:
+        try:
+            with urlopen(req, timeout=timeout, context=ctx) as resp:
+                return json.loads(resp.read().decode("utf-8"))
+        except URLError as e:
+            reason = getattr(e, "reason", None)
+            if isinstance(reason, ssl.SSLCertVerificationError):
+                last_error = e
+                continue
+            raise
+    if str(os.getenv("COMPASS_ALLOW_INSECURE_TLS", "0")).strip().lower() in {"1", "true", "yes"}:
+        insecure_ctx = ssl._create_unverified_context()
+        with urlopen(req, timeout=timeout, context=insecure_ctx) as resp:
+            return json.loads(resp.read().decode("utf-8"))
+    if last_error is not None:
+        raise last_error
+    raise RuntimeError("tls_context_unavailable")
+
+
+def _extract_context_length_candidates_from_mapping(data: Dict[str, Any]) -> List[int]:
+    if not isinstance(data, dict):
+        return []
+    candidates = [
+        data.get("max_position_embeddings"),
+        data.get("n_positions"),
+        data.get("max_seq_len"),
+        data.get("max_sequence_length"),
+        data.get("model_max_length"),
+        data.get("max_seq_length"),
+        data.get("seq_length"),
+        data.get("context_length"),
+        data.get("n_ctx"),
+        data.get("max_context_length"),
+        data.get("max_length"),
+        data.get("max_seq_length_for_truncation"),
+    ]
+    values: List[int] = []
+    for value in candidates:
+        try:
+            if value is None:
+                continue
+            parsed = int(value)
+            if parsed > 0:
+                values.append(parsed)
+        except Exception:
+            continue
+    return values
+
+
+def _choose_context_length(candidates: List[int]) -> Optional[int]:
+    # Use a conservative, practical window: ignore tiny/sentinel values.
+    sane = [v for v in candidates if 64 <= v <= 1_000_000]
+    if sane:
+        return min(sane)
+    fallback = [v for v in candidates if 2 <= v <= 1_000_000]
+    if fallback:
+        return min(fallback)
+    return None
+
+
+def _fetch_hf_raw_json(model_id: str, filename: str) -> Optional[Dict[str, Any]]:
+    url = f"https://huggingface.co/{model_id}/raw/main/{filename}"
+    try:
+        req = Request(url=url, method="GET")
+        payload = _open_url_json(req, timeout=10)
+        return payload if isinstance(payload, dict) else None
+    except Exception:
+        return None
+
+
+def _looks_like_embedding_id(model_id: str) -> bool:
+    value = (model_id or "").lower()
+    if not value:
+        return False
+    return any(token in value for token in ("embedding", "embed", "text-embedding", "/bge", "/e5", "/gte"))
+
+
+def _is_embedding_model(
+    model_id: str = "",
+    pipeline_tag: str = "",
+    tags: Optional[List[str]] = None,
+    modality: str = "",
+    supported_parameters: Optional[List[str]] = None,
+) -> bool:
+    pipeline = (pipeline_tag or "").lower()
+    if pipeline in {"feature-extraction", "sentence-similarity"}:
+        return True
+
+    modality_l = (modality or "").lower()
+    if "embedding" in modality_l or "vector" in modality_l:
+        return True
+
+    tags_l = [(tag or "").lower() for tag in (tags or [])]
+    if any(tag in {"feature-extraction", "sentence-similarity", "embeddings", "embedding"} for tag in tags_l):
+        return True
+
+    params_l = [(param or "").lower() for param in (supported_parameters or [])]
+    if any("embed" in param for param in params_l):
+        return True
+
+    return _looks_like_embedding_id(model_id)
+
+
+@app.route('/api/openrouter/models')
+def openrouter_models():
+    try:
+        try:
+            from ..config.settings import get_settings
+        except Exception:  # pragma: no cover - top-level fallback
+            from config.settings import get_settings
+        settings = get_settings()
+    except Exception as e:
+        return jsonify({"error": f"settings_unavailable: {e}"}), 500
+
+    api_key = (settings.openrouter_api_key or "").strip()
+    if not api_key:
+        return jsonify({"error": "OPENROUTER_API_KEY is not configured"}), 400
+
+    url = f"{settings.openrouter_base_url.rstrip('/')}/models"
+    headers = {"Authorization": f"Bearer {api_key}"}
+    if settings.openrouter_site_url:
+        headers["HTTP-Referer"] = settings.openrouter_site_url
+    if settings.openrouter_app_name:
+        headers["X-Title"] = settings.openrouter_app_name
+
+    try:
+        req = Request(url=url, headers=headers, method="GET")
+        payload = _open_url_json(req, timeout=15)
+        rows = []
+        for item in (payload.get("data") or []):
+            model_id = item.get("id")
+            if not model_id:
+                continue
+            pricing = item.get("pricing") or {}
+            architecture = item.get("architecture") or {}
+            modality = architecture.get("modality") or ""
+            supported_parameters = item.get("supported_parameters") or []
+            prompt_price = pricing.get("prompt")
+            completion_price = pricing.get("completion")
+            rows.append(
+                {
+                    "id": model_id,
+                    "context_length": int(item.get("context_length") or 0) or None,
+                    "prompt_price": prompt_price,
+                    "completion_price": completion_price,
+                    "modality": modality,
+                    "is_embedding": _is_embedding_model(
+                        model_id=model_id,
+                        modality=modality,
+                        supported_parameters=supported_parameters,
+                    ),
+                }
+            )
+        rows.sort(key=lambda x: x["id"])
+        return jsonify({"models": rows})
+    except HTTPError as e:
+        return jsonify({"error": f"openrouter_http_error_{e.code}"}), 502
+    except URLError as e:
+        reason = getattr(e, "reason", e)
+        return jsonify({"error": f"openrouter_network_error: {reason}"}), 502
+    except Exception as e:
+        return jsonify({"error": f"openrouter_fetch_failed: {e}"}), 500
+
+
+@app.route('/api/openrouter/embedding-models')
+def openrouter_embedding_models():
+    try:
+        try:
+            from ..config.settings import get_settings
+        except Exception:  # pragma: no cover - top-level fallback
+            from config.settings import get_settings
+        settings = get_settings()
+    except Exception as e:
+        return jsonify({"error": f"settings_unavailable: {e}"}), 500
+
+    api_key = (settings.openrouter_api_key or "").strip()
+    if not api_key:
+        return jsonify({"error": "OPENROUTER_API_KEY is not configured"}), 400
+
+    base_url = settings.openrouter_base_url.rstrip("/")
+    url = f"{base_url}/embeddings/models"
+    headers = {"Authorization": f"Bearer {api_key}"}
+    if settings.openrouter_site_url:
+        headers["HTTP-Referer"] = settings.openrouter_site_url
+    if settings.openrouter_app_name:
+        headers["X-Title"] = settings.openrouter_app_name
+
+    try:
+        req = Request(url=url, headers=headers, method="GET")
+        payload = _open_url_json(req, timeout=15)
+        raw_models = payload.get("data") if isinstance(payload, dict) else payload
+        rows = []
+        for item in (raw_models or []):
+            model_id = item.get("id")
+            if not model_id:
+                continue
+            pricing = item.get("pricing") or {}
+            prompt_price = pricing.get("prompt") or item.get("prompt_price") or item.get("input_price")
+            completion_price = pricing.get("completion") or item.get("completion_price") or item.get("output_price")
+            context_length = item.get("context_length") or item.get("max_context_length")
+            rows.append(
+                {
+                    "id": model_id,
+                    "prompt_price": prompt_price,
+                    "completion_price": completion_price,
+                    "modality": "text->vector",
+                    "is_embedding": True,
+                }
+            )
+        rows.sort(key=lambda x: x["id"])
+        return jsonify({"models": rows})
+    except HTTPError as e:
+        return jsonify({"error": f"openrouter_http_error_{e.code}"}), 502
+    except URLError as e:
+        reason = getattr(e, "reason", e)
+        return jsonify({"error": f"openrouter_network_error: {reason}"}), 502
+    except Exception as e:
+        return jsonify({"error": f"openrouter_fetch_failed: {e}"}), 500
+
+
+@app.route('/api/hf/models')
+def hf_models():
+    query = (request.args.get("q") or "").strip()
+    task = (request.args.get("task") or "").strip().lower()
+    limit = 200
+    base_url = "https://huggingface.co/api/models"
+    params = f"?limit={limit}&sort=downloads&direction=-1"
+    if task == "embedding":
+        params += "&pipeline_tag=feature-extraction"
+    if query:
+        params += f"&search={query}"
+    url = f"{base_url}{params}"
+    try:
+        req = Request(url=url, method="GET")
+        payload = _open_url_json(req, timeout=15)
+        rows = []
+        for item in payload or []:
+            model_id = item.get("modelId") or item.get("id")
+            if not model_id:
+                continue
+            pipeline_tag = item.get("pipeline_tag") or ""
+            tags = item.get("tags") or []
+            is_embedding = _is_embedding_model(
+                model_id=model_id,
+                pipeline_tag=pipeline_tag,
+                tags=tags,
+            )
+            if task == "embedding" and not is_embedding:
+                continue
+            if task == "llm" and is_embedding:
+                continue
+            rows.append(
+                {
+                    "id": model_id,
+                    "downloads": item.get("downloads"),
+                    "likes": item.get("likes"),
+                    "pipeline_tag": pipeline_tag,
+                    "is_embedding": is_embedding,
+                }
+            )
+        return jsonify({"models": rows})
+    except HTTPError as e:
+        return jsonify({"error": f"hf_http_error_{e.code}"}), 502
+    except URLError as e:
+        reason = getattr(e, "reason", e)
+        return jsonify({"error": f"hf_network_error: {reason}"}), 502
+    except Exception as e:
+        return jsonify({"error": f"hf_fetch_failed: {e}"}), 500
+
+
+@app.route('/api/hf/model/<path:model_id>')
+def hf_model_detail(model_id: str):
+    model_id = (model_id or "").strip()
+    if not model_id:
+        return jsonify({"error": "missing_model_id"}), 400
+    url = f"https://huggingface.co/api/models/{model_id}"
+    try:
+        req = Request(url=url, method="GET")
+        payload = _open_url_json(req, timeout=15)
+        config = payload.get("config") or {}
+        transformers_info = payload.get("transformersInfo") or {}
+        card_data = payload.get("cardData") or {}
+        source_candidates: Dict[str, List[int]] = {
+            "model_meta": [],
+            "tokenizer_config": [],
+            "config_json": [],
+            "sentence_bert_config": [],
+        }
+        source_candidates["model_meta"].extend(_extract_context_length_candidates_from_mapping(config))
+        source_candidates["model_meta"].extend(_extract_context_length_candidates_from_mapping(transformers_info))
+        source_candidates["model_meta"].extend(_extract_context_length_candidates_from_mapping(card_data))
+
+        tokenizer_cfg = _fetch_hf_raw_json(model_id, "tokenizer_config.json") or {}
+        source_candidates["tokenizer_config"].extend(
+            _extract_context_length_candidates_from_mapping(tokenizer_cfg)
+        )
+        raw_cfg = _fetch_hf_raw_json(model_id, "config.json") or {}
+        source_candidates["config_json"].extend(
+            _extract_context_length_candidates_from_mapping(raw_cfg)
+        )
+        sentence_cfg = _fetch_hf_raw_json(model_id, "sentence_bert_config.json") or {}
+        source_candidates["sentence_bert_config"].extend(
+            _extract_context_length_candidates_from_mapping(sentence_cfg)
+        )
+
+        all_candidates: List[int] = []
+        for values in source_candidates.values():
+            all_candidates.extend(values)
+        context_len = _choose_context_length(all_candidates)
+
+        context_source = "unknown"
+        if context_len is not None:
+            for source_name in ("tokenizer_config", "sentence_bert_config", "config_json", "model_meta"):
+                if context_len in source_candidates.get(source_name, []):
+                    context_source = source_name
+                    break
+
+        return jsonify(
+            {
+                "id": payload.get("modelId") or payload.get("id") or model_id,
+                "context_length": context_len,
+                "context_source": context_source,
+                "downloads": payload.get("downloads"),
+                "likes": payload.get("likes"),
+                "library_name": payload.get("library_name"),
+                "pipeline_tag": payload.get("pipeline_tag"),
+                "is_embedding": _is_embedding_model(
+                    model_id=payload.get("modelId") or payload.get("id") or model_id,
+                    pipeline_tag=payload.get("pipeline_tag"),
+                    tags=payload.get("tags") or [],
+                ),
+            }
+        )
+    except HTTPError as e:
+        return jsonify({"error": f"hf_http_error_{e.code}"}), 502
+    except URLError as e:
+        reason = getattr(e, "reason", e)
+        return jsonify({"error": f"hf_network_error: {reason}"}), 502
+    except Exception as e:
+        return jsonify({"error": f"hf_fetch_failed: {e}"}), 500
+
+
+@app.route('/api/deep_phenotype/generate', methods=['POST'])
+def generate_deep_phenotype():
+    data = request.json or {}
+    if not _deep_report_callback:
+        return jsonify({"status": "no_callback", "error": "Deep report callback not registered"}), 500
+
+    payload = {
+        "focus_modalities": data.get("focus_modalities", ""),
+        "general_instruction": data.get("general_instruction", ""),
+    }
+    _event_store.add_event("DEEP_REPORT", {"status": "queued", "available": False, "error": None})
+
+    def _worker():
+        _event_store.add_event("DEEP_REPORT", {"status": "running", "available": False, "error": None})
+        try:
+            result = _deep_report_callback(payload)
+            _event_store.add_event(
+                "DEEP_REPORT",
+                {
+                    "status": "completed",
+                    "available": True,
+                    "error": None,
+                    "path": (result or {}).get("path"),
+                },
+            )
+        except Exception as e:
+            _event_store.add_event(
+                "DEEP_REPORT",
+                {"status": "failed", "available": False, "error": str(e)},
+            )
+
+    threading.Thread(target=_worker, daemon=True).start()
+    return jsonify({"status": "started"})
+
+
+@app.route('/api/deep_phenotype/status')
+def deep_phenotype_status():
+    state = _event_store.state
+    return jsonify(
+        {
+            "status": state.get("deep_report_status", "idle"),
+            "available": bool(state.get("deep_report_available")),
+            "error": state.get("deep_report_error"),
+            "last_generated_at": state.get("deep_report_last_generated_at"),
+        }
+    )
+
 @app.route('/api/outputs')
 def list_outputs():
     # List all files in results/participant_{id} if we can know participant ID
     pid = _event_store.state.get("participant_id")
     if not pid or pid == "Unknown":
         return jsonify([])
-        
-    # Locate results dir
-    # From settings: ../../results (based on current location in frontend/ or utils/)
-    # Current file is in frontend/, so root is ../
-    # results is ../results
-    
+
     base = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
-    # results is sibling of multi_agent_system, so project_root (parent of base) joined with results
     results_dir = os.path.join(os.path.dirname(base), "results")
+    p_dir = _event_store.state.get("participant_dir")
+    pseudo_inputs = os.path.join(base, "data", "pseudo_data", "inputs")
+    pseudo_outputs = os.path.join(base, "data", "pseudo_data", "outputs")
+    output_root = results_dir
+    try:
+        if p_dir and os.path.commonpath([os.path.abspath(p_dir), pseudo_inputs]) == pseudo_inputs:
+            output_root = pseudo_outputs
+    except Exception:
+        output_root = results_dir
     
     # Try finding folder
     target_dir = None
-    if not os.path.exists(results_dir):
+    if not os.path.exists(output_root):
          # Try creating it or looking at old path relative to project
          pass
 
     # Safe fallback if results_dir check fails
     possible_names = [f"participant_{pid}", f"participant_ID{pid}", pid, f"ID{pid}"]
     for name in possible_names:
-        path = os.path.join(results_dir, name)
+        path = os.path.join(output_root, name)
         if os.path.exists(path):
             target_dir = path
             break
@@ -417,16 +858,24 @@ def get_output_content():
     filename = request.args.get('file')
     pid = _event_store.state.get("participant_id")
     if not pid : return "No participant active", 400
-    
+
     base = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
-    # results is sibling of multi_agent_system, so project_root (parent of base) joined with results
     results_dir = os.path.join(os.path.dirname(base), "results")
+    p_dir = _event_store.state.get("participant_dir")
+    pseudo_inputs = os.path.join(base, "data", "pseudo_data", "inputs")
+    pseudo_outputs = os.path.join(base, "data", "pseudo_data", "outputs")
+    output_root = results_dir
+    try:
+        if p_dir and os.path.commonpath([os.path.abspath(p_dir), pseudo_inputs]) == pseudo_inputs:
+            output_root = pseudo_outputs
+    except Exception:
+        output_root = results_dir
     
     # Same logic to find dir
     target_dir = None
     possible_names = [f"participant_{pid}", f"participant_ID{pid}", pid, f"ID{pid}"]
     for name in possible_names:
-        path = os.path.join(results_dir, name)
+        path = os.path.join(output_root, name)
         if os.path.exists(path):
             target_dir = path
             break
@@ -576,10 +1025,14 @@ def reset_ui():
     global _ui_instance
     _ui_instance = None
 
-def start_ui_loop(launcher_callback: Callable[[Dict], None]):
+def start_ui_loop(
+    launcher_callback: Callable[[Dict], None],
+    deep_report_callback: Optional[Callable[[Dict], Dict[str, Any]]] = None
+):
     """Start server and wait for user to launch via UI."""
-    global _launcher_callback
+    global _launcher_callback, _deep_report_callback
     _launcher_callback = launcher_callback
+    _deep_report_callback = deep_report_callback
     
     ui = get_ui()
     ui.start_server()

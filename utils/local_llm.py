@@ -267,3 +267,8 @@ def get_local_llm() -> LocalLLMHandler:
     if _local_llm_instance is None:
         _local_llm_instance = LocalLLMHandler()
     return _local_llm_instance
+
+
+def reset_local_llm():
+    global _local_llm_instance
+    _local_llm_instance = None

@@ -28,7 +28,7 @@ sys.path.insert(0, str(Path(__file__).parent.parent))
 from multi_agent_system.config.settings import get_settings, LLMBackend
 from multi_agent_system.utils.core.data_loader import DataLoader
 from multi_agent_system.utils.core.token_manager import TokenManager
-from multi_agent_system.utils.llm_client import get_llm_client
+from multi_agent_system.utils.llm_client import get_llm_client, reset_llm_client
 from multi_agent_system.utils.core.fusion_layer import FusionLayer, FusionResult
 from multi_agent_system.utils.core.predictor_input_assembler import PredictorInputAssembler
 from multi_agent_system.utils.token_packer import count_tokens
@@ -44,13 +44,225 @@ from multi_agent_system.data.models.prediction_result import Verdict
 from multi_agent_system.frontend.compass_ui import get_ui, reset_ui, start_ui_loop
 
 
+def _resolve_output_dir(participant_dir: Path, participant_id: str, settings) -> Path:
+    pseudo_inputs = settings.paths.base_dir / "data" / "pseudo_data" / "inputs"
+    pseudo_outputs = settings.paths.base_dir / "data" / "pseudo_data" / "outputs"
+    try:
+        if pseudo_inputs in participant_dir.resolve().parents:
+            return pseudo_outputs / f"participant_{participant_id}"
+    except Exception:
+        pass
+    return settings.paths.output_dir / f"participant_{participant_id}"
+
+
+def _build_report_context_note(final_evaluation, selected_iteration: int, selection_reason: str) -> str:
+    if not final_evaluation or final_evaluation.verdict == Verdict.SATISFACTORY:
+        return ""
+    return (
+        "WARNING: Selected final verdict remains UNSATISFACTORY. "
+        f"Selected iteration: {selected_iteration}. "
+        f"Selection basis: {selection_reason}. "
+        "Interpret deep phenotype content as exploratory and not production-final."
+    )
+
+
+def _append_execution_log_entry(output_dir: Path, participant_id: str, entry: Dict[str, Any]) -> None:
+    log_path = output_dir / f"execution_log_{participant_id}.json"
+    payload = []
+    if log_path.exists():
+        try:
+            with open(log_path, "r") as f:
+                loaded = json.load(f)
+                if isinstance(loaded, list):
+                    payload = loaded
+        except Exception:
+            payload = []
+    payload.append(entry)
+    with open(log_path, "w") as f:
+        json.dump(payload, f, indent=2)
+
+
+def _clamp_role_token_limits(settings) -> None:
+    role_names = ("orchestrator", "critic", "integrator", "predictor", "communicator", "tool")
+    for role in role_names:
+        model_attr = f"{role}_model"
+        max_attr = f"{role}_max_tokens"
+        model_name = getattr(settings.models, model_attr, "")
+        configured = int(getattr(settings.models, max_attr, 0) or 0)
+        safe_cap = int(settings.auto_output_token_limit(model_name=model_name))
+        if configured <= 0:
+            setattr(settings.models, max_attr, safe_cap)
+        else:
+            setattr(settings.models, max_attr, min(configured, safe_cap))
+
+
+def _strip_provider_prefix(model_name: str) -> str:
+    value = str(model_name or "").strip()
+    if not value:
+        return ""
+    if "/" in value:
+        return value.split("/", 1)[1].strip()
+    return value
+
+
+def _activate_openai_fallback(settings, reason: str, ui=None) -> None:
+    settings.models.backend = LLMBackend.OPENAI
+    role_names = ("orchestrator", "critic", "integrator", "predictor", "communicator", "tool")
+    settings.models.public_model_name = _strip_provider_prefix(settings.models.public_model_name) or "gpt-5-nano"
+    for role in role_names:
+        role_attr = f"{role}_model"
+        current = getattr(settings.models, role_attr, "")
+        setattr(settings.models, role_attr, _strip_provider_prefix(current) or settings.models.public_model_name)
+    reset_llm_client()
+    msg = f"OpenRouter unavailable. Falling back to OpenAI backend ({reason})."
+    logger.warning(msg)
+    print(f"[Init] {msg}")
+    if ui is not None:
+        try:
+            ui.set_status("OpenRouter unavailable. Fallback to OpenAI backend.", stage=0)
+        except Exception:
+            pass
+
+
+def _apply_role_model_overrides(settings, role_models: Dict[str, Any]) -> None:
+    if not isinstance(role_models, dict):
+        return
+    role_names = ("orchestrator", "critic", "integrator", "predictor", "communicator", "tool")
+    for role in role_names:
+        value = role_models.get(role)
+        if value:
+            setattr(settings.models, f"{role}_model", str(value))
+
+
+def _apply_role_max_token_overrides(settings, role_max_tokens: Dict[str, Any]) -> None:
+    if not isinstance(role_max_tokens, dict):
+        return
+    role_names = ("orchestrator", "critic", "integrator", "predictor", "communicator", "tool")
+    for role in role_names:
+        value = role_max_tokens.get(role)
+        if value in (None, ""):
+            continue
+        setattr(settings.models, f"{role}_max_tokens", int(value))
+
+
+def _generate_deep_phenotype_report(
+    *,
+    communicator: Communicator,
+    prediction: Any,
+    evaluation: Any,
+    executor_output: Dict[str, Any],
+    data_overview: Dict[str, Any],
+    execution_summary: Dict[str, Any],
+    control_condition: str,
+    report_context_note: str,
+    base_output_dir: Path,
+    participant_id: str,
+    user_focus_modalities: str = "",
+    user_general_instruction: str = "",
+    trigger_source: str = "manual",
+    ui_step_id: Optional[int] = None,
+    interactive_ui: bool = False,
+) -> Dict[str, Any]:
+    ui = get_ui()
+    if interactive_ui:
+        ui.set_status("Generating deep phenotype report...", stage=6)
+        ui.on_step_start(
+            step_id=ui_step_id or 930,
+            tool_name="Communicator Agent",
+            description="Generating deep phenotype report...",
+            stage=6,
+        )
+    try:
+        deep_report = communicator.execute(
+            prediction=prediction,
+            evaluation=evaluation,
+            executor_output=executor_output,
+            data_overview=data_overview,
+            execution_summary=execution_summary,
+            report_context_note=report_context_note,
+            control_condition=control_condition,
+            user_focus_modalities=user_focus_modalities,
+            user_general_instruction=user_general_instruction,
+            status_callback=(lambda msg: ui.set_status(msg, stage=6)) if interactive_ui else None,
+        )
+        deep_path = base_output_dir / "deep_phenotype.md"
+        with open(deep_path, "w") as f:
+            f.write(deep_report)
+
+        metadata = dict(getattr(communicator, "last_run_metadata", {}) or {})
+        metadata.update(
+            {
+                "trigger_source": trigger_source,
+                "user_focus_modalities_present": bool(str(user_focus_modalities or "").strip()),
+                "user_general_instruction_present": bool(str(user_general_instruction or "").strip()),
+                "output_path": str(deep_path),
+            }
+        )
+        _append_execution_log_entry(
+            base_output_dir,
+            participant_id,
+            {
+                "type": "COMMUNICATOR",
+                "timestamp": datetime.now().isoformat(),
+                "data": metadata,
+            },
+        )
+        perf_path = base_output_dir / f"performance_report_{participant_id}.json"
+        if perf_path.exists():
+            try:
+                with open(perf_path, "r") as f:
+                    perf = json.load(f)
+                perf["deep_phenotype"] = {
+                    "generated": True,
+                    "path": str(deep_path),
+                    "trigger_source": trigger_source,
+                    "metadata": metadata,
+                }
+                with open(perf_path, "w") as f:
+                    json.dump(perf, f, indent=2)
+            except Exception:
+                pass
+
+        if interactive_ui:
+            ui.on_step_complete(
+                step_id=ui_step_id or 930,
+                tokens=0,
+                duration_ms=0,
+                preview="Deep phenotype report generated.",
+            )
+        print(f"[Communicator] Saved to: {deep_path}")
+        return {"success": True, "path": str(deep_path), "metadata": metadata}
+    except Exception as e:
+        _append_execution_log_entry(
+            base_output_dir,
+            participant_id,
+            {
+                "type": "COMMUNICATOR",
+                "timestamp": datetime.now().isoformat(),
+                "data": {
+                    "trigger_source": trigger_source,
+                    "success": False,
+                    "error": str(e),
+                    "user_focus_modalities_present": bool(str(user_focus_modalities or "").strip()),
+                    "user_general_instruction_present": bool(str(user_general_instruction or "").strip()),
+                },
+            },
+        )
+        if interactive_ui:
+            ui.on_step_failed(step_id=ui_step_id or 930, error=str(e))
+        return {"success": False, "error": str(e), "metadata": {}}
+
+
 def run_compass_pipeline(
     participant_dir: Path,
     target_condition: str,
     control_condition: str = DEFAULT_CONTROL_CONDITION,
     max_iterations: int = 3,
     verbose: bool = True,
-    interactive_ui: bool = False
+    interactive_ui: bool = False,
+    generate_deep_phenotype: bool = False,
+    deep_report_focus_modalities: str = "",
+    deep_report_general_instruction: str = "",
 ) -> dict:
     """
     Run the complete COMPASS pipeline for a participant.
@@ -90,7 +302,15 @@ def run_compass_pipeline(
     print(f"\n[1/5] Loading participant data from: {participant_dir}")
     data_loader = DataLoader()
     participant_data = data_loader.load(participant_dir)
-    participant_id = participant_data.participant_id
+    participant_id_raw = str(getattr(participant_data, "participant_id", "") or "").strip()
+    if not participant_id_raw or participant_id_raw.lower() == "unknown":
+        participant_id = participant_dir.name
+        try:
+            participant_data.participant_id = participant_id
+        except Exception:
+            pass
+    else:
+        participant_id = participant_id_raw
     
     # Initialize logging
     exec_logger = ExecutionLogger(participant_id, verbose=verbose)
@@ -100,16 +320,30 @@ def run_compass_pipeline(
     # Initialize token manager
     token_manager = TokenManager()
     
-    # Preflight connectivity check (OpenAI backend only)
-    if settings.models.backend == LLMBackend.OPENAI:
+    # Preflight connectivity check (public API backend)
+    if settings.models.backend in (LLMBackend.OPENAI, LLMBackend.OPENROUTER):
+        provider_label = "OpenRouter" if settings.models.backend == LLMBackend.OPENROUTER else "OpenAI"
         if interactive_ui:
-            ui.set_status("Checking OpenAI connectivity...", stage=0)
+            ui.set_status(f"Checking {provider_label} connectivity...", stage=0)
         try:
             get_llm_client().ping()
         except Exception as e:
-            raise RuntimeError(
-                "OpenAI connectivity check failed. Verify network access and OPENAI_API_KEY."
-            ) from e
+            if settings.models.backend == LLMBackend.OPENROUTER and settings.openai_api_key:
+                _activate_openai_fallback(settings, str(e), ui=ui if interactive_ui else None)
+                if interactive_ui:
+                    ui.set_status("Checking OpenAI fallback connectivity...", stage=0)
+                try:
+                    get_llm_client().ping()
+                except Exception as fallback_error:
+                    raise RuntimeError(
+                        "OpenRouter connectivity failed and OpenAI fallback also failed. "
+                        "Verify network access and API keys."
+                    ) from fallback_error
+            else:
+                key_name = "OPENROUTER_API_KEY" if settings.models.backend == LLMBackend.OPENROUTER else "OPENAI_API_KEY"
+                raise RuntimeError(
+                    f"{provider_label} connectivity check failed. Verify network access and {key_name}."
+                ) from e
     elif settings.models.backend == LLMBackend.LOCAL:
         if interactive_ui:
             ui.set_status("Initializing local model...", stage=0)
@@ -195,12 +429,12 @@ def run_compass_pipeline(
             ui.on_fusion_complete(executor_output["predictor_input"])
 
         # Step 5: Predictor makes prediction
-        if interactive_ui: ui.set_status("Generating Prediction...", stage=4)
+        if interactive_ui: ui.set_status("Predictor evaluating CASE vs CONTROL...", stage=4)
         if interactive_ui:
             ui.on_step_start(
                 step_id=910 + iteration,
                 tool_name="Predictor Agent",
-                description="Prediction synthesis (chunked no-loss evidence flow)...",
+                description="Evaluating integrated evidence for final CASE/CONTROL verdict...",
                 stage=4,
             )
 
@@ -345,7 +579,7 @@ def run_compass_pipeline(
     
     # Prepare output directory and token usage
     token_usage = token_manager.get_detailed_usage()
-    base_output_dir = settings.paths.output_dir / f"participant_{participant_id}"
+    base_output_dir = _resolve_output_dir(participant_dir, participant_id, settings)
     base_output_dir.mkdir(parents=True, exist_ok=True)
 
     # Generate final report (standard outputs first)
@@ -431,55 +665,39 @@ def run_compass_pipeline(
     with open(performance_report_path, 'w') as f:
         json.dump(performance_report, f, indent=2)
 
-    # Communicator: deep phenotyping report (final verdict only)
-    if final_prediction and final_evaluation and final_executor_output:
-        if interactive_ui:
-            ui.set_status("Generating deep phenotype report...", stage=6)
-            ui.on_step_start(
-                step_id=930 + iteration,
-                tool_name="Communicator Agent",
-                description="Generating deep phenotype report...",
-                stage=6,
-            )
-
-        try:
-            data_overview_dict = participant_data.data_overview.model_dump()
-            report_context_note = ""
-            if final_evaluation.verdict != Verdict.SATISFACTORY:
-                report_context_note = (
-                    "WARNING: Selected final verdict remains UNSATISFACTORY. "
-                    f"Selected iteration: {selected_iteration}. "
-                    f"Selection basis: {selection_reason}. "
-                    "Interpret deep phenotype content as exploratory and not production-final."
-                )
-
-            deep_report = communicator.execute(
-                prediction=final_prediction,
-                evaluation=final_evaluation,
-                executor_output=final_executor_output,
-                data_overview=data_overview_dict,
-                execution_summary=execution_summary,
-                report_context_note=report_context_note,
-                control_condition=control_condition,
-            )
-
-            if deep_report:
-                deep_path = base_output_dir / "deep_phenotype.md"
-                with open(deep_path, "w") as f:
-                    f.write(deep_report)
-                print(f"[Communicator] Saved to: {deep_path}")
-
-            if interactive_ui:
-                ui.on_step_complete(
-                    step_id=930 + iteration,
-                    tokens=0,
-                    duration_ms=0,
-                    preview="Deep phenotype report generated."
-                )
-        except Exception as e:
-            if interactive_ui:
-                ui.on_step_failed(step_id=930 + iteration, error=str(e))
-            print(f"[Communicator] Error: {e}")
+    data_overview_dict = participant_data.data_overview.model_dump()
+    report_context_note = _build_report_context_note(
+        final_evaluation=final_evaluation,
+        selected_iteration=selected_iteration,
+        selection_reason=selection_reason,
+    )
+    deep_report_result = {"success": False, "metadata": {}, "path": None}
+    if generate_deep_phenotype and final_prediction and final_evaluation and final_executor_output:
+        deep_report_result = _generate_deep_phenotype_report(
+            communicator=communicator,
+            prediction=final_prediction,
+            evaluation=final_evaluation,
+            executor_output=final_executor_output,
+            data_overview=data_overview_dict,
+            execution_summary=execution_summary,
+            control_condition=control_condition,
+            report_context_note=report_context_note,
+            base_output_dir=base_output_dir,
+            participant_id=participant_id,
+            user_focus_modalities=deep_report_focus_modalities,
+            user_general_instruction=deep_report_general_instruction,
+            trigger_source="cli",
+            ui_step_id=930 + iteration,
+            interactive_ui=interactive_ui,
+        )
+    performance_report["deep_phenotype"] = {
+        "generated": bool(deep_report_result.get("success")),
+        "path": deep_report_result.get("path"),
+        "trigger_source": "cli" if generate_deep_phenotype else None,
+        "metadata": deep_report_result.get("metadata") or {},
+    }
+    with open(performance_report_path, 'w') as f:
+        json.dump(performance_report, f, indent=2)
 
     # Log completion
     duration = (datetime.now() - start_time).total_seconds()
@@ -533,7 +751,20 @@ def run_compass_pipeline(
         "coverage_summary": coverage_summary,
         "duration_seconds": duration,
         "output_dir": str(base_output_dir),
-        "report": report
+        "report": report,
+        "deep_phenotype_generated": bool(deep_report_result.get("success")),
+        "deep_phenotype_path": deep_report_result.get("path"),
+        "internal_context": {
+            "participant_id": participant_id,
+            "prediction": final_prediction,
+            "evaluation": final_evaluation,
+            "executor_output": final_executor_output,
+            "data_overview": data_overview_dict,
+            "execution_summary": execution_summary,
+            "control_condition": control_condition,
+            "report_context_note": report_context_note,
+            "base_output_dir": str(base_output_dir),
+        },
     }
 
 
@@ -602,6 +833,7 @@ def run_dataflow_audit(
         "data_overview",
         "phenotype_representation",
         "feature_synthesizer",
+        "differential_diagnosis",
     }
     def _is_core(name: str) -> bool:
         base = name.split("#", 1)[0]
@@ -650,7 +882,7 @@ def run_dataflow_audit(
         "predictor_input_mode": predictor_input.get("mode"),
     }
 
-    output_dir = settings.paths.output_dir
+    output_dir = _resolve_output_dir(participant_dir, participant_data.participant_id, settings)
     output_path = output_dir / f"dataflow_audit_{participant_data.participant_id}.json"
     try:
         output_dir.mkdir(parents=True, exist_ok=True)
@@ -749,6 +981,8 @@ def _build_dataflow_summary(
         "chunk_evidence_count": chunk_evidence_count,
         "chunked_two_pass_required": payload_estimate.get("chunked_two_pass_required"),
         "single_chunk_limit": payload_estimate.get("single_chunk_limit"),
+        "chunking_skipped": bool(executor_output.get("chunking_skipped")),
+        "chunking_reason": executor_output.get("chunking_reason"),
     }
     context_block = {
         "processed_raw_full_included": processed_raw_included,
@@ -756,6 +990,7 @@ def _build_dataflow_summary(
             or context_fill_report.get("top_added_count"),
         "predictor_payload_estimate": payload_estimate,
         "coverage_snapshot": context_fill_report.get("coverage"),
+        "embedding_store": context_fill_report.get("embedding_store"),
     }
 
     return {
@@ -866,14 +1101,37 @@ Examples:
         action="store_true",
         help="Run offline dataflow audit without LLM calls"
     )
+    parser.add_argument(
+        "--generate_deep_phenotype",
+        action="store_true",
+        help="Generate deep phenotype report at pipeline completion (manual opt-in)"
+    )
 
     # --- LOCAL LLM ARGUMENTS ---
     parser.add_argument(
         "--backend", 
         type=str, 
-        choices=["openai", "local"],
-        default="openai",
-        help="Choose LLM backend: 'openai' (default) or 'local' (vLLM/Transformers)"
+        choices=["openrouter", "openai", "local"],
+        default="openrouter",
+        help="Choose LLM backend: 'openrouter' (default), 'openai', or 'local'"
+    )
+    parser.add_argument(
+        "--public_model",
+        type=str,
+        default="gpt-5-nano",
+        help="Model name for public API backend (default: gpt-5-nano)"
+    )
+    parser.add_argument(
+        "--public_max_context_tokens",
+        type=int,
+        default=128000,
+        help="Public API context window override used for thresholding (default: 128000)"
+    )
+    parser.add_argument(
+        "--embedding_model",
+        type=str,
+        default="text-embedding-3-large",
+        help="Embedding model for retrieval/rag (default: text-embedding-3-large)"
     )
     
     parser.add_argument(
@@ -1067,6 +1325,7 @@ Examples:
                      logger.warning(f"[!] Could not auto-locate 'COMPASS_data'. Assumed default: {compass_data_root}")
 
             print(f"[*] Data Root: {compass_data_root}")
+            latest_run_context: Dict[str, Any] = {"internal": None}
             
             def launch_wrapper(config: dict):
                 """Callback triggered by UI Launch button"""
@@ -1078,11 +1337,30 @@ Examples:
                 from multi_agent_system.config.settings import get_settings, LLMBackend
                 settings = get_settings()
                 
-                backend = (config.get("backend") or "openai").lower()
+                backend = (config.get("backend") or "openrouter").lower()
                 if backend == "local":
                     settings.models.backend = LLMBackend.LOCAL
-                else:
+                elif backend == "openai":
                     settings.models.backend = LLMBackend.OPENAI
+                else:
+                    settings.models.backend = LLMBackend.OPENROUTER
+
+                if config.get("public_model"):
+                    public_model = str(config.get("public_model"))
+                    settings.models.public_model_name = public_model
+                    if settings.models.backend != LLMBackend.LOCAL:
+                        settings.models.orchestrator_model = public_model
+                        settings.models.critic_model = public_model
+                        settings.models.predictor_model = public_model
+                        settings.models.integrator_model = public_model
+                        settings.models.communicator_model = public_model
+                        settings.models.tool_model = public_model
+                if config.get("public_max_context_tokens"):
+                    settings.models.public_max_context_tokens = int(config.get("public_max_context_tokens"))
+                if config.get("embedding_model"):
+                    settings.models.embedding_model = str(config.get("embedding_model"))
+                if config.get("local_embedding_model"):
+                    settings.models.embedding_model = str(config.get("local_embedding_model"))
 
                 if config.get("model"):
                     settings.models.local_model_name = str(config.get("model"))
@@ -1111,6 +1389,23 @@ Examples:
                 if config.get("local_trust_remote_code") is not None:
                     settings.models.local_trust_remote_code = bool(config.get("local_trust_remote_code"))
 
+                role_models = config.get("role_models") or {}
+                _apply_role_model_overrides(settings, role_models)
+
+                role_token_limits = config.get("role_max_tokens") or {}
+                _apply_role_max_token_overrides(settings, role_token_limits)
+
+                if settings.models.backend == LLMBackend.LOCAL:
+                    local_model = settings.models.local_model_name
+                    settings.models.orchestrator_model = local_model
+                    settings.models.critic_model = local_model
+                    settings.models.predictor_model = local_model
+                    settings.models.integrator_model = local_model
+                    settings.models.communicator_model = local_model
+                    settings.models.tool_model = local_model
+
+                _clamp_role_token_limits(settings)
+
                 # Apply Token Limits from UI
                 if config.get("total_budget"):
                     settings.token_budget.total_budget = int(config.get("total_budget"))
@@ -1123,6 +1418,7 @@ Examples:
                 if config.get("max_tool_output"):
                     settings.token_budget.max_tool_output_tokens = int(config.get("max_tool_output"))
 
+                reset_llm_client()
                 print(f"[*] UI Triggered Launch: {participant_id} -> {target_condition} (control: {control_condition})")
                 
                 # Construct full path
@@ -1138,14 +1434,43 @@ Examples:
                         print(f"[!] Error: Participant folder not found for ID: {participant_id}")
                         return
                 
-                run_compass_pipeline(
+                result = run_compass_pipeline(
                     participant_dir=p_dir,
                     target_condition=target_condition,
                     control_condition=control_condition,
                     max_iterations=args.iterations,
                     verbose=not args.quiet,
-                    interactive_ui=args.ui
+                    interactive_ui=args.ui,
+                    generate_deep_phenotype=False,
                 )
+                latest_run_context["internal"] = result.get("internal_context")
+
+            def deep_report_wrapper(payload: Dict[str, Any]) -> Dict[str, Any]:
+                internal = latest_run_context.get("internal")
+                if not internal:
+                    raise RuntimeError("No completed pipeline run found. Run a participant first.")
+
+                communicator = Communicator()
+                result = _generate_deep_phenotype_report(
+                    communicator=communicator,
+                    prediction=internal.get("prediction"),
+                    evaluation=internal.get("evaluation"),
+                    executor_output=internal.get("executor_output") or {},
+                    data_overview=internal.get("data_overview") or {},
+                    execution_summary=internal.get("execution_summary") or {},
+                    control_condition=str(internal.get("control_condition") or DEFAULT_CONTROL_CONDITION),
+                    report_context_note=str(internal.get("report_context_note") or ""),
+                    base_output_dir=Path(str(internal.get("base_output_dir"))),
+                    participant_id=str(internal.get("participant_id") or "unknown"),
+                    user_focus_modalities=str(payload.get("focus_modalities") or ""),
+                    user_general_instruction=str(payload.get("general_instruction") or ""),
+                    trigger_source="ui",
+                    ui_step_id=990,
+                    interactive_ui=True,
+                )
+                if not result.get("success"):
+                    raise RuntimeError(result.get("error") or "Deep phenotype generation failed.")
+                return result
 
             print("Launching COMPASS Dashboard...")
             
@@ -1160,7 +1485,7 @@ Examples:
                     launch_wrapper({"id": participant_id, "target": target_condition, "control": control_condition})
                 threading.Thread(target=auto_launch, daemon=True).start()
 
-            start_ui_loop(launch_wrapper)
+            start_ui_loop(launch_wrapper, deep_report_wrapper)
             print("\nPipeline complete. Closing dashboard server...")
         else:
             # Update settings with detailed log flag
@@ -1186,9 +1511,37 @@ Examples:
                 if args.local_trust_remote_code:
                     settings.models.local_trust_remote_code = True
                 settings.models.local_attn_implementation = args.local_attn
+                settings.models.orchestrator_model = args.model
+                settings.models.critic_model = args.model
+                settings.models.predictor_model = args.model
+                settings.models.integrator_model = args.model
+                settings.models.communicator_model = args.model
+                settings.models.tool_model = args.model
                 print(f"[Init] Switching to LOCAL Backend with model: {args.model}")
-            else:
+            elif args.backend == "openai":
                 settings.models.backend = LLMBackend.OPENAI
+                settings.models.public_model_name = args.public_model
+                settings.models.public_max_context_tokens = args.public_max_context_tokens
+                settings.models.embedding_model = args.embedding_model
+                settings.models.orchestrator_model = args.public_model
+                settings.models.critic_model = args.public_model
+                settings.models.predictor_model = args.public_model
+                settings.models.integrator_model = args.public_model
+                settings.models.communicator_model = args.public_model
+                settings.models.tool_model = args.public_model
+            else:
+                settings.models.backend = LLMBackend.OPENROUTER
+                settings.models.public_model_name = args.public_model
+                settings.models.public_max_context_tokens = args.public_max_context_tokens
+                settings.models.embedding_model = args.embedding_model
+                settings.models.orchestrator_model = args.public_model
+                settings.models.critic_model = args.public_model
+                settings.models.predictor_model = args.public_model
+                settings.models.integrator_model = args.public_model
+                settings.models.communicator_model = args.public_model
+                settings.models.tool_model = args.public_model
+
+            _clamp_role_token_limits(settings)
 
             # Apply Token Limits (CLI)
             if args.total_budget:
@@ -1202,6 +1555,8 @@ Examples:
             if args.max_tool_output:
                 settings.token_budget.max_tool_output_tokens = args.max_tool_output
 
+            reset_llm_client()
+
             # Run standard CLI
             result = run_compass_pipeline(
                 participant_dir=args.participant_dir,
@@ -1209,7 +1564,8 @@ Examples:
                 control_condition=args.control or DEFAULT_CONTROL_CONDITION,
                 max_iterations=args.iterations,
                 verbose=not args.quiet,
-                interactive_ui=False
+                interactive_ui=False,
+                generate_deep_phenotype=bool(args.generate_deep_phenotype),
             )
         
         # Exit with appropriate code

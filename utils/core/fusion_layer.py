@@ -9,25 +9,18 @@ import json
 from typing import Dict, Any, List, Optional, Set, Tuple
 from dataclasses import dataclass
 import numpy as np
-import hashlib
-import pickle
-from pathlib import Path
 from concurrent.futures import ThreadPoolExecutor, as_completed
 
 from ...config.settings import get_settings
 from ..llm_client import get_llm_client
 from ..json_parser import parse_json_response
-import json
 import tiktoken
-import numpy as np
-import hashlib
 import os
-import pickle
-from pathlib import Path
 import difflib
 import re
 
 from ..path_utils import split_node_path, resolve_requested_subtree, path_is_prefix, normalize_segment
+from .embedding_store import get_embedding_store
 from .multimodal_coverage import feature_key_set
 
 # Define 128k context limit and 90% threshold
@@ -73,23 +66,29 @@ class FusionLayer:
     def __init__(self):
         self.settings = get_settings()
         self.llm_client = get_llm_client()
+        self.embedding_store = get_embedding_store()
         # Initialize encoder for token counting (approximate)
         try:
             self.encoder = tiktoken.encoding_for_model("gpt-5")
         except:
             self.encoder = tiktoken.get_encoding("cl100k_base")
             
-        # Determine threshold based on backend
-        from ...config.settings import LLMBackend
-        if self.settings.models.backend == LLMBackend.LOCAL:
-            max_ctx = self.settings.models.local_max_tokens
-            self.threshold = int(0.9 * max_ctx)
-            logger.info(f"FusionLayer: Dynamic Threshold set to {self.threshold} (Local Backend: {max_ctx} max)")
-        else:
-            max_ctx = 128000 # GPT-4/5 standard
-            self.threshold = int(0.9 * max_ctx)
+        model_hint = getattr(self.settings.models, "predictor_model", None)
+        max_ctx = int(self.settings.effective_context_window(model_hint))
+        self.threshold = int(0.9 * max_ctx)
+        logger.info(f"FusionLayer: Dynamic Threshold set to {self.threshold} (Context: {max_ctx} max)")
             
         logger.info("FusionLayer initialized")
+
+    def _embedding_store_metadata(self) -> Dict[str, Any]:
+        db_path = str(getattr(self.embedding_store, "db_path", "unknown"))
+        fallback_reason = getattr(self.embedding_store, "fallback_reason", None)
+        return {
+            "path": db_path,
+            "fallback_active": bool(fallback_reason),
+            "fallback_reason": fallback_reason,
+            "in_memory": db_path == ":memory:",
+        }
     
     def smart_fuse(
         self,
@@ -268,7 +267,6 @@ class FusionLayer:
         )
         baseline_payload_tokens = len(self.encoder.encode(json.dumps(baseline_payload, default=str)))
         single_chunk_limit = int(getattr(self.settings.token_budget, "max_agent_input_tokens", 20000) or 20000)
-        chunked_two_pass_required = baseline_payload_tokens > single_chunk_limit
 
         processed_raw_tree: Dict[str, Any] = {}
         for dom, feats in (excluded_features_by_domain or {}).items():
@@ -330,6 +328,7 @@ class FusionLayer:
             fill_report["processed_raw_full_included"] = False
 
         fill_report = fill_report or {}
+        fill_report.setdefault("embedding_store", self._embedding_store_metadata())
         all_feature_keys = feature_key_set(multimodal_data or {})
         unprocessed_feature_keys = feature_key_set(filled_multimodal or {})
         excluded_feature_keys = set(all_feature_keys) - set(unprocessed_feature_keys)
@@ -359,8 +358,8 @@ class FusionLayer:
             "processed_raw_tokens": processed_payload_tokens,
             "single_chunk_limit": single_chunk_limit,
             "threshold": self.threshold,
-            "chunked_two_pass_required": final_payload_tokens > single_chunk_limit,
-            "strategy": "raw_pass_through_chunked_predictor",
+            "chunked_two_pass_required": final_payload_tokens > self.threshold,
+            "strategy": "threshold_driven_no_loss_pass_through",
         }
         fill_report["coverage"] = {
             "processed_whole_domains": sorted(list(processed_whole_domains)),
@@ -378,8 +377,10 @@ class FusionLayer:
             "missing_feature_count": max(0, len(all_feature_keys - (unprocessed_feature_keys | excluded_feature_keys))),
         }
 
-        if chunked_two_pass_required:
-            print("[FusionLayer] Single-pass predictor would overflow; enabling chunked two-pass route.")
+        if final_payload_tokens > self.threshold:
+            print("[FusionLayer] Predictor payload exceeds threshold; chunked two-pass route required.")
+        else:
+            print("[FusionLayer] Predictor payload fits threshold; direct non-core pass-through is allowed.")
 
         return FusionResult(
             fused_narrative="Raw pass-through mode: detailed synthesis skipped in favor of raw data integrity.",
@@ -577,7 +578,12 @@ Please fuse these outputs into a unified representation. PRESERVE all clinical n
             if rag_filled_data:
                  print(f"[FusionLayer] ✓ Smart Backfill successful. Enhancing context for Predictor.")
                  fusion_result.raw_multimodal_data = rag_filled_data
+                 fill_report.setdefault("embedding_store", self._embedding_store_metadata())
                  fusion_result.context_fill_report = fill_report
+        if fusion_result.context_fill_report is None:
+            fusion_result.context_fill_report = {"embedding_store": self._embedding_store_metadata()}
+        else:
+            fusion_result.context_fill_report.setdefault("embedding_store", self._embedding_store_metadata())
         
         
         print(f"[FusionLayer] ✓ Fusion complete - {len(fusion_result.key_findings)} key findings")
@@ -827,30 +833,34 @@ Please fuse these outputs into a unified representation. PRESERVE all clinical n
         walk(domain_data)
         return keys
 
-    def _get_cached_embedding(self, text: str, cache_dir: Path) -> List[float]:
-        """Get embedding from cache or generate new one."""
-        # Create stable hash of input text
-        text_hash = hashlib.md5(text.encode('utf-8')).hexdigest()
-        cache_file = cache_dir / f"{text_hash}.pkl"
-        
-        if cache_file.exists():
-            try:
-                with open(cache_file, "rb") as f:
-                    return pickle.load(f)
-            except Exception:
-                pass # Fallback to regenerate
-        
-        # Generate new
-        embedding = self.llm_client.get_embedding(text, model="text-embedding-3-large")
-        
-        # Save to cache
-        try:
-            with open(cache_file, "wb") as f:
-                pickle.dump(embedding, f)
-        except Exception as e:
-            logger.warning(f"Failed to write embedding cache: {e}")
-            
-        return embedding
+    def _get_cached_embedding(
+        self,
+        text: str,
+        _cache_dir_legacy=None,
+        *,
+        participant_id: Optional[str] = None,
+        source_type: str = "feature_path",
+    ) -> List[float]:
+        """Get embedding from SQLite cache or generate and persist it."""
+        model = self.settings.models.embedding_model or "text-embedding-3-large"
+
+        def _embed(payload: str, embed_model: str) -> List[float]:
+            return self.llm_client.get_embedding(payload, model=embed_model)
+
+        if participant_id:
+            return self.embedding_store.get_or_create_participant(
+                participant_id=participant_id,
+                text=text,
+                model=model,
+                embed_fn=_embed,
+                source_type=source_type,
+            )
+        return self.embedding_store.get_or_create_global(
+            text=text,
+            model=model,
+            embed_fn=_embed,
+            source_type=source_type,
+        )
 
     def _fill_context_with_rag(
         self,
@@ -869,7 +879,7 @@ Please fuse these outputs into a unified representation. PRESERVE all clinical n
             "added_tokens": 0,
             "per_domain": {},
             "top_added": [],
-            "semantic_backend": "openai_embeddings",
+            "semantic_backend": "api_embeddings",
         }
 
         if remaining_tokens <= 0:
@@ -940,17 +950,14 @@ Please fuse these outputs into a unified representation. PRESERVE all clinical n
             candidates = candidates[:max_prefilter]
 
         # 2) Semantic ranking with embeddings (fallback to lexical similarity if embeddings unavailable).
-        cache_dir = self.settings.paths.base_dir / ".cache" / "embeddings"
-        cache_dir.mkdir(parents=True, exist_ok=True)
-
         target_emb = None
         try:
-            target_emb = self._get_cached_embedding(str(phenotype_text), cache_dir)
+            target_emb = self._get_cached_embedding(str(phenotype_text), source_type="query")
         except Exception:
             target_emb = None
             report["semantic_backend"] = "lexical_fallback"
         else:
-            report["semantic_backend"] = "openai_embeddings"
+            report["semantic_backend"] = "api_embeddings"
 
         def norm_free_text(s: str) -> str:
             s = str(s or "").lower().replace("_", " ").replace("-", " ")
@@ -976,7 +983,7 @@ Please fuse these outputs into a unified representation. PRESERVE all clinical n
 
                 def load_one(text: str):
                     try:
-                        return text, self._get_cached_embedding(text, cache_dir)
+                        return text, self._get_cached_embedding(text, source_type="feature_path")
                     except Exception:
                         return text, None
 
@@ -991,7 +998,7 @@ Please fuse these outputs into a unified representation. PRESERVE all clinical n
 
                 if embedding_errors:
                     report["embedding_errors"] = embedding_errors
-                    report["semantic_backend"] = "openai_embeddings_with_fallback"
+                    report["semantic_backend"] = "api_embeddings_with_fallback"
 
         for cand in candidates:
             semantic_score_norm = 0.0

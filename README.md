@@ -14,7 +14,7 @@
 - **Scalable Nature of LLM-based Knowledge**: Leverages the vast pre-trained clinical and biomedical knowledge of state-of-the-art large language models (LLM) for high-precision phenotypic prediction without requiring task-specific training, or fine-tuning.
 - **Semantic RAG Fusion**: Employs a "Smart Fusion" layer that prioritizes semantically relevant biomarkers using hierarchical embeddings and targeted context retrieval to maximize the information-to-token ratio.
 - **Explainable Clinical Reasoning**: Generates multi-modal evidence chains and structured patient reports, transforming complex high-dimensional data signals into human-interpretable clinical narratives.
-- **Deep Phenotyping Report**: A dedicated **Communicator** agent produces a clinician-grade `deep_phenotype.md` report that is evidence-grounded and explicit about missing data (no hallucinated metrics).
+- **Deep Phenotyping Report**: A dedicated **Communicator** agent produces a `deep_phenotype.md` report that is evidence-grounded and explicit about missing data (no hallucinated metrics).
 - **Live Dashboard**: Integrated real-time UI for monitoring agent reasoning, token usage, and cross-modal evidence synthesis as it happens.
 
 
@@ -56,7 +56,8 @@ Through the dashboard, you can:
 3. **Configure Environment**:
    Create a `.env` file with your API keys:
    ```env
-   OPENAI_API_KEY=sk-...
+   OPENROUTER_API_KEY=sk-...
+   OPENAI_API_KEY=sk-...   # optional fallback if OpenRouter is unavailable
    ```
 
 ## ⚡ Usage
@@ -65,10 +66,10 @@ Through the dashboard, you can:
 Run the pipeline on a participant folder:
 
 ```bash
-python main.py data/pseudo_data/SUBJ_001_PSEUDO --target "Major Depressive Disorder" --control "brain-implicated pathology, but NOT psychiatric" --backend local
+python main.py data/pseudo_data/inputs/SUBJ_001_PSEUDO --target "Major Depressive Disorder" --control "brain-implicated pathology, but NOT psychiatric" --backend openrouter
 ```
 
-Each participant folder must contain four core input files (see data/pseudo_data/):
+Each participant folder must contain four core input files (see data/pseudo_data/inputs):
 ```text
 - data_overview.json
 - hierarchical_deviation_map.json
@@ -80,9 +81,14 @@ The first three JSON files are ontology-based structured feature maps created du
 Pipeline outputs (per participant) include:
 ```text
 - report_{participant_id}.md        (standard clinical report)
-- deep_phenotype.md                 (communicator deep phenotyping report)
+- deep_phenotype.md                 (communicator deep phenotyping report, generated manually via UI or --generate_deep_phenotype)
 - execution_log_{participant_id}.json (structured execution log + dataflow summary/assertions)
 ```
+
+Backend notes:
+- `Public API (OpenRouter)` is the default in UI/CLI.
+- If OpenRouter connectivity fails and `OPENAI_API_KEY` is configured, COMPASS automatically falls back to OpenAI and logs that switch.
+- Local runs can be configured in the Advanced Configuration panel (engine, dtype, quantization, context window, and role-specific overrides).
 
 > [!NOTE]
 > **Batch Configuration**
@@ -94,6 +100,10 @@ For a hands-on walkthrough, run the included Jupyter Notebook:
 ```bash
 jupyter notebook COMPASS_demo.ipynb
 ```
+
+The notebook includes separate backend controls for:
+- Public API mode (OpenRouter model + context window)
+- Local backend mode (model path/name + local runtime settings)
 
 Optional: warm the embedding cache (recommended for large cohorts):
 ```bash

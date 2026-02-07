@@ -18,7 +18,9 @@ You will receive:
 - Predictor input (evidence snapshot)
 - Data overview and context fill report
 - Execution summary
+- Optional user focus areas and optional additional guidance
 
 Follow the structure in the user prompt.
 You must include technical summary tables explaining why the final CASE/CONTROL decision was chosen,
 including evidence for and against the predicted class.
+When optional focus areas or guidance are provided, prioritize them without inventing evidence.

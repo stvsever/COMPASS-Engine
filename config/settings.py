@@ -8,6 +8,7 @@ retry settings, and file paths.
 """
 
 import os
+import re
 from pathlib import Path
 from dataclasses import dataclass, field
 from typing import Dict, Optional
@@ -24,6 +25,7 @@ COMPASS_VERSION = "1.0.0"
 from enum import Enum
 
 class LLMBackend(Enum):
+    OPENROUTER = "openrouter"
     OPENAI = "openai"
     LOCAL = "local"
 
@@ -38,7 +40,10 @@ class ModelConfig:
     Tools always use gpt-5-nano regardless of environment.
     """
     # Backend Selection
-    backend: LLMBackend = LLMBackend.OPENAI
+    backend: LLMBackend = LLMBackend.OPENROUTER
+    public_model_name: str = "gpt-5-nano"
+    public_max_context_tokens: int = 128000
+    embedding_model: str = "text-embedding-3-large"
     local_model_name: str = "Qwen/Qwen2.5-0.5B-Instruct"  # Corrected ID for Qwen2.5 0.5B Instruct
     local_max_tokens: int = 2048
     # Local backend advanced configuration
@@ -58,7 +63,7 @@ class ModelConfig:
     # PRODUCTION: Change orchestrator/critic/predictor/integrator/communicator to "gpt-5"
     orchestrator_model: str = "gpt-5-nano"       # Production: "gpt-5"
     critic_model: str = "gpt-5-nano"             # Production: "gpt-5"
-    predictor_model: str = "gpt-5-nano"          # Production: "gpt-5"
+    predictor_model: str = "gpt-5-nano"     # Production: "gpt-5"
     integrator_model: str = "gpt-5-nano"         # Production: "gpt-5"
     communicator_model: str = "gpt-5-nano"       # Production: "gpt-5"
     tool_model: str = "gpt-5-nano"               # Always gpt-5-nano
@@ -143,6 +148,10 @@ class Settings:
     
     # API Configuration
     openai_api_key: str = field(default_factory=lambda: os.getenv("OPENAI_API_KEY", ""))
+    openrouter_api_key: str = field(default_factory=lambda: os.getenv("OPENROUTER_API_KEY", ""))
+    openrouter_base_url: str = field(default_factory=lambda: os.getenv("OPENROUTER_BASE_URL", "https://openrouter.ai/api/v1"))
+    openrouter_site_url: str = field(default_factory=lambda: os.getenv("OPENROUTER_SITE_URL", ""))
+    openrouter_app_name: str = field(default_factory=lambda: os.getenv("OPENROUTER_APP_NAME", "COMPASS"))
     
     # Logging settings
     log_level: str = "INFO"
@@ -159,11 +168,52 @@ class Settings:
     multimodal_data_file: str = "multimodal_data.json"
     non_numerical_data_file: str = "non_numerical_data.txt"
     hierarchical_deviation_file: str = "hierarchical_deviation_map.json"
+
+    def _normalize_model_name(self, model_name: Optional[str]) -> str:
+        if not model_name:
+            return ""
+        normalized = str(model_name).strip().lower()
+        normalized = re.sub(r"^[a-z0-9_\-]+/", "", normalized)
+        return normalized
+
+    def effective_context_window(self, model_name: Optional[str] = None) -> int:
+        if self.models.backend == LLMBackend.LOCAL:
+            local_len = int(getattr(self.models, "local_max_model_len", 0) or 0)
+            if local_len > 0:
+                return local_len
+            return max(1024, int(getattr(self.models, "local_max_tokens", 2048) or 2048))
+
+        normalized = self._normalize_model_name(model_name or self.models.public_model_name)
+        known_ctx = {
+            "gpt-5": 128000,
+            "gpt-5-mini": 128000,
+            "gpt-5-nano": 128000,
+            "gpt-4.1": 128000,
+            "gpt-4.1-mini": 128000,
+            "gpt-4.1-nano": 128000,
+            "gpt-4o": 128000,
+            "gpt-4o-mini": 128000,
+        }
+        if normalized in known_ctx:
+            return known_ctx[normalized]
+        return max(8192, int(self.models.public_max_context_tokens or 128000))
+
+    def auto_output_token_limit(self, model_name: Optional[str] = None) -> int:
+        ctx = self.effective_context_window(model_name=model_name)
+        return max(1024, min(64000, int(ctx * 0.5)))
     
     def validate(self) -> bool:
         """Validate that required settings are present."""
-        if not self.openai_api_key:
-            raise ValueError("OPENAI_API_KEY not found in environment variables")
+        if self.models.backend == LLMBackend.LOCAL:
+            return True
+        if self.models.backend == LLMBackend.OPENROUTER:
+            if not self.openrouter_api_key:
+                raise ValueError("OPENROUTER_API_KEY not found in environment variables")
+            return True
+        if self.models.backend == LLMBackend.OPENAI:
+            if not self.openai_api_key:
+                raise ValueError("OPENAI_API_KEY not found in environment variables")
+            return True
         return True
     
     def get_participant_files(self, participant_dir: Path) -> Dict[str, Path]:
@@ -205,5 +255,6 @@ if __name__ == "__main__":
     print(f"Tool Model: {settings.models.tool_model}")
     print(f"Total Token Budget: {settings.token_budget.total_budget}")
     print(f"Max Critic Iterations: {settings.retry.max_critic_iterations}")
-    print(f"API Key Present: {'Yes' if settings.openai_api_key else 'No'}")
+    api_ok = settings.openrouter_api_key if settings.models.backend == LLMBackend.OPENROUTER else settings.openai_api_key
+    print(f"API Key Present: {'Yes' if api_ok else 'No'}")
     print("=" * 60)
