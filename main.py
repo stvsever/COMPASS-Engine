@@ -147,6 +147,27 @@ def _apply_role_max_token_overrides(settings, role_max_tokens: Dict[str, Any]) -
             continue
         setattr(settings.models, f"{role}_max_tokens", int(value))
 
+def _compute_token_budget_defaults(context_window: int) -> Dict[str, int]:
+    ctx = max(1, int(context_window or 0))
+    return {
+        "max_agent_input": int(ctx * 0.95),
+        "max_agent_output": int(ctx * 0.25),
+        "max_tool_input": int(ctx * 0.40),
+        "max_tool_output": int(ctx * 0.25),
+    }
+
+
+def _apply_token_budget_defaults(settings, overrides: Dict[str, Any]) -> None:
+    defaults = _compute_token_budget_defaults(settings.effective_context_window())
+    if overrides.get("max_agent_input") in (None, "", 0):
+        settings.token_budget.max_agent_input_tokens = defaults["max_agent_input"]
+    if overrides.get("max_agent_output") in (None, "", 0):
+        settings.token_budget.max_agent_output_tokens = defaults["max_agent_output"]
+    if overrides.get("max_tool_input") in (None, "", 0):
+        settings.token_budget.max_tool_input_tokens = defaults["max_tool_input"]
+    if overrides.get("max_tool_output") in (None, "", 0):
+        settings.token_budget.max_tool_output_tokens = defaults["max_tool_output"]
+
 
 def _generate_deep_phenotype_report(
     *,
@@ -1409,16 +1430,17 @@ Examples:
 
                 _clamp_role_token_limits(settings)
 
-                # Apply Token Limits from UI
+                # Apply Token Limits from UI (defaults derive from context window)
+                _apply_token_budget_defaults(settings, config)
                 if config.get("total_budget"):
                     settings.token_budget.total_budget = int(config.get("total_budget"))
-                if config.get("max_agent_input"):
+                if config.get("max_agent_input") not in (None, "", 0):
                     settings.token_budget.max_agent_input_tokens = int(config.get("max_agent_input"))
-                if config.get("max_agent_output"):
+                if config.get("max_agent_output") not in (None, "", 0):
                     settings.token_budget.max_agent_output_tokens = int(config.get("max_agent_output"))
-                if config.get("max_tool_input"):
+                if config.get("max_tool_input") not in (None, "", 0):
                     settings.token_budget.max_tool_input_tokens = int(config.get("max_tool_input"))
-                if config.get("max_tool_output"):
+                if config.get("max_tool_output") not in (None, "", 0):
                     settings.token_budget.max_tool_output_tokens = int(config.get("max_tool_output"))
 
                 reset_llm_client()
@@ -1540,6 +1562,15 @@ Examples:
             _clamp_role_token_limits(settings)
 
             # Apply Token Limits (CLI)
+            _apply_token_budget_defaults(
+                settings,
+                {
+                    "max_agent_input": args.max_agent_input,
+                    "max_agent_output": args.max_agent_output,
+                    "max_tool_input": args.max_tool_input,
+                    "max_tool_output": args.max_tool_output,
+                },
+            )
             if args.total_budget:
                 settings.token_budget.total_budget = args.total_budget
             if args.max_agent_input:
