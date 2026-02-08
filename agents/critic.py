@@ -313,6 +313,16 @@ class Critic(BaseAgent):
                     suggestion=sugg_data.get("suggestion", ""),
                     priority=priority
                 ))
+
+        concise_summary = str(evaluation_data.get("concise_summary", "") or "").strip()
+        if not concise_summary:
+            verdict_text = verdict.value
+            composite = float(evaluation_data.get("composite_score", 0.0) or 0.0)
+            reasoning = str(evaluation_data.get("reasoning", "") or "").strip()
+            if reasoning:
+                concise_summary = reasoning[:220].rstrip()
+            else:
+                concise_summary = f"{verdict_text}: Composite score {composite:.2f}; no concise summary provided by model."
         
         return CriticEvaluation(
             evaluation_id=evaluation_data.get("evaluation_id", str(uuid.uuid4())[:8]),
@@ -328,7 +338,7 @@ class Critic(BaseAgent):
             improvement_suggestions=suggestions,
             domains_missed=evaluation_data.get("domains_missed", []),
             reasoning=evaluation_data.get("reasoning", ""),
-            concise_summary=evaluation_data.get("concise_summary", "No summary provided.")
+            concise_summary=concise_summary
         )
 
     

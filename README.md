@@ -6,14 +6,14 @@
 </div>
 -->
 
-**COMPASS** is an advanced multi-agent orchestrator for clinical decision support, enabling precise phenotypic prediction by integrating (hierarchical) multi-modal deviation maps and non-tabular electronic health information. Our current system is customized for neuropsychiatric phenotyping with data from the UK Biobank ; developed as part of an internship project @ IIS BioBizkaia.
+**COMPASS** is an advanced multi-agent orchestrator for clinical decision support, enabling precise phenotypic prediction by integrating hierarchical multi-modal deviation maps and non-tabular electronic health information. Our current system is customized for neuropsychiatric phenotyping with data from the UK Biobank ; developed as part of an internship project @ IIS BioBizkaia.
 
 ## 🚀 Key Features
 
 - **Multi-Agent Orchestration**: A dynamic actor-critic team of specialized agents (**Orchestrator, Executor, Integrator, Predictor, Critic**) collaborates to synthesize complex diagnostic logic through iterative refinement cycles.
 - **Scalable Nature of LLM-based Knowledge**: Leverages the vast pre-trained clinical and biomedical knowledge of state-of-the-art large language models (LLM) for high-precision phenotypic prediction without requiring task-specific training, or fine-tuning.
 - **Semantic RAG Fusion**: Employs a "Smart Fusion" layer that prioritizes semantically relevant biomarkers using hierarchical embeddings and targeted context retrieval to maximize the information-to-token ratio.
-- **Explainable Clinical Reasoning**: Generates multi-modal evidence chains and structured patient reports, transforming complex high-dimensional data signals into human-interpretable clinical narratives.
+- **Explainable Clinical Reasoning**: Generates multi-modal evidence chains and structured patient reports, transforming complex high-dimensional data signals into human-interpretable clinical narratives; including three diverse LLM-optimized XAI methods.
 - **Deep Phenotyping Report**: A dedicated **Communicator** agent produces a `deep_phenotype.md` report that is evidence-grounded and explicit about missing data (no hallucinated metrics).
 - **Live Dashboard**: Integrated real-time UI for monitoring agent reasoning, token usage, and cross-modal evidence synthesis as it happens.
 
@@ -66,6 +66,17 @@ Run the pipeline on a participant folder:
 
 ```bash
 python main.py data/pseudo_data/inputs/SUBJ_001_PSEUDO --target "Major Depressive Disorder" --control "brain-implicated pathology, but NOT psychiatric" --backend openrouter
+```
+
+### Explainability CLI (Backend-only)
+Run explainability methods on the selected final attempt:
+
+```bash
+python main.py data/pseudo_data/inputs/SUBJ_001_PSEUDO \
+  --target "Major Depressive Disorder" \
+  --control "brain-implicated pathology, but NOT psychiatric" \
+  --backend openrouter \
+  --xai_methods external,internal,hybrid
 ```
 
 Each participant folder must contain four core input files (see data/pseudo_data/inputs):
@@ -148,11 +159,6 @@ Key future development directions include:
   
   We are continuously refining the multi-agent logic to enhance system-wide robustness and predictable behavioral stability.
 
-- **Automated Explainability of Token-Driven Predictions**  
-  We are developing an integrated evaluation layer to automatically quantify which **feature-based token sets** most strongly drive each clinical prediction (e.g., TokenSHAP-style methods, Integrated Gradients, LLM-select attribution, etc.) 
-
-  This builds directly on our prior work in *Hierarchical TokenSHAP-style attribution* (see: https://github.com/stvsever/aHFR_TokenSHAP), enabling transparent post-hoc interpretability across hierarchical feature spaces.
-  
 - **Improved Frontend & Clinical Usability**  
   Ongoing work focuses on expanding the interactive dashboard into a more user-friendly clinical frontend, simplifying workflow monitoring, interpretation, and report exploration.
 

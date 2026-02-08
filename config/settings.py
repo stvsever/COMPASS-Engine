@@ -112,6 +112,32 @@ class TokenBudgetConfig:
 
 
 @dataclass
+class ExplainabilityConfig:
+    """Configuration for explainability methods."""
+
+    enabled: bool = False
+    methods: list[str] = field(default_factory=list)  # external|internal|hybrid
+    run_full_validation: bool = False
+    run_on_final_selected_attempt: bool = True
+
+    # External (aHFR-TokenSHAP)
+    external_k: int = 4
+    external_runs: int = 1
+    external_adaptive: bool = True
+
+    # Internal (IGA)
+    internal_model: str = "Qwen/Qwen2.5-0.5B-Instruct"
+    internal_steps: int = 8
+    internal_baseline_mode: str = "mask"
+    internal_span_mode: str = "value"
+
+    # Hybrid (LLM-select)
+    hybrid_model: str = "gpt-5-nano"
+    hybrid_repeats: int = 1
+    hybrid_temperature: float = 0.3
+
+
+@dataclass
 class PathConfig:
     """File and directory paths configuration."""
     base_dir: Path = field(default_factory=lambda: Path(__file__).parent.parent)
@@ -144,6 +170,7 @@ class Settings:
     models: ModelConfig = field(default_factory=ModelConfig)
     retry: RetryConfig = field(default_factory=RetryConfig)
     token_budget: TokenBudgetConfig = field(default_factory=TokenBudgetConfig)
+    explainability: ExplainabilityConfig = field(default_factory=ExplainabilityConfig)
     paths: PathConfig = field(default_factory=PathConfig)
     
     # API Configuration

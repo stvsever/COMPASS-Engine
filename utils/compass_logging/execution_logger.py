@@ -164,6 +164,20 @@ class ExecutionLogger:
             self.logger.info(
                 f"Dataflow summary: missing={missing} chunks={chunks} invariant_ok={invariant_ok}"
             )
+
+    def log_explainability(self, payload: dict):
+        """Log explainability method execution summary."""
+        self._log_entry("EXPLAINABILITY", payload or {})
+        methods = (payload or {}).get("methods", {}) or {}
+        method_names = sorted(methods.keys())
+        success_count = sum(1 for name in method_names if (methods.get(name) or {}).get("status") == "success")
+        self.logger.info(
+            "Explainability: status=%s methods=%s success=%s/%s",
+            (payload or {}).get("status"),
+            ",".join(method_names) if method_names else "none",
+            success_count,
+            len(method_names),
+        )
     
     def log_error(self, component: str, error: str):
         """Log an error."""

@@ -11,6 +11,7 @@ import json
 import logging
 import os
 import re
+import time
 from concurrent.futures import ThreadPoolExecutor, as_completed
 from dataclasses import dataclass
 from typing import Any, Callable, Dict, List, Optional, Sequence, Tuple
@@ -301,6 +302,91 @@ class Communicator(BaseAgent):
         self._log_complete("deep_phenotype.md created")
         return content
 
+    def execute_xai_report(
+        self,
+        *,
+        xai_result: Dict[str, Any],
+        prediction: Any,
+        evaluation: Any,
+        execution_summary: Dict[str, Any],
+        target_condition: str,
+        control_condition: str,
+        status_callback: Optional[Callable[[str], None]] = None,
+    ) -> str:
+        """
+        Generate a structured explainability report in Markdown from XAI outputs.
+        """
+        self._log_start("xai explainability report generation")
+        model_hint = self.LLM_MODEL or "gpt-5"
+        threshold = self._communicator_input_threshold()
+        max_completion_tokens = int(self.LLM_MAX_TOKENS or self.settings.models.tool_max_tokens or 16000)
+
+        prompt = self._build_xai_prompt(
+            xai_result=xai_result,
+            prediction=prediction,
+            evaluation=evaluation,
+            execution_summary=execution_summary,
+            target_condition=target_condition,
+            control_condition=control_condition,
+        )
+        prompt_tokens = count_tokens(prompt, model_hint=model_hint)
+        if prompt_tokens > threshold:
+            prompt = truncate_text_by_tokens(prompt, threshold, model_hint=model_hint, suffix="")
+            prompt_tokens = threshold
+
+        eta_seconds = max(12, int((prompt_tokens + max_completion_tokens) / 220))
+        if status_callback:
+            status_callback(f"Generating explainability report (~{eta_seconds}s ETA)")
+
+        started = time.time()
+        fallback_used = False
+        fallback_reason = ""
+        fallback_prompt_tokens = 0
+        fallback_max_completion_tokens = 0
+        try:
+            response = self._invoke_llm_with_limits(
+                prompt,
+                max_tokens=max_completion_tokens,
+                max_retries=0,
+            )
+        except Exception as exc:
+            if not self._is_length_exhaustion_error(exc):
+                raise
+            fallback_used = True
+            fallback_reason = str(exc)
+            compact_prompt = truncate_text_by_tokens(
+                prompt,
+                int(max(4000, threshold * 0.75)),
+                model_hint=model_hint,
+                suffix="",
+            )
+            fallback_prompt_tokens = count_tokens(compact_prompt, model_hint=model_hint)
+            fallback_max_completion_tokens = min(max_completion_tokens, 20000)
+            response = self._invoke_llm_with_limits(
+                compact_prompt,
+                max_tokens=fallback_max_completion_tokens,
+                max_retries=0,
+            )
+
+        content = self._normalize_markdown_tables((response.get("content") or "").strip())
+        duration = round(time.time() - started, 3)
+        self.last_run_metadata = {
+            "report_type": "xai",
+            "input_threshold_tokens": threshold,
+            "final_prompt_tokens": prompt_tokens,
+            "max_completion_tokens": max_completion_tokens,
+            "eta_seconds_estimate": eta_seconds,
+            "duration_seconds": duration,
+            "fallback_used": fallback_used,
+            "fallback_reason": fallback_reason,
+            "fallback_prompt_tokens": fallback_prompt_tokens,
+            "fallback_max_completion_tokens": fallback_max_completion_tokens,
+            "methods_requested": list((xai_result or {}).get("methods_requested") or []),
+            "methods_in_report": sorted(list(((xai_result or {}).get("methods") or {}).keys())),
+        }
+        self._log_complete("xai_explainability_report.md created")
+        return content
+
     @staticmethod
     def _normalize_markdown_tables(text: str) -> str:
         lines = text.splitlines()
@@ -347,6 +433,98 @@ class Communicator(BaseAgent):
             if "unexpected keyword argument" in str(exc).lower():
                 return self._call_llm(user_prompt, expect_json=False)
             raise
+
+    def _build_xai_prompt(
+        self,
+        *,
+        xai_result: Dict[str, Any],
+        prediction: Any,
+        evaluation: Any,
+        execution_summary: Dict[str, Any],
+        target_condition: str,
+        control_condition: str,
+    ) -> str:
+        methods = dict((xai_result or {}).get("methods") or {})
+        method_blocks: List[Dict[str, Any]] = []
+        for name in sorted(methods.keys()):
+            info = methods.get(name) or {}
+            block = {
+                "method": name,
+                "status": info.get("status"),
+                "model": info.get("model"),
+                "duration_seconds": info.get("duration_seconds"),
+                "parameters": {
+                    "k": info.get("k"),
+                    "runs": info.get("runs"),
+                    "adaptive": info.get("adaptive"),
+                    "steps": info.get("steps"),
+                    "baseline_mode": info.get("baseline_mode"),
+                    "span_mode": info.get("span_mode"),
+                    "repeats": info.get("repeats"),
+                    "temperature": info.get("temperature"),
+                },
+                "top_leaf_features": (info.get("top_leaf_features") or [])[:25],
+                "top_parent_scores_l1": sorted(
+                    (info.get("parent_scores_l1") or {}).items(),
+                    key=lambda x: float(x[1]),
+                    reverse=True,
+                )[:15],
+                "error": info.get("error"),
+            }
+            method_blocks.append(block)
+
+        prediction_text = json_to_toon(self._to_dict(prediction))
+        evaluation_text = json_to_toon(self._to_dict(evaluation))
+        summary_text = json_to_toon(execution_summary or {})
+        xai_text = json_to_toon(
+            {
+                "enabled": (xai_result or {}).get("enabled"),
+                "status": (xai_result or {}).get("status"),
+                "methods_requested": (xai_result or {}).get("methods_requested"),
+                "feature_space": (xai_result or {}).get("feature_space"),
+                "methods": method_blocks,
+            }
+        )
+
+        return "\n".join(
+            [
+                "You are the COMPASS Communicator Agent.",
+                "Produce a comprehensive explainability report in Markdown for a binary clinical prediction.",
+                "",
+                "CRITICAL RULES:",
+                "1) Use only provided data. Do not hallucinate.",
+                "2) If a value is absent, state 'not provided'.",
+                "3) Keep method outputs traceable and distinguish method-specific findings from consensus.",
+                "4) Do not claim causal validity; report attribution evidence and limitations explicitly.",
+                "5) All tables must be valid Markdown tables.",
+                "",
+                "REQUIRED OUTPUT STRUCTURE:",
+                "- Title and context",
+                "- Prediction snapshot",
+                "- Method configuration and runtime summary",
+                "- Feature importance results by method",
+                "- Cross-method agreement and disagreement",
+                "- Reliability, caveats, and dataflow checks",
+                "- Appendix with top features and traceability snippets",
+                "",
+                f"Target condition: {target_condition}",
+                f"Control condition: {control_condition}",
+                "",
+                "## Prediction",
+                f"```text\n{prediction_text}\n```",
+                "",
+                "## Critic Evaluation",
+                f"```text\n{evaluation_text}\n```",
+                "",
+                "## Execution Summary",
+                f"```text\n{summary_text}\n```",
+                "",
+                "## XAI Inputs",
+                f"```text\n{xai_text}\n```",
+                "",
+                "Now produce the final Markdown report only.",
+            ]
+        )
 
     def _effective_context_limit(self) -> int:
         return int(self.settings.effective_context_window(self.LLM_MODEL))

@@ -96,15 +96,26 @@ class Predictor(BaseAgent):
             chunk_evidence=chunk_evidence,
         )
         executor_output["coverage_summary"] = coverage_summary
+        high_priority_context = self._build_high_priority_context(predictor_input, executor_output)
 
         if chunking_skipped:
+            non_core_context = executor_output.get("non_core_context_text") or "Not provided"
             final_prompt = self._build_direct_synthesis_prompt(
                 target_condition=target_condition,
                 control_condition=control_condition,
                 predictor_input=predictor_input,
                 executor_output=executor_output,
                 coverage_summary=coverage_summary,
+                high_priority_context=high_priority_context,
+                non_core_context=non_core_context,
             )
+            predictor_call_context = {
+                "mode": "direct",
+                "high_priority_context": high_priority_context,
+                "non_core_context": non_core_context,
+                "chunk_evidence_count": 0,
+                "chunking_skipped": True,
+            }
         else:
             final_prompt = self._build_final_synthesis_prompt(
                 target_condition=target_condition,
@@ -113,7 +124,20 @@ class Predictor(BaseAgent):
                 predictor_input=predictor_input,
                 executor_output=executor_output,
                 coverage_summary=coverage_summary,
+                high_priority_context=high_priority_context,
             )
+            predictor_call_context = {
+                "mode": "chunked",
+                "high_priority_context": high_priority_context,
+                "non_core_context": executor_output.get("non_core_context_text") or "",
+                "chunk_evidence_count": len(chunk_evidence),
+                "chunking_skipped": False,
+            }
+        prompt_tokens = len(self._encoder.encode(final_prompt or ""))
+        predictor_call_context["final_prompt_char_count"] = len(final_prompt or "")
+        predictor_call_context["final_prompt_token_estimate"] = prompt_tokens
+        executor_output["predictor_call_context"] = predictor_call_context
+
         prediction_data = self._call_predictor_json(
             system_prompt=self.system_prompt,
             user_prompt=final_prompt,
@@ -182,8 +206,10 @@ class Predictor(BaseAgent):
         predictor_input: Dict[str, Any],
         executor_output: Dict[str, Any],
         coverage_summary: Dict[str, Any],
+        high_priority_context: Optional[str] = None,
     ) -> str:
-        high_priority_context = self._build_high_priority_context(predictor_input, executor_output)
+        if high_priority_context is None:
+            high_priority_context = self._build_high_priority_context(predictor_input, executor_output)
         chunks_text = json_to_toon(chunk_evidence)
         coverage_text = json_to_toon(coverage_summary)
 
@@ -318,9 +344,13 @@ class Predictor(BaseAgent):
         predictor_input: Dict[str, Any],
         executor_output: Dict[str, Any],
         coverage_summary: Dict[str, Any],
+        high_priority_context: Optional[str] = None,
+        non_core_context: Optional[str] = None,
     ) -> str:
-        high_priority_context = self._build_high_priority_context(predictor_input, executor_output)
-        non_core_context = executor_output.get("non_core_context_text") or "Not provided"
+        if high_priority_context is None:
+            high_priority_context = self._build_high_priority_context(predictor_input, executor_output)
+        if non_core_context is None:
+            non_core_context = executor_output.get("non_core_context_text") or "Not provided"
         coverage_text = json_to_toon(coverage_summary)
 
         return "\n".join(

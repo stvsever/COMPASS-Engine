@@ -31,6 +31,8 @@ from multi_agent_system.utils.core.token_manager import TokenManager
 from multi_agent_system.utils.llm_client import get_llm_client, reset_llm_client
 from multi_agent_system.utils.core.fusion_layer import FusionLayer, FusionResult
 from multi_agent_system.utils.core.predictor_input_assembler import PredictorInputAssembler
+from multi_agent_system.utils.core.explainability_feature_space import build_feature_space
+from multi_agent_system.utils.core.explainability_runner import run_explainability_methods
 from multi_agent_system.utils.token_packer import count_tokens
 from multi_agent_system.agents.orchestrator import Orchestrator
 from multi_agent_system.agents.executor import Executor
@@ -169,6 +171,60 @@ def _apply_token_budget_defaults(settings, overrides: Dict[str, Any]) -> None:
         settings.token_budget.max_tool_output_tokens = defaults["max_tool_output"]
 
 
+def _parse_xai_methods(raw_methods: Optional[str]) -> List[str]:
+    """Parse comma-separated XAI methods with support for `all` alias."""
+    if raw_methods is None:
+        return []
+    text = str(raw_methods).strip().lower()
+    if not text:
+        return []
+    parts = [p.strip().lower() for p in text.split(",") if p.strip()]
+    if not parts:
+        return []
+    valid = {"external", "internal", "hybrid"}
+    if "all" in parts:
+        parts = ["external", "internal", "hybrid"]
+    invalid = sorted([p for p in parts if p not in valid])
+    if invalid:
+        raise ValueError(f"Invalid --xai_methods entries: {', '.join(invalid)}")
+    # preserve order, remove duplicates
+    dedup: List[str] = []
+    for p in parts:
+        if p not in dedup:
+            dedup.append(p)
+    return dedup
+
+
+def _apply_explainability_overrides(settings, args: argparse.Namespace) -> None:
+    methods = _parse_xai_methods(getattr(args, "xai_methods", None))
+    settings.explainability.methods = methods
+    settings.explainability.enabled = bool(methods)
+    settings.explainability.run_full_validation = bool(getattr(args, "xai_full_validation", False))
+
+    if getattr(args, "xai_external_k", None) is not None:
+        settings.explainability.external_k = max(1, int(args.xai_external_k))
+    if getattr(args, "xai_external_runs", None) is not None:
+        settings.explainability.external_runs = max(1, int(args.xai_external_runs))
+    if getattr(args, "xai_external_adaptive", None) is not None:
+        settings.explainability.external_adaptive = bool(args.xai_external_adaptive)
+
+    if getattr(args, "xai_internal_model", None):
+        settings.explainability.internal_model = str(args.xai_internal_model)
+    if getattr(args, "xai_internal_steps", None) is not None:
+        settings.explainability.internal_steps = max(1, int(args.xai_internal_steps))
+    if getattr(args, "xai_internal_baseline", None):
+        settings.explainability.internal_baseline_mode = str(args.xai_internal_baseline)
+    if getattr(args, "xai_internal_span_mode", None):
+        settings.explainability.internal_span_mode = str(args.xai_internal_span_mode)
+
+    if getattr(args, "xai_hybrid_model", None):
+        settings.explainability.hybrid_model = str(args.xai_hybrid_model)
+    if getattr(args, "xai_hybrid_repeats", None) is not None:
+        settings.explainability.hybrid_repeats = max(1, int(args.xai_hybrid_repeats))
+    if getattr(args, "xai_hybrid_temperature", None) is not None:
+        settings.explainability.hybrid_temperature = float(args.xai_hybrid_temperature)
+
+
 def _generate_deep_phenotype_report(
     *,
     communicator: Communicator,
@@ -277,6 +333,118 @@ def _generate_deep_phenotype_report(
         return {"success": False, "error": str(e), "metadata": {}}
 
 
+def _generate_xai_explainability_report(
+    *,
+    communicator: Communicator,
+    xai_result: Dict[str, Any],
+    prediction: Any,
+    evaluation: Any,
+    execution_summary: Dict[str, Any],
+    target_condition: str,
+    control_condition: str,
+    base_output_dir: Path,
+    participant_id: str,
+    trigger_source: str = "cli",
+    ui_step_id: Optional[int] = None,
+    interactive_ui: bool = False,
+) -> Dict[str, Any]:
+    ui = get_ui()
+    methods = dict((xai_result or {}).get("methods") or {})
+    successful_methods = sorted(
+        [name for name, payload in methods.items() if (payload or {}).get("status") == "success"]
+    )
+
+    if not successful_methods:
+        reason = "No successful explainability method outputs available; skipping XAI report."
+        _append_execution_log_entry(
+            base_output_dir,
+            participant_id,
+            {
+                "type": "XAI_REPORT",
+                "timestamp": datetime.now().isoformat(),
+                "data": {
+                    "trigger_source": trigger_source,
+                    "success": False,
+                    "skipped": True,
+                    "reason": reason,
+                    "methods_requested": list((xai_result or {}).get("methods_requested") or []),
+                },
+            },
+        )
+        return {"success": False, "skipped": True, "reason": reason, "metadata": {}}
+
+    if interactive_ui:
+        ui.set_status("Generating explainability report...", stage=6)
+        ui.on_step_start(
+            step_id=ui_step_id or 995,
+            tool_name="Communicator Agent",
+            description="Generating explainability report...",
+            stage=6,
+        )
+
+    try:
+        xai_report = communicator.execute_xai_report(
+            xai_result=xai_result,
+            prediction=prediction,
+            evaluation=evaluation,
+            execution_summary=execution_summary,
+            target_condition=target_condition,
+            control_condition=control_condition,
+            status_callback=(lambda msg: ui.set_status(msg, stage=6)) if interactive_ui else None,
+        )
+        xai_path = base_output_dir / "xai_explainability_report.md"
+        with open(xai_path, "w") as f:
+            f.write(xai_report)
+
+        metadata = dict(getattr(communicator, "last_run_metadata", {}) or {})
+        metadata.update(
+            {
+                "trigger_source": trigger_source,
+                "output_path": str(xai_path),
+                "methods_requested": list((xai_result or {}).get("methods_requested") or []),
+                "methods_successful": successful_methods,
+            }
+        )
+        _append_execution_log_entry(
+            base_output_dir,
+            participant_id,
+            {
+                "type": "XAI_REPORT",
+                "timestamp": datetime.now().isoformat(),
+                "data": metadata,
+            },
+        )
+
+        if interactive_ui:
+            ui.on_step_complete(
+                step_id=ui_step_id or 995,
+                tokens=0,
+                duration_ms=0,
+                preview="XAI explainability report generated.",
+            )
+        print(f"[Communicator] XAI report saved to: {xai_path}")
+        return {"success": True, "path": str(xai_path), "metadata": metadata}
+    except Exception as e:
+        _append_execution_log_entry(
+            base_output_dir,
+            participant_id,
+            {
+                "type": "XAI_REPORT",
+                "timestamp": datetime.now().isoformat(),
+                "data": {
+                    "trigger_source": trigger_source,
+                    "success": False,
+                    "error": str(e),
+                    "methods_requested": list((xai_result or {}).get("methods_requested") or []),
+                    "methods_successful": successful_methods,
+                },
+            },
+        )
+        if interactive_ui:
+            ui.on_step_failed(step_id=ui_step_id or 995, error=str(e))
+        return {"success": False, "error": str(e), "metadata": {}}
+
+
 def run_compass_pipeline(
     participant_dir: Path,
     target_condition: str,
@@ -285,6 +453,7 @@ def run_compass_pipeline(
     verbose: bool = True,
     interactive_ui: bool = False,
     generate_deep_phenotype: bool = False,
+    generate_xai_report: bool = False,
     deep_report_focus_modalities: str = "",
     deep_report_general_instruction: str = "",
 ) -> dict:
@@ -335,6 +504,24 @@ def run_compass_pipeline(
             pass
     else:
         participant_id = participant_id_raw
+
+    # Build explainability feature space once from loaded artifacts.
+    multimodal_for_xai = getattr(participant_data.multimodal_data, "features", {}) or {}
+    try:
+        raw_multimodal_path = (participant_data.raw_files or {}).get("multimodal_data")
+        if raw_multimodal_path and Path(raw_multimodal_path).exists():
+            with open(raw_multimodal_path, "r") as f:
+                multimodal_for_xai = json.load(f)
+    except Exception:
+        multimodal_for_xai = getattr(participant_data.multimodal_data, "features", {}) or {}
+
+    non_numerical_for_xai = str(
+        getattr(participant_data.non_numerical_data, "raw_text", "") or ""
+    )
+    feature_space = build_feature_space(
+        multimodal_for_xai,
+        non_numerical_text=non_numerical_for_xai,
+    )
     
     # Initialize logging
     exec_logger = ExecutionLogger(participant_id, verbose=verbose)
@@ -606,6 +793,17 @@ def run_compass_pipeline(
     base_output_dir = _resolve_output_dir(participant_dir, participant_id, settings)
     base_output_dir.mkdir(parents=True, exist_ok=True)
 
+    explainability_result = _run_explainability_for_selected_attempt(
+        settings=settings,
+        participant_id=participant_id,
+        target_condition=target_condition,
+        control_condition=control_condition,
+        selected_attempt=selected_attempt,
+        feature_space=feature_space,
+        output_dir=base_output_dir,
+        exec_logger=exec_logger,
+    )
+
     # Generate final report (standard outputs first)
     print(f"\n{'='*70}")
     print(f"  GENERATING FINAL REPORT")
@@ -631,7 +829,13 @@ def run_compass_pipeline(
         "control_condition": control_condition,
         "tokens_used": token_usage.get("total_tokens", 0),
         "domains_processed": (final_plan.priority_domains if final_plan else plan.priority_domains),
-        "detailed_logs": detailed_logs_collection # We need to populate this
+        "detailed_logs": detailed_logs_collection, # We need to populate this
+        "explainability": {
+            "enabled": bool(explainability_result.get("enabled")),
+            "status": explainability_result.get("status"),
+            "methods_requested": explainability_result.get("methods_requested") or [],
+            "artifact_path": explainability_result.get("artifact_path"),
+        },
     }
     
     report = report_generator.generate(
@@ -680,7 +884,8 @@ def run_compass_pipeline(
             "plan_id": final_plan.plan_id if final_plan else plan.plan_id,
             "total_steps": final_plan.total_steps if final_plan else plan.total_steps,
             "priority_domains": final_plan.priority_domains if final_plan else plan.priority_domains,
-        }
+        },
+        "explainability": explainability_result,
     }
     
     # Save performance report as JSON
@@ -695,6 +900,23 @@ def run_compass_pipeline(
         selected_iteration=selected_iteration,
         selection_reason=selection_reason,
     )
+    xai_report_result = {"success": False, "metadata": {}, "path": None, "skipped": False}
+    if generate_xai_report:
+        xai_report_result = _generate_xai_explainability_report(
+            communicator=communicator,
+            xai_result=explainability_result,
+            prediction=final_prediction,
+            evaluation=final_evaluation,
+            execution_summary=execution_summary,
+            target_condition=target_condition,
+            control_condition=control_condition,
+            base_output_dir=base_output_dir,
+            participant_id=participant_id,
+            trigger_source="cli",
+            ui_step_id=980 + iteration,
+            interactive_ui=interactive_ui,
+        )
+
     deep_report_result = {"success": False, "metadata": {}, "path": None}
     if generate_deep_phenotype and final_prediction and final_evaluation and final_executor_output:
         deep_report_result = _generate_deep_phenotype_report(
@@ -714,6 +936,14 @@ def run_compass_pipeline(
             ui_step_id=930 + iteration,
             interactive_ui=interactive_ui,
         )
+    performance_report["xai_report"] = {
+        "generated": bool(xai_report_result.get("success")),
+        "path": xai_report_result.get("path"),
+        "trigger_source": "cli" if generate_xai_report else None,
+        "skipped": bool(xai_report_result.get("skipped", False)),
+        "reason": xai_report_result.get("reason"),
+        "metadata": xai_report_result.get("metadata") or {},
+    }
     performance_report["deep_phenotype"] = {
         "generated": bool(deep_report_result.get("success")),
         "path": deep_report_result.get("path"),
@@ -778,6 +1008,9 @@ def run_compass_pipeline(
         "report": report,
         "deep_phenotype_generated": bool(deep_report_result.get("success")),
         "deep_phenotype_path": deep_report_result.get("path"),
+        "xai_report_generated": bool(xai_report_result.get("success")),
+        "xai_report_path": xai_report_result.get("path"),
+        "explainability": explainability_result,
         "internal_context": {
             "participant_id": participant_id,
             "prediction": final_prediction,
@@ -788,6 +1021,8 @@ def run_compass_pipeline(
             "control_condition": control_condition,
             "report_context_note": report_context_note,
             "base_output_dir": str(base_output_dir),
+            "explainability": explainability_result,
+            "xai_report": xai_report_result,
         },
     }
 
@@ -1029,6 +1264,51 @@ def _build_dataflow_summary(
     }
 
 
+def _run_explainability_for_selected_attempt(
+    *,
+    settings,
+    participant_id: str,
+    target_condition: str,
+    control_condition: str,
+    selected_attempt: Dict[str, Any],
+    feature_space: Dict[str, Any],
+    output_dir: Path,
+    exec_logger: ExecutionLogger,
+) -> Dict[str, Any]:
+    if not bool(getattr(settings.explainability, "enabled", False)):
+        return {
+            "enabled": False,
+            "status": "skipped",
+            "reason": "Explainability disabled.",
+            "methods_requested": [],
+            "methods": {},
+        }
+    try:
+        result = run_explainability_methods(
+            settings=settings,
+            participant_id=participant_id,
+            target_condition=target_condition,
+            control_condition=control_condition,
+            selected_attempt=selected_attempt,
+            feature_space=feature_space,
+            output_dir=output_dir,
+        )
+    except Exception as exc:
+        result = {
+            "enabled": True,
+            "status": "failed",
+            "reason": f"Runner failure: {exc}",
+            "methods_requested": list(getattr(settings.explainability, "methods", []) or []),
+            "methods": {},
+        }
+
+    try:
+        exec_logger.log_explainability(result)
+    except Exception:
+        pass
+    return result
+
+
 def _select_best_attempt(attempts: List[Dict[str, Any]]) -> Tuple[Optional[Dict[str, Any]], str]:
     """
     Select final attempt:
@@ -1129,6 +1409,11 @@ Examples:
         "--generate_deep_phenotype",
         action="store_true",
         help="Generate deep phenotype report at pipeline completion (manual opt-in)"
+    )
+    parser.add_argument(
+        "--generate_xai_report",
+        action="store_true",
+        help="Generate communicator explainability report from XAI outputs at pipeline completion"
     )
 
     # --- LOCAL LLM ARGUMENTS ---
@@ -1263,6 +1548,78 @@ Examples:
         "--max_tool_output",
         type=int,
         help="Max limit for tool output size"
+    )
+    # --- XAI CONTROLS ---
+    parser.add_argument(
+        "--xai_methods",
+        type=str,
+        default="",
+        help="Comma-separated methods: external,internal,hybrid (or 'all')"
+    )
+    parser.add_argument(
+        "--xai_external_k",
+        type=int,
+        default=None,
+        help="aHFR-TokenSHAP permutations (default from settings)"
+    )
+    parser.add_argument(
+        "--xai_external_runs",
+        type=int,
+        default=None,
+        help="aHFR-TokenSHAP repeat runs (default from settings)"
+    )
+    parser.add_argument(
+        "--xai_external_adaptive",
+        action=argparse.BooleanOptionalAction,
+        default=None,
+        help="Enable adaptive sampling for external aHFR-TokenSHAP"
+    )
+    parser.add_argument(
+        "--xai_internal_model",
+        type=str,
+        default=None,
+        help="Internal IGA model (local HF model id/path)"
+    )
+    parser.add_argument(
+        "--xai_internal_steps",
+        type=int,
+        default=None,
+        help="Internal IGA integration steps"
+    )
+    parser.add_argument(
+        "--xai_internal_baseline",
+        type=str,
+        default=None,
+        help="Internal IGA baseline mode (mask|prompt|eos|zero)"
+    )
+    parser.add_argument(
+        "--xai_internal_span_mode",
+        type=str,
+        default=None,
+        help="Internal IGA span mode (value|line)"
+    )
+    parser.add_argument(
+        "--xai_hybrid_model",
+        type=str,
+        default=None,
+        help="Hybrid LLM-select model (default from settings)"
+    )
+    parser.add_argument(
+        "--xai_hybrid_repeats",
+        type=int,
+        default=None,
+        help="Hybrid LLM-select repeats"
+    )
+    parser.add_argument(
+        "--xai_hybrid_temperature",
+        type=float,
+        default=None,
+        help="Hybrid LLM-select temperature"
+    )
+    parser.add_argument(
+        "--xai_full_validation",
+        action="store_true",
+        help="Enable stricter explainability validation checks"
     )
     # ---------------------------
     
@@ -1443,6 +1800,8 @@ Examples:
                 if config.get("max_tool_output") not in (None, "", 0):
                     settings.token_budget.max_tool_output_tokens = int(config.get("max_tool_output"))
 
+                _apply_explainability_overrides(settings, args)
+
                 reset_llm_client()
                 print(f"[*] UI Triggered Launch: {participant_id} -> {target_condition} (control: {control_condition})")
                 
@@ -1460,6 +1819,7 @@ Examples:
                     verbose=not args.quiet,
                     interactive_ui=args.ui,
                     generate_deep_phenotype=False,
+                    generate_xai_report=False,
                 )
                 latest_run_context["internal"] = result.get("internal_context")
 
@@ -1582,6 +1942,8 @@ Examples:
             if args.max_tool_output:
                 settings.token_budget.max_tool_output_tokens = args.max_tool_output
 
+            _apply_explainability_overrides(settings, args)
+
             reset_llm_client()
 
             # Run standard CLI
@@ -1593,6 +1955,7 @@ Examples:
                 verbose=not args.quiet,
                 interactive_ui=False,
                 generate_deep_phenotype=bool(args.generate_deep_phenotype),
+                generate_xai_report=bool(args.generate_xai_report),
             )
         
         # Exit with appropriate code
