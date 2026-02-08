@@ -44,6 +44,11 @@ def _iter_candidate_dirs(root: Path, max_depth: int = 4, max_dirs: int = 2500) -
         return []
     seen = 0
     for dirpath, dirnames, _ in os.walk(root):
+        # Skip noisy/irrelevant trees to stay non-intrusive and fast.
+        dirnames[:] = [
+            d for d in dirnames
+            if d not in {".git", ".idea", "__pycache__", "node_modules", ".venv", "venv"}
+        ]
         try:
             rel = Path(dirpath).resolve().relative_to(root)
             depth = len(rel.parts)
@@ -62,7 +67,16 @@ def _numeric_name_ok(name: str, numeric_id: str) -> bool:
     tokens = re.findall(r"\d+", name)
     if not tokens:
         return False
-    return all(token == numeric_id for token in tokens)
+    # Strict exact-token numeric matching: allows additional tokens (e.g., run/date),
+    # but prevents fuzzy mixups like 001 vs 010.
+    return numeric_id in tokens
+
+
+def _numeric_path_ok(path_text: str, numeric_id: str) -> bool:
+    tokens = re.findall(r"\d+", path_text)
+    if not tokens:
+        return False
+    return numeric_id in tokens
 
 
 def _score_candidate_dir(
@@ -70,13 +84,16 @@ def _score_candidate_dir(
     variants: List[str],
     settings,
     numeric_id: Optional[str],
+    preferred_root: Optional[Path] = None,
 ) -> Tuple[int, int, int]:
     present, total = _participant_files_match(candidate, settings)
     name = candidate.name.lower()
+    path_l = str(candidate).lower()
     score = 0
 
     if numeric_id:
-        if not _numeric_name_ok(name, numeric_id):
+        # Enforce exact numeric-token matching across full path.
+        if not _numeric_path_ok(path_l, numeric_id):
             return 0, present, total
 
     for variant in variants:
@@ -84,9 +101,23 @@ def _score_candidate_dir(
             score += 80
         if variant in name:
             score += 35
+        # Path-level match helps when IDs appear in parent folder names.
+        if variant in path_l:
+            score += 20
     if present == total and total > 0:
         score += 120
     score += present * 20
+
+    if preferred_root is not None:
+        try:
+            preferred_root = preferred_root.resolve()
+            cand_resolved = candidate.resolve()
+            if cand_resolved == preferred_root or preferred_root in cand_resolved.parents:
+                score += 300
+            elif preferred_root.parent == cand_resolved or preferred_root.parent in cand_resolved.parents:
+                score += 80
+        except Exception:
+            pass
     return score, present, total
 
 
@@ -122,31 +153,85 @@ def resolve_participant_dir(
     numeric_id = raw if raw.isdigit() else None
     variants = _build_id_variants(raw)
 
-    roots: List[Path] = [
+    primary_roots: List[Path] = [
         compass_data_root,
-        settings.paths.base_dir / "data",
+        compass_data_root.parent,
+        compass_data_root.parent.parent,
+    ]
+
+    secondary_roots: List[Path] = [
+        settings.paths.base_dir,
         settings.paths.base_dir.parent,
-        settings.paths.base_dir.parent / "data",
+    ]
+
+    # Also scan a few ancestors for sibling projects/workspaces.
+    try:
+        parent = settings.paths.base_dir.parent
+        for _ in range(3):
+            secondary_roots.append(parent)
+            parent = parent.parent
+    except Exception:
+        pass
+
+    try:
+        parent = compass_data_root.parent
+        for _ in range(2):
+            secondary_roots.append(parent)
+            parent = parent.parent
+    except Exception:
+        pass
+    # Non-intrusive fallback roots: bounded scans only if needed.
+    home = Path.home()
+    fallback_roots: List[Path] = [
+        home / "PythonProjects",
+        home / "Documents",
+        home / "Downloads",
+        home,
     ]
 
     best: Optional[Path] = None
     best_score = -1
     best_present = -1
+    best_total = -1
 
-    for root in roots:
-        for candidate in _iter_candidate_dirs(root, max_depth=4, max_dirs=2500):
-            name_l = candidate.name.lower()
-            if variants and not any(v in name_l for v in variants):
-                continue
-            score, present, total = _score_candidate_dir(candidate, variants, settings, numeric_id)
-            if score <= 0:
-                continue
-            if score > best_score or (score == best_score and present > best_present):
-                best_score = score
-                best_present = present
-                if present == total and total > 0:
+    def _scan_roots(scan_roots: List[Path], max_depth: int, max_dirs: int) -> None:
+        nonlocal best, best_score, best_present, best_total
+        for root in scan_roots:
+            for candidate in _iter_candidate_dirs(root, max_depth=max_depth, max_dirs=max_dirs):
+                path_l = str(candidate).lower()
+                if numeric_id and not _numeric_path_ok(path_l, numeric_id):
+                    continue
+                if variants and not any(v in path_l for v in variants):
+                    continue
+                score, present, total = _score_candidate_dir(
+                    candidate,
+                    variants,
+                    settings,
+                    numeric_id,
+                    preferred_root=compass_data_root,
+                )
+                if score <= 0:
+                    continue
+                if (
+                    score > best_score
+                    or (score == best_score and present > best_present)
+                    or (score == best_score and present == best_present and total > best_total)
+                ):
+                    best_score = score
+                    best_present = present
+                    best_total = total
                     best = candidate
-                else:
-                    best = candidate
+
+    _scan_roots(primary_roots, max_depth=7, max_dirs=12000)
+    if best and best_present == best_total and best_total > 0:
+        return best
+
+    _scan_roots(secondary_roots, max_depth=6, max_dirs=10000)
+    if best and best_present == best_total and best_total > 0:
+        return best
+
+    # If still no complete candidate was found, do a bounded broader scan.
+    if not best or best_present < best_total:
+        _scan_roots(fallback_roots, max_depth=6, max_dirs=15000)
 
     return best

@@ -201,11 +201,6 @@ class DataLoader:
                 continue  # Skip stats at this level
             
             if isinstance(value, dict):
-                # Get stats for this node
-                stats = value.get("_stats", {})
-                mean_score = stats.get("mean_abs_score", 0.0)
-                n_leaves = stats.get("n_leaves", 0)
-                
                 # Recursively parse children
                 child_node = self._parse_ukb_node(
                     key, value, level + 1
@@ -214,6 +209,13 @@ class DataLoader:
                 
                 # Track domain-level summaries
                 if level == 0:
+                    stats = value.get("_stats", {}) if isinstance(value, dict) else {}
+                    mean_score = stats.get("mean_abs_score")
+                    if mean_score is None:
+                        mean_score = child_node.z_score
+                    n_leaves = int(stats.get("n_leaves", 0) or 0)
+                    if n_leaves <= 0:
+                        n_leaves = self._count_scored_nodes(child_node)
                     domain_summaries[key] = {
                         "mean_abs_score": mean_score,
                         "n_leaves": n_leaves
@@ -238,25 +240,29 @@ class DataLoader:
         level: int
     ) -> DeviationNode:
         """Parse a single UKB deviation node and its children."""
-        stats = data.get("_stats", {})
+        stats = data.get("_stats", {}) if isinstance(data, dict) else {}
         mean_score = stats.get("mean_abs_score")
+        if mean_score is None:
+            mean_score = self._extract_numeric_score(data)
         n_leaves = stats.get("n_leaves", 0)
         
         # Parse children recursively
         children = []
         for key, value in data.items():
-            if key == "_stats":
+            if key in {"_stats", "z_score", "score", "mean_abs_score", "mean_abs"}:
                 continue
-            if isinstance(value, dict) and (
-                "_stats" in value or any(
-                    isinstance(v, dict) for v in value.values()
-                )
-            ):
+            if isinstance(value, dict):
                 child_node = self._parse_ukb_node(key, value, level + 1)
                 children.append(child_node)
         
         # Determine if leaf (has _stats but no child nodes with _stats)
-        is_leaf = len(children) == 0 and "_stats" in data
+        is_leaf = len(children) == 0 and ("_stats" in data or mean_score is not None)
+
+        if not n_leaves:
+            if children:
+                n_leaves = sum(self._count_scored_nodes(child) for child in children)
+            elif mean_score is not None:
+                n_leaves = 1
         
         return DeviationNode(
             node_id=f"{level}_{name}".replace(" ", "_").replace("/", "_"),
@@ -266,6 +272,27 @@ class DataLoader:
             children=children,
             is_leaf=is_leaf
         )
+
+    def _extract_numeric_score(self, node_data: Dict[str, Any]) -> Optional[float]:
+        """Extract a numeric score from a generic nested node schema."""
+        if not isinstance(node_data, dict):
+            return None
+        for key in ("z_score", "score", "mean_abs_score", "mean_abs"):
+            raw = node_data.get(key)
+            if raw is None:
+                continue
+            try:
+                return float(raw)
+            except Exception:
+                continue
+        return None
+
+    def _count_scored_nodes(self, node: DeviationNode) -> int:
+        """Count nodes with a numeric score under a parsed deviation subtree."""
+        if node is None:
+            return 0
+        score_here = 1 if node.z_score is not None else 0
+        return score_here + sum(self._count_scored_nodes(child) for child in (node.children or []))
     
     def _parse_deviation_node(self, node_data: Dict[str, Any]) -> DeviationNode:
         """Recursively parse legacy deviation nodes (root/children format)."""

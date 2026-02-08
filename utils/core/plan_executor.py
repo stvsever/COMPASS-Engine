@@ -315,8 +315,8 @@ class PlanExecutor:
         previous_outputs: Dict[int, Dict[str, Any]]
     ) -> Dict[str, Any]:
         """Build input for a tool based on step parameters and context."""
-        # Truncate large inputs to fit within context limits
-        # FeatureSynthesizer and UnimodalCompressor need more data density
+        # Keep core contextual files (data_overview, hierarchical_deviation, non_numerical_data)
+        # untruncated for reliability. Multimodal domain slices remain the primary truncation target.
         tool_canonical = step.tool_name.value
         is_high_density = tool_canonical in [
             "FeatureSynthesizer",
@@ -324,15 +324,7 @@ class PlanExecutor:
             "AnomalyNarrativeBuilder",
             "ClinicalRelevanceRanker",
         ]
-        
-        max_depth = 10 if is_high_density else 6
-        max_children = 2000 if is_high_density else 200
-
-        hierarchical_deviation = self._truncate_for_context(
-            context.get("hierarchical_deviation"),
-            max_depth=max_depth,  
-            max_children=max_children
-        )
+        hierarchical_deviation = context.get("hierarchical_deviation") or {}
         
         raw_input_domains = list(step.input_domains or [])
         normalized_domains: List[str] = []

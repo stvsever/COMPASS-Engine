@@ -149,6 +149,37 @@ def _apply_role_max_token_overrides(settings, role_max_tokens: Dict[str, Any]) -
             continue
         setattr(settings.models, f"{role}_max_tokens", int(value))
 
+
+def _sync_role_token_limits_with_budgets(settings, role_max_tokens: Optional[Dict[str, Any]] = None) -> None:
+    """
+    Keep per-role generation caps aligned with global budget controls.
+
+    Precedence:
+    1) Explicit per-role max token overrides (if provided by UI)
+    2) Global `max_agent_output_tokens` / `max_tool_output_tokens`
+    3) Model-safe cap via `_clamp_role_token_limits`
+    """
+    role_names = ("orchestrator", "critic", "integrator", "predictor", "communicator", "tool")
+    explicit_roles = set()
+    if isinstance(role_max_tokens, dict):
+        for role in role_names:
+            value = role_max_tokens.get(role)
+            if value in (None, "", 0, "0"):
+                continue
+            explicit_roles.add(role)
+            setattr(settings.models, f"{role}_max_tokens", int(value))
+
+    max_agent_output = max(1, int(getattr(settings.token_budget, "max_agent_output_tokens", 4096) or 4096))
+    max_tool_output = max(1, int(getattr(settings.token_budget, "max_tool_output_tokens", 15000) or 15000))
+
+    for role in ("orchestrator", "critic", "integrator", "predictor", "communicator"):
+        if role not in explicit_roles:
+            setattr(settings.models, f"{role}_max_tokens", max_agent_output)
+    if "tool" not in explicit_roles:
+        settings.models.tool_max_tokens = max_tool_output
+
+    _clamp_role_token_limits(settings)
+
 def _compute_token_budget_defaults(context_window: int) -> Dict[str, int]:
     ctx = max(1, int(context_window or 0))
     return {
@@ -169,6 +200,31 @@ def _apply_token_budget_defaults(settings, overrides: Dict[str, Any]) -> None:
         settings.token_budget.max_tool_input_tokens = defaults["max_tool_input"]
     if overrides.get("max_tool_output") in (None, "", 0):
         settings.token_budget.max_tool_output_tokens = defaults["max_tool_output"]
+
+
+def _sync_component_token_budgets(settings) -> None:
+    """
+    Synchronize per-component budgets with dynamic token limits.
+
+    Why: component budgets were historically static (e.g., critic_budget=50k), which
+    can produce misleading CRITICAL percentages when users select large-context models.
+    """
+    max_agent_input = int(getattr(settings.token_budget, "max_agent_input_tokens", 20000) or 20000)
+    max_agent_output = int(getattr(settings.token_budget, "max_agent_output_tokens", 4096) or 4096)
+    max_tool_input = int(getattr(settings.token_budget, "max_tool_input_tokens", 20000) or 20000)
+    max_tool_output = int(getattr(settings.token_budget, "max_tool_output_tokens", 15000) or 15000)
+
+    # Agent-level budgets scale with agent context + generation capacity.
+    settings.token_budget.orchestrator_budget = max(50000, int(max_agent_input * 0.80) + max_agent_output)
+    settings.token_budget.predictor_budget = max(100000, int(max_agent_input * 0.95) + max_agent_output)
+    settings.token_budget.critic_budget = max(50000, int(max_agent_input * 0.95) + max_agent_output)
+    settings.token_budget.communicator_budget = max(50000, int(max_agent_input * 0.75) + max_agent_output)
+
+    # Integration/execution budgets scale with tool payload sizes.
+    tool_fusion_floor = int(max(max_agent_input * 0.85, max_tool_input + max_tool_output))
+    settings.token_budget.fusion_budget = max(90000, tool_fusion_floor)
+    settings.token_budget.integrator_budget = max(90000, tool_fusion_floor)
+    settings.token_budget.executor_budget_per_step = max(30000, max_tool_input + max_tool_output)
 
 
 def _parse_xai_methods(raw_methods: Optional[str]) -> List[str]:
@@ -471,6 +527,8 @@ def run_compass_pipeline(
         Dictionary with prediction result and metadata
     """
     settings = get_settings()
+    _sync_component_token_budgets(settings)
+    _sync_role_token_limits_with_budgets(settings)
     start_time = datetime.now()
     
     # Initialize UI
@@ -1785,8 +1843,6 @@ Examples:
                     settings.models.communicator_model = local_model
                     settings.models.tool_model = local_model
 
-                _clamp_role_token_limits(settings)
-
                 # Apply Token Limits from UI (defaults derive from context window)
                 _apply_token_budget_defaults(settings, config)
                 if config.get("total_budget"):
@@ -1799,6 +1855,8 @@ Examples:
                     settings.token_budget.max_tool_input_tokens = int(config.get("max_tool_input"))
                 if config.get("max_tool_output") not in (None, "", 0):
                     settings.token_budget.max_tool_output_tokens = int(config.get("max_tool_output"))
+                _sync_component_token_budgets(settings)
+                _sync_role_token_limits_with_budgets(settings, role_token_limits)
 
                 _apply_explainability_overrides(settings, args)
 
@@ -1919,8 +1977,6 @@ Examples:
                 settings.models.communicator_model = args.public_model
                 settings.models.tool_model = args.public_model
 
-            _clamp_role_token_limits(settings)
-
             # Apply Token Limits (CLI)
             _apply_token_budget_defaults(
                 settings,
@@ -1941,6 +1997,8 @@ Examples:
                 settings.token_budget.max_tool_input_tokens = args.max_tool_input
             if args.max_tool_output:
                 settings.token_budget.max_tool_output_tokens = args.max_tool_output
+            _sync_component_token_budgets(settings)
+            _sync_role_token_limits_with_budgets(settings)
 
             _apply_explainability_overrides(settings, args)
 

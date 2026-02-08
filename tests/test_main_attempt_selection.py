@@ -12,6 +12,8 @@ from multi_agent_system.main import (
     _apply_explainability_overrides,
     _parse_xai_methods,
     _run_explainability_for_selected_attempt,
+    _sync_component_token_budgets,
+    _sync_role_token_limits_with_budgets,
     _select_best_attempt,
 )
 from multi_agent_system.config.settings import reload_settings
@@ -82,6 +84,36 @@ def test_apply_explainability_overrides():
     assert settings.explainability.external_runs == 2
     assert settings.explainability.external_adaptive is False
     assert settings.explainability.hybrid_repeats == 3
+
+
+def test_component_budgets_scale_from_dynamic_token_limits():
+    settings = reload_settings()
+    settings.token_budget.max_agent_input_tokens = 1_900_000
+    settings.token_budget.max_agent_output_tokens = 500_000
+    settings.token_budget.max_tool_input_tokens = 800_000
+    settings.token_budget.max_tool_output_tokens = 500_000
+
+    _sync_component_token_budgets(settings)
+
+    assert settings.token_budget.critic_budget >= 2_300_000
+    assert settings.token_budget.predictor_budget >= 2_300_000
+    assert settings.token_budget.orchestrator_budget >= 2_020_000
+    assert settings.token_budget.executor_budget_per_step >= 1_300_000
+
+
+def test_role_max_tokens_follow_global_outputs_with_explicit_override_precedence():
+    settings = reload_settings()
+    settings.token_budget.max_agent_output_tokens = 25000
+    settings.token_budget.max_tool_output_tokens = 12000
+
+    _sync_role_token_limits_with_budgets(settings, {"critic": 7777})
+
+    assert settings.models.orchestrator_max_tokens == 25000
+    assert settings.models.integrator_max_tokens == 25000
+    assert settings.models.predictor_max_tokens == 25000
+    assert settings.models.communicator_max_tokens == 25000
+    assert settings.models.tool_max_tokens == 12000
+    assert settings.models.critic_max_tokens == 7777
 
 
 class _DummyLogger:

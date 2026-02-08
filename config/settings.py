@@ -103,6 +103,7 @@ class TokenBudgetConfig:
     integrator_budget: int = 90000 
     predictor_budget: int = 100000
     critic_budget: int = 50000
+    communicator_budget: int = 100000
     
     # Granular controls
     max_agent_input_tokens: int = 20000   # Max context window for agent prompts

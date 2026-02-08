@@ -4,10 +4,11 @@ COMPASS Anomaly Narrative Builder Tool
 Builds narratives from hierarchical deviation maps.
 """
 
-import json
 from typing import Dict, Any, Optional, List
 
 from .base_tool import BaseTool
+from ..utils.toon import json_to_toon
+from ..utils.token_packer import truncate_text_by_tokens
 
 
 class AnomalyNarrativeBuilder(BaseTool):
@@ -36,19 +37,38 @@ class AnomalyNarrativeBuilder(BaseTool):
         target = input_data.get("target_condition", "neuropsychiatric")
         control = input_data.get("control_condition", "")
         hierarchical_deviation = input_data.get("hierarchical_deviation", {})
+        non_numerical_data = input_data.get("non_numerical_data", "")
         
         # Analyze the deviation structure
         analysis = self._analyze_deviation(hierarchical_deviation)
+        analysis_toon = truncate_text_by_tokens(
+            json_to_toon(analysis),
+            1200,
+            model_hint="gpt-5",
+        )
+        deviation_toon = truncate_text_by_tokens(
+            json_to_toon(hierarchical_deviation),
+            2800,
+            model_hint="gpt-5",
+        )
+        notes_text = truncate_text_by_tokens(
+            str(non_numerical_data or "Not provided"),
+            1200,
+            model_hint="gpt-5",
+        )
         
         prompt_parts = [
             f"## TARGET CONDITION: {target}",
             f"## CONTROL CONDITION: {control}",
             
             f"\n## HIERARCHICAL DEVIATION MAP (high absolute value is not necessary pathological; just abnormal (e.g., high cognitive scores))",
-            f"```json\n{json.dumps(analysis, indent=2)}\n```",
+            f"```text\n{analysis_toon}\n```",
             
-            f"\n## FULL DEVIATION STRUCTURE (TRUNCATED)",
-            str(hierarchical_deviation)[:4000],
+            f"\n## FULL DEVIATION STRUCTURE (TOON, TRUNCATED)",
+            f"```text\n{deviation_toon}\n```",
+
+            f"\n## NON-NUMERICAL CLINICAL NOTES (TRUNCATED)",
+            f"```text\n{notes_text}\n```",
             
             "\n## TASK",
             "Build a token-efficient narrative from this hierarchical deviation map.",

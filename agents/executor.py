@@ -137,11 +137,11 @@ class Executor(BaseAgent):
             chunking_skipped = bool(chunk_result.get("chunking_skipped"))
             chunk_reason = str(chunk_result.get("chunking_reason") or "").strip()
             if chunking_skipped:
-                preview = "Integration complete (chunking not required)."
+                preview = "Integration complete (chunking not required)"
                 if chunk_reason:
                     preview = f"{preview} Reason: {chunk_reason}."
             else:
-                preview = f"Integration complete (chunk evidence: {chunk_count} chunks)."
+                preview = f"Integration complete (chunk evidence: {chunk_count} chunks)"
             ui.on_step_complete(
                 step_id=fusion_step_id,
                 tokens=0,

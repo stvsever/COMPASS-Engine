@@ -83,6 +83,10 @@ class TokenManager:
                 component="fusion",
                 allocated=self.settings.token_budget.fusion_budget
             ),
+            "integrator": TokenBudget(
+                component="integrator",
+                allocated=getattr(self.settings.token_budget, "integrator_budget", self.settings.token_budget.fusion_budget)
+            ),
             "predictor": TokenBudget(
                 component="predictor",
                 allocated=self.settings.token_budget.predictor_budget
@@ -90,6 +94,10 @@ class TokenManager:
             "critic": TokenBudget(
                 component="critic",
                 allocated=self.settings.token_budget.critic_budget
+            ),
+            "communicator": TokenBudget(
+                component="communicator",
+                allocated=getattr(self.settings.token_budget, "communicator_budget", self.settings.token_budget.critic_budget)
             ),
         }
         

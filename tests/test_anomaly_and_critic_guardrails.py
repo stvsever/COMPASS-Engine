@@ -1,11 +1,18 @@
 import sys
 from pathlib import Path
 from types import SimpleNamespace
+from datetime import datetime
 
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent.parent))
 
 from multi_agent_system.agents.critic import Critic
-from multi_agent_system.data.models.prediction_result import Verdict
+from multi_agent_system.data.models.prediction_result import (
+    Verdict,
+    PredictionResult,
+    BinaryClassification,
+    ConfidenceLevel,
+    KeyFinding,
+)
 from multi_agent_system.tools.anomaly_narrative import AnomalyNarrativeBuilder
 
 
@@ -70,3 +77,52 @@ def test_critic_summary_fallback_uses_reasoning_when_missing():
     assert evaluation.verdict == Verdict.SATISFACTORY
     assert evaluation.concise_summary != "No summary provided."
     assert "coherent and supported" in evaluation.concise_summary
+
+
+def test_critic_execute_is_fail_safe_when_llm_json_is_invalid(monkeypatch):
+    critic = Critic(llm_client=SimpleNamespace())
+
+    def _raise(*args, **kwargs):
+        raise ValueError("No JSON found in LLM response")
+
+    monkeypatch.setattr(critic, "_call_llm", _raise)
+
+    prediction = PredictionResult(
+        prediction_id="pred_failsafe",
+        participant_id="P1",
+        target_condition="MDD",
+        control_condition="brain-implicated pathology, but NOT psychiatric",
+        created_at=datetime.now(),
+        binary_classification=BinaryClassification.CASE,
+        probability_score=0.8,
+        confidence_level=ConfidenceLevel.MEDIUM,
+        key_findings=[
+            KeyFinding(
+                domain="BIOLOGICAL_ASSAY",
+                finding="BDNF low",
+                direction="ABNORMAL_LOW",
+                z_score=-2.1,
+                relevance_to_prediction="supportive",
+            )
+        ],
+        reasoning_chain=["reason"],
+        supporting_evidence={"for_case": ["x"], "for_control": []},
+        uncertainty_factors=[],
+        clinical_summary="summary",
+        domains_processed=["BIOLOGICAL_ASSAY"],
+        total_tokens_used=1000,
+        iteration=1,
+    )
+
+    evaluation = critic.execute(
+        prediction=prediction,
+        executor_output={},
+        data_overview={},
+        hierarchical_deviation={},
+        non_numerical_data="",
+        control_condition=prediction.control_condition,
+    )
+
+    assert evaluation.verdict == Verdict.UNSATISFACTORY
+    assert evaluation.checklist.has_binary_outcome is True
+    assert "invalid JSON" in evaluation.concise_summary

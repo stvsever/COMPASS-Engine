@@ -138,11 +138,19 @@ class Predictor(BaseAgent):
         predictor_call_context["final_prompt_token_estimate"] = prompt_tokens
         executor_output["predictor_call_context"] = predictor_call_context
 
-        prediction_data = self._call_predictor_json(
-            system_prompt=self.system_prompt,
-            user_prompt=final_prompt,
-            max_retries=2,
-        )
+        try:
+            prediction_data = self._call_predictor_json(
+                system_prompt=self.system_prompt,
+                user_prompt=final_prompt,
+                max_retries=2,
+            )
+        except Exception as e:
+            logger.exception("Predictor failed to obtain JSON response; using deterministic fallback.")
+            self._log_error(f"Predictor LLM failure, using fallback prediction: {e}")
+            prediction_data = self._build_fallback_prediction_data(
+                participant_id=participant_id,
+                error=str(e),
+            )
 
         result = self._parse_prediction(
             prediction_data=prediction_data,
@@ -170,13 +178,24 @@ class Predictor(BaseAgent):
     ) -> Dict[str, Any]:
         last_error: Optional[str] = None
         prompt = user_prompt
+        base_prompt = user_prompt
+        max_tokens = int(self.LLM_MAX_TOKENS or 4096)
         for attempt in range(max_retries + 1):
             if attempt > 0:
+                # For length-related failures, progressively shrink context but keep both
+                # the beginning and the schema tail.
+                if self._is_length_error(last_error):
+                    ratios = [0.85, 0.65, 0.45]
+                    ratio = ratios[min(attempt - 1, len(ratios) - 1)]
+                    prompt = self._truncate_prompt_for_retry(base_prompt, keep_ratio=ratio)
+                    max_tokens = max(1024, int(max_tokens * 0.75))
+                else:
+                    prompt = base_prompt
                 prompt = (
-                    user_prompt
+                    prompt
                     + "\n\nPREVIOUS_ERROR:\n"
                     + str(last_error or "unknown")
-                    + "\nReturn only fixed valid JSON."
+                    + "\nReturn only fixed valid JSON. Keep output concise."
                 )
             try:
                 response = self.llm_client.call(
@@ -185,7 +204,7 @@ class Predictor(BaseAgent):
                         {"role": "user", "content": prompt},
                     ],
                     model=self.LLM_MODEL,
-                    max_tokens=self.LLM_MAX_TOKENS,
+                    max_tokens=max_tokens,
                     temperature=self.LLM_TEMPERATURE,
                     response_format={"type": "json_object"},
                 )
@@ -196,6 +215,68 @@ class Predictor(BaseAgent):
                 if attempt == max_retries:
                     raise
         return {}
+
+    def _is_length_error(self, error_text: Optional[str]) -> bool:
+        text = str(error_text or "").lower()
+        return ("finish_reason=length" in text) or ("empty response" in text and "length" in text)
+
+    def _truncate_prompt_for_retry(self, prompt: str, keep_ratio: float) -> str:
+        tokens = self._encoder.encode(prompt or "")
+        if not tokens:
+            return prompt or ""
+        ratio = min(0.95, max(0.2, float(keep_ratio)))
+        keep = max(256, int(len(tokens) * ratio))
+        if keep >= len(tokens):
+            return prompt
+        head = max(128, int(keep * 0.7))
+        tail = max(128, keep - head)
+        if head + tail > len(tokens):
+            head = max(1, len(tokens) // 2)
+            tail = len(tokens) - head
+        front_text = self._encoder.decode(tokens[:head])
+        back_text = self._encoder.decode(tokens[-tail:])
+        return (
+            front_text
+            + "\n\n[TRUNCATED FOR RETRY: middle context omitted due to length constraints]\n\n"
+            + back_text
+        )
+
+    def _build_fallback_prediction_data(self, participant_id: str, error: str) -> Dict[str, Any]:
+        """Deterministic fallback payload when predictor model fails repeatedly."""
+        return {
+            "prediction_id": f"fallback_{participant_id}_{str(uuid.uuid4())[:8]}",
+            "binary_classification": "CONTROL",
+            "probability_score": 0.499,
+            "confidence_level": "LOW",
+            "key_findings": [
+                {
+                    "domain": "SYSTEM",
+                    "finding": "Predictor LLM response unavailable (length/empty/invalid).",
+                    "direction": "NORMAL",
+                    "z_score": None,
+                    "relevance_to_prediction": "Conservative fallback to avoid unsupported CASE call.",
+                }
+            ],
+            "reasoning_chain": [
+                "Model output could not be parsed after retries.",
+                "Applied deterministic conservative fallback (CONTROL).",
+            ],
+            "clinical_summary": (
+                "Predictor response was unavailable after retries; conservative fallback was applied. "
+                "Re-run with a larger-capability model or lower prompt volume."
+            ),
+            "supporting_evidence": {
+                "for_case": [],
+                "for_control": [
+                    "Fallback safety policy triggered due to predictor model failure.",
+                    f"Raw predictor error: {error}",
+                ],
+            },
+            "uncertainty_factors": [
+                "Predictor LLM failure (empty/non-JSON output).",
+                "Result generated by deterministic fallback policy.",
+            ],
+        }
 
     def _build_final_synthesis_prompt(
         self,

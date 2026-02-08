@@ -92,11 +92,18 @@ class Critic(BaseAgent):
             control_condition=control_condition,
         )
         
-        # Call LLM with auto-repair parsing
-        evaluation_data = self._call_llm(user_prompt)
-        
-        # Convert to CriticEvaluation
-        evaluation = self._parse_evaluation(evaluation_data, prediction.prediction_id)
+        try:
+            # Call LLM with auto-repair parsing
+            evaluation_data = self._call_llm(user_prompt)
+            # Convert to CriticEvaluation
+            evaluation = self._parse_evaluation(evaluation_data, prediction.prediction_id)
+        except Exception as e:
+            logger.exception("Critic evaluation failed; returning deterministic UNSAT fallback.")
+            self._log_error(f"LLM/JSON failure, using fallback evaluation: {e}")
+            evaluation = self._build_fallback_evaluation(
+                prediction_id=prediction.prediction_id,
+                error=str(e),
+            )
 
         
         self._log_complete(f"{evaluation.verdict.value} (confidence: {evaluation.confidence_in_verdict:.2f})")
@@ -207,7 +214,11 @@ class Critic(BaseAgent):
         prompt_parts.extend([
             f"\n## HIERARCHICAL DEVIATION PROFILE (INPUT DATA)",
             f"Note: This is the mean aggregated hierarchy of the multi-modal data (so there is no direction; only means 'abnormal' without necesarilly implying pathology ; Use this to verify if cited findings exist. The actual multi-modal data is NOT always given to you; just a compressed summary.",
-            truncate_text_by_tokens(str(hierarchical_deviation) if hierarchical_deviation else "Not provided", dev_budget, model_hint="gpt-5"),
+            truncate_text_by_tokens(
+                json_to_toon(hierarchical_deviation) if hierarchical_deviation else "Not provided",
+                dev_budget,
+                model_hint="gpt-5",
+            ),
             
             f"\n## NON-NUMERICAL CLINICAL NOTES",
             truncate_text_by_tokens(str(non_numerical_data) if non_numerical_data else "Not provided", notes_budget, model_hint="gpt-5"),
@@ -341,6 +352,57 @@ class Critic(BaseAgent):
             concise_summary=concise_summary
         )
 
+    def _build_fallback_evaluation(self, prediction_id: str, error: str) -> CriticEvaluation:
+        """Create deterministic fail-safe evaluation when critic LLM output is invalid."""
+        checklist = EvaluationChecklist(
+            has_binary_outcome=True,
+            valid_probability=True,
+            sufficient_coverage=False,
+            evidence_based_reasoning=False,
+            clinically_relevant=False,
+            logically_coherent=False,
+            critical_domains_processed=False,
+        )
+        suggestion = ImprovementSuggestion(
+            issue="Critic output was not machine-parseable JSON",
+            suggestion=(
+                "Retry with a stricter JSON-capable model/provider or reduce critic prompt complexity. "
+                "Prediction is preserved, but this attempt is marked UNSATISFACTORY."
+            ),
+            priority=ImprovementPriority.HIGH,
+        )
+        reasoning = (
+            "Critic LLM response could not be parsed as valid JSON after retries. "
+            f"Raw error: {error}"
+        )
+        return CriticEvaluation(
+            evaluation_id=str(uuid.uuid4())[:8],
+            prediction_id=prediction_id,
+            created_at=datetime.now(),
+            verdict=Verdict.UNSATISFACTORY,
+            confidence_in_verdict=0.0,
+            composite_score=0.0,
+            score_breakdown={
+                "logic": 0.0,
+                "evidence": 0.0,
+                "completeness": 0.0,
+                "relevance": 0.0,
+            },
+            checklist=checklist,
+            strengths=[],
+            weaknesses=[
+                "Critic output parsing failed",
+                "Evaluation reliability unavailable for this iteration",
+            ],
+            improvement_suggestions=[suggestion],
+            domains_missed=[],
+            reasoning=reasoning,
+            concise_summary=(
+                "Critic response was invalid JSON; applied deterministic UNSAT fallback. "
+                "Pipeline continues without crashing."
+            ),
+        )
+
     
     def _print_evaluation_summary(self, evaluation: CriticEvaluation):
         """Print formatted evaluation summary."""
@@ -385,6 +447,3 @@ class Critic(BaseAgent):
                 print(f"  [{sugg.priority.value}] {sugg.issue}: {sugg.suggestion[:50]}...")
         
         print(f"{'='*60}\n")
-
-
-from ..config.settings import get_settings
