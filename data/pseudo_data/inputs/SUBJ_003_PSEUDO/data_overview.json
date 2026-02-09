@@ -1,0 +1,45 @@
+{
+    "participant_id": "SUBJ_003_PSEUDO",
+    "domain_coverage": {
+        "DEMOGRAPHICS": {
+            "present_leaves": 6,
+            "total_leaves": 15,
+            "coverage_percentage": 40.0,
+            "missing_count": 9,
+            "total_tokens": 180,
+            "is_available": true
+        },
+        "LIFESTYLE_ENVIRONMENT": {
+            "present_leaves": 13,
+            "total_leaves": 80,
+            "coverage_percentage": 16.2,
+            "missing_count": 67,
+            "total_tokens": 780,
+            "is_available": true
+        },
+        "COGNITION": {
+            "present_leaves": 8,
+            "total_leaves": 100,
+            "coverage_percentage": 8.0,
+            "missing_count": 92,
+            "total_tokens": 640,
+            "is_available": true
+        },
+        "BIOLOGICAL_ASSAY": {
+            "present_leaves": 9,
+            "total_leaves": 220,
+            "coverage_percentage": 4.1,
+            "missing_count": 211,
+            "total_tokens": 810,
+            "is_available": true
+        }
+    },
+    "total_tokens": 3010,
+    "available_domains": [
+        "DEMOGRAPHICS",
+        "LIFESTYLE_ENVIRONMENT",
+        "COGNITION",
+        "BIOLOGICAL_ASSAY"
+    ],
+    "token_budget": 3510
+}

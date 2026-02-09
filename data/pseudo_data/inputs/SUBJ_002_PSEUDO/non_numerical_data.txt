@@ -2,16 +2,46 @@ Patient ID: SUBJ_002_PSEUDO
 Date of Assessment: 2025-10-20
 Clinician: Dr. B. Jones
 
-HISTORY:
-42-year-old male volunteer for the control group. No family history of psychiatric or neurodegenerative disorders.
-Reports good physical health. Exercises 3 times a week (running). sleep pattern is regular (7-8 hours).
+REASON FOR VISIT:
+Healthy volunteer for baseline comparison cohort. No acute complaints.
 
-SOCIAL:
-Married, stable employment in IT sector. Non-smoker. Moderate alcohol consumption.
+MEDICAL HISTORY:
+- No chronic medical conditions
+- No prior surgeries
+- No neurologic events
+
+MEDICATIONS:
+- None
+- Occasional multivitamin
+
+FAMILY HISTORY:
+- No known familial neurologic or psychiatric disorders
+- Father with mild hypertension
+
+SOCIAL HISTORY:
+- Married, works in IT
+- Exercises regularly (running and cycling)
+- Non-smoker; alcohol 4-6 units/week
+- Sleeps 7-8 hours/night
+
+REVIEW OF SYSTEMS:
+- Denies headaches, dizziness, or memory issues
+- No mood or anxiety symptoms reported
 
 EXAMINATION:
-Mental State Examination is unremarkable. Mood is euthymic. No cognitive deficits detected.
-MRI incidental finding: Small arachnoid cyst in middle cranial fossa, deemed stable and non-clinical.
+- Vitals within normal limits
+- Neurologic exam normal
+- Cognitive screening normal
+
+LABS (Summary):
+- Glucose and A1c within normal range
+- Lipid panel favorable
+- Inflammatory markers low
+- Vitamin D adequate
+
+IMAGING SUMMARY:
+- MRI: normal brain structure and diffusion metrics
+- Incidental small arachnoid cyst in left middle cranial fossa, stable
 
 IMPRESSION:
-Healthy control participant. No evidence of pathology.
+Healthy participant with no evidence of neurologic or psychiatric disorder.

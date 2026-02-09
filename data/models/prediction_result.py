@@ -190,6 +190,11 @@ class CriticEvaluation(BaseModel):
     # Reasoning
     reasoning: str = Field("", description="Detailed explanation of evaluation")
     concise_summary: str = Field("", description="Concise summary (1-2 sentences) of why verdict was reached")
+
+    # Fallback metadata (for UI transparency)
+    fallback_used: bool = False
+    fallback_reason: str = Field("", description="Reason for fallback (e.g., invalid_json)")
+    fallback_recommendation: str = Field("", description="Actionable recommendation when fallback is used")
     
     @property
     def is_satisfactory(self) -> bool:

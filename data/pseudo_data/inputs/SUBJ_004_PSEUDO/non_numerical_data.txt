@@ -1,0 +1,50 @@
+Patient ID: SUBJ_004_PSEUDO
+Date of Assessment: 2025-12-03
+Clinician: Dr. M. Laurent
+
+PRESENTING COMPLAINT:
+61-year-old male referred for evaluation of progressive gait unsteadiness and slowed movements over ~18 months. Reports intermittent left-hand numbness lasting minutes and occasional dizziness on standing.
+
+HISTORY OF PRESENT ILLNESS:
+Gradual onset of balance difficulty, worse on uneven ground. Increased effort when climbing stairs and occasional dropping of small objects. No syncope. Denies hallucinations, delusions, or sustained mood changes. Sleep fragmented due to nocturia.
+
+PAST MEDICAL HISTORY:
+- Hypertension (suboptimally controlled in the past year)
+- Type 2 diabetes mellitus
+- Hyperlipidemia
+- No prior psychiatric diagnoses
+
+MEDICATIONS:
+- Metformin 1000 mg twice daily
+- Lisinopril 20 mg daily
+- Atorvastatin 20 mg nightly
+
+FAMILY HISTORY:
+- Father with cardiovascular disease in his 60s
+- No known family history of primary neurodegenerative disorders
+
+SOCIAL HISTORY:
+- Retired bus driver, lives with spouse
+- Former smoker (quit 8 years ago); rare alcohol use
+- Physical activity limited by balance issues
+
+NEUROLOGIC EXAMINATION:
+- Gait: wide-based with reduced tandem stability
+- Sensory: decreased vibration sense in both feet
+- Motor: mild distal weakness; tone normal
+- Cognition: alert and oriented; slowed processing speed on bedside tasks
+
+IMAGING REPORT (Summary):
+MRI shows confluent periventricular white matter changes, several small lacunar cavities in the basal ganglia, and mild cerebellar volume loss. No mass lesion or acute ischemia. Diffusion metrics reduced in corticospinal tracts.
+
+LABORATORY SUMMARY:
+- HbA1c elevated
+- LDL elevated
+- Homocysteine mildly elevated
+- Inflammatory markers mildly elevated
+
+FUNCTIONAL IMPACT:
+Requires handrail for stairs and avoids crowded environments due to imbalance. Independent in basic activities of daily living.
+
+IMPRESSION:
+Neurologic syndrome with imaging evidence of chronic microvascular brain changes and mild cognitive/motor slowing. No evidence of primary psychiatric disorder.

@@ -1,15 +1,60 @@
 {
     "BIOLOGICAL_ASSAY": {
-        "lipidomics": {
-            "score": 0.05
+        "metabolic": {
+            "score": -0.1
         },
-        "genomics": {
-            "score": -0.8
+        "lipids": {
+            "score": 0.0
+        },
+        "inflammation_markers": {
+            "score": -0.3
+        },
+        "vitamins": {
+            "score": 0.2
         }
     },
     "BRAIN_MRI": {
         "structural": {
-            "score": -0.3
+            "score": 0.0
+        },
+        "diffusion": {
+            "score": 0.1
+        }
+    },
+    "COGNITION": {
+        "attention": {
+            "score": 0.3
+        },
+        "memory": {
+            "score": 0.2
+        },
+        "processing_speed": {
+            "score": 0.1
+        },
+        "executive_function": {
+            "score": 0.1
+        }
+    },
+    "DEMOGRAPHICS": {
+        "age_related": {
+            "score": 0.1
+        },
+        "education": {
+            "score": 0.0
+        }
+    },
+    "LIFESTYLE_ENVIRONMENT": {
+        "sleep": {
+            "score": 0.2
+        },
+        "physical_activity": {
+            "score": 0.6
+        },
+        "diet": {
+            "score": 0.1
+        },
+        "substance_use": {
+            "score": 0.2
         }
     }
 }

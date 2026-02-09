@@ -115,8 +115,94 @@ def try_fix_json(json_str: str) -> Optional[str]:
     """
     Attempt to fix common JSON issues.
     """
+    def escape_unescaped_newlines(text: str) -> str:
+        out = []
+        in_str = False
+        escaped = False
+        for ch in text:
+            if in_str:
+                if escaped:
+                    escaped = False
+                    out.append(ch)
+                    continue
+                if ch == "\\":
+                    escaped = True
+                    out.append(ch)
+                    continue
+                if ch == "\"":
+                    in_str = False
+                    out.append(ch)
+                    continue
+                if ch == "\n":
+                    out.append("\\n")
+                    continue
+                if ch == "\r":
+                    continue
+                if ch == "\t":
+                    out.append("\\t")
+                    continue
+                out.append(ch)
+                continue
+            if ch == "\"":
+                in_str = True
+            out.append(ch)
+        return "".join(out)
+
+    def quote_unquoted_keys(text: str) -> str:
+        out = []
+        i = 0
+        in_str = False
+        escaped = False
+        n = len(text)
+        while i < n:
+            ch = text[i]
+            if in_str:
+                if escaped:
+                    escaped = False
+                    out.append(ch)
+                    i += 1
+                    continue
+                if ch == "\\":
+                    escaped = True
+                    out.append(ch)
+                    i += 1
+                    continue
+                if ch == "\"":
+                    in_str = False
+                out.append(ch)
+                i += 1
+                continue
+            if ch == "\"":
+                in_str = True
+                out.append(ch)
+                i += 1
+                continue
+            if ch.isalpha() or ch == "_":
+                j = i
+                while j < n and (text[j].isalnum() or text[j] in "_-"):
+                    j += 1
+                k = j
+                while k < n and text[k].isspace():
+                    k += 1
+                if k < n and text[k] == ":":
+                    key = text[i:j]
+                    out.append(f"\"{key}\"")
+                    out.append(text[j:k])
+                    out.append(":")
+                    i = k + 1
+                    continue
+            out.append(ch)
+            i += 1
+        return "".join(out)
+
     # Remove trailing commas
     fixed = re.sub(r',(\s*[}\]])', r'\1', json_str)
+
+    # Escape unescaped newlines/tabs inside strings
+    fixed = escape_unescaped_newlines(fixed)
+
+    # Quote unquoted keys (JSON5/JS-style -> JSON)
+    fixed = quote_unquoted_keys(fixed)
     
     # Fix single quotes
     if "'" in fixed and '"' not in fixed:

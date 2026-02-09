@@ -1,0 +1,380 @@
+{
+    "BRAIN_MRI": {
+        "structural": {
+            "subcortical_volumes": {
+                "thalamus": {
+                    "_leaves": [
+                        {
+                            "feature": "left_thalamus_volume",
+                            "z_score": -1.1,
+                            "value": "Reduced",
+                            "significance": "Borderline"
+                        },
+                        {
+                            "feature": "right_thalamus_volume",
+                            "z_score": -1.0,
+                            "value": "Low",
+                            "significance": "Borderline"
+                        }
+                    ]
+                },
+                "basal_ganglia": {
+                    "_leaves": [
+                        {
+                            "feature": "putamen_volume",
+                            "z_score": -0.9,
+                            "value": "Low-Normal"
+                        },
+                        {
+                            "feature": "caudate_volume",
+                            "z_score": -0.6,
+                            "value": "Normal"
+                        }
+                    ]
+                }
+            },
+            "cerebellum": {
+                "_leaves": [
+                    {
+                        "feature": "cerebellar_volume",
+                        "z_score": -1.8,
+                        "value": "Reduced",
+                        "significance": "Abnormal"
+                    }
+                ]
+            },
+            "cortical_thickness": {
+                "motor_cortex": {
+                    "_leaves": [
+                        {
+                            "feature": "precentral_thickness_left",
+                            "z_score": -1.4,
+                            "value": "Thinning",
+                            "significance": "Borderline"
+                        },
+                        {
+                            "feature": "precentral_thickness_right",
+                            "z_score": -1.2,
+                            "value": "Thinning",
+                            "significance": "Borderline"
+                        }
+                    ]
+                }
+            },
+            "ventricles": {
+                "_leaves": [
+                    {
+                        "feature": "lateral_ventricle_volume",
+                        "z_score": 1.5,
+                        "value": "Enlarged",
+                        "significance": "Mild"
+                    }
+                ]
+            }
+        },
+        "vascular": {
+            "white_matter_hyperintensity": {
+                "_leaves": [
+                    {
+                        "feature": "wmh_volume",
+                        "z_score": 2.4,
+                        "value": "Elevated",
+                        "significance": "Abnormal"
+                    },
+                    {
+                        "feature": "periventricular_wmh",
+                        "z_score": 2.1,
+                        "value": "Elevated",
+                        "significance": "Abnormal"
+                    },
+                    {
+                        "feature": "deep_wmh",
+                        "z_score": 1.8,
+                        "value": "Moderate",
+                        "significance": "Abnormal"
+                    }
+                ]
+            },
+            "lacunes": {
+                "_leaves": [
+                    {
+                        "feature": "lacunar_count",
+                        "z_score": 2.0,
+                        "value": "3",
+                        "significance": "Abnormal"
+                    }
+                ]
+            },
+            "microbleeds": {
+                "_leaves": [
+                    {
+                        "feature": "microbleed_count",
+                        "z_score": 1.6,
+                        "value": "2",
+                        "significance": "Borderline"
+                    }
+                ]
+            }
+        },
+        "diffusion": {
+            "tracts": {
+                "_leaves": [
+                    {
+                        "feature": "corticospinal_tract_fa",
+                        "z_score": -1.7,
+                        "value": "Reduced",
+                        "significance": "Abnormal"
+                    },
+                    {
+                        "feature": "corpus_callosum_md",
+                        "z_score": 1.6,
+                        "value": "Elevated",
+                        "significance": "Borderline"
+                    },
+                    {
+                        "feature": "superior_longitudinal_fasciculus_fa",
+                        "z_score": -1.2,
+                        "value": "Low",
+                        "significance": "Borderline"
+                    }
+                ]
+            }
+        },
+        "perfusion": {
+            "_leaves": [
+                {
+                    "feature": "global_cbf",
+                    "z_score": -0.8,
+                    "value": "Low"
+                },
+                {
+                    "feature": "frontal_cbf",
+                    "z_score": -1.1,
+                    "value": "Low"
+                }
+            ]
+        }
+    },
+    "COGNITION": {
+        "processing_speed": {
+            "_leaves": [
+                {
+                    "feature": "TMT_A_time",
+                    "z_score": -1.1,
+                    "value": "Slow"
+                },
+                {
+                    "feature": "symbol_digit_modalities",
+                    "z_score": -1.0,
+                    "value": "Low"
+                }
+            ]
+        },
+        "executive_function": {
+            "_leaves": [
+                {
+                    "feature": "TMT_B_time",
+                    "z_score": -0.9,
+                    "value": "Slow"
+                },
+                {
+                    "feature": "stroop_interference",
+                    "z_score": -0.6,
+                    "value": "Low-Normal"
+                }
+            ]
+        },
+        "memory": {
+            "_leaves": [
+                {
+                    "feature": "list_learning_total",
+                    "z_score": -0.4,
+                    "value": "Normal-Low"
+                },
+                {
+                    "feature": "delayed_recall",
+                    "z_score": -0.5,
+                    "value": "Normal-Low"
+                }
+            ]
+        },
+        "motor": {
+            "_leaves": [
+                {
+                    "feature": "grooved_pegboard_time",
+                    "z_score": -1.3,
+                    "value": "Slow"
+                },
+                {
+                    "feature": "finger_tapping_speed",
+                    "z_score": -1.0,
+                    "value": "Reduced"
+                }
+            ]
+        }
+    },
+    "BIOLOGICAL_ASSAY": {
+        "metabolic": {
+            "_leaves": [
+                {
+                    "feature": "HbA1c",
+                    "z_score": 1.7,
+                    "value": "7.2%",
+                    "ref_range": "<5.7%"
+                },
+                {
+                    "feature": "fasting_glucose",
+                    "z_score": 1.5,
+                    "value": "138 mg/dL",
+                    "ref_range": "70-99 mg/dL"
+                },
+                {
+                    "feature": "LDL",
+                    "z_score": 1.4,
+                    "value": "165 mg/dL",
+                    "ref_range": "<100 mg/dL"
+                },
+                {
+                    "feature": "triglycerides",
+                    "z_score": 1.2,
+                    "value": "210 mg/dL",
+                    "ref_range": "<150 mg/dL"
+                }
+            ]
+        },
+        "inflammation_markers": {
+            "_leaves": [
+                {
+                    "feature": "CRP",
+                    "z_score": 1.0,
+                    "value": "3.6 mg/L",
+                    "ref_range": "<3.0 mg/L"
+                },
+                {
+                    "feature": "IL-6",
+                    "z_score": 0.7,
+                    "value": "High-Normal",
+                    "ref_range": "Normal"
+                }
+            ]
+        },
+        "vascular_markers": {
+            "_leaves": [
+                {
+                    "feature": "homocysteine",
+                    "z_score": 1.3,
+                    "value": "18 umol/L",
+                    "ref_range": "<15 umol/L"
+                },
+                {
+                    "feature": "fibrinogen",
+                    "z_score": 1.1,
+                    "value": "High",
+                    "ref_range": "Normal"
+                }
+            ]
+        },
+        "renal_function": {
+            "_leaves": [
+                {
+                    "feature": "eGFR",
+                    "z_score": -0.3,
+                    "value": "78 mL/min",
+                    "ref_range": ">60"
+                }
+            ]
+        }
+    },
+    "DEMOGRAPHICS": {
+        "_leaves": [
+            {
+                "feature": "age_at_recruitment",
+                "z_score": 61.0,
+                "value": "61"
+            },
+            {
+                "feature": "sex",
+                "z_score": 0.0,
+                "value": "Male"
+            },
+            {
+                "feature": "education_years",
+                "z_score": 12.0,
+                "value": "12"
+            },
+            {
+                "feature": "bmi",
+                "z_score": 1.3,
+                "value": "29.4"
+            },
+            {
+                "feature": "handedness",
+                "z_score": 0.0,
+                "value": "Right"
+            },
+            {
+                "feature": "employment_status",
+                "z_score": 0.0,
+                "value": "Retired"
+            }
+        ]
+    },
+    "LIFESTYLE_ENVIRONMENT": {
+        "physical_activity": {
+            "_leaves": [
+                {
+                    "feature": "weekly_aerobic_minutes",
+                    "z_score": -1.0,
+                    "value": "40"
+                },
+                {
+                    "feature": "steps_per_day",
+                    "z_score": -1.2,
+                    "value": "3200"
+                }
+            ]
+        },
+        "diet": {
+            "_leaves": [
+                {
+                    "feature": "fruit_veg_servings",
+                    "z_score": -0.5,
+                    "value": "2/day"
+                },
+                {
+                    "feature": "saturated_fat_intake",
+                    "z_score": 0.8,
+                    "value": "High"
+                }
+            ]
+        },
+        "substance_use": {
+            "_leaves": [
+                {
+                    "feature": "tobacco_pack_years",
+                    "z_score": 1.0,
+                    "value": "20"
+                },
+                {
+                    "feature": "alcohol_units_week",
+                    "z_score": -0.3,
+                    "value": "1"
+                }
+            ]
+        },
+        "sleep": {
+            "_leaves": [
+                {
+                    "feature": "avg_sleep_hours",
+                    "z_score": -0.4,
+                    "value": "6.3 h"
+                },
+                {
+                    "feature": "sleep_efficiency",
+                    "z_score": -0.6,
+                    "value": "Fair"
+                }
+            ]
+        }
+    }
+}

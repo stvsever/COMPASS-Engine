@@ -1,0 +1,257 @@
+{
+    "DEMOGRAPHICS": {
+        "_leaves": [
+            {
+                "feature": "age_at_recruitment",
+                "z_score": 33.0,
+                "value": "33"
+            },
+            {
+                "feature": "sex",
+                "z_score": 0.0,
+                "value": "Female"
+            },
+            {
+                "feature": "education_years",
+                "z_score": 17.0,
+                "value": "17"
+            },
+            {
+                "feature": "bmi",
+                "z_score": 0.1,
+                "value": "23.8"
+            },
+            {
+                "feature": "handedness",
+                "z_score": 0.0,
+                "value": "Right"
+            },
+            {
+                "feature": "employment_status",
+                "z_score": 0.0,
+                "value": "Full-time"
+            }
+        ]
+    },
+    "LIFESTYLE_ENVIRONMENT": {
+        "sleep": {
+            "_leaves": [
+                {
+                    "feature": "avg_sleep_hours",
+                    "z_score": -0.6,
+                    "value": "6.2 h"
+                },
+                {
+                    "feature": "sleep_variability_index",
+                    "z_score": 1.1,
+                    "value": "Variable"
+                },
+                {
+                    "feature": "sleep_efficiency",
+                    "z_score": -0.4,
+                    "value": "Fair"
+                }
+            ]
+        },
+        "physical_activity": {
+            "_leaves": [
+                {
+                    "feature": "weekly_aerobic_minutes",
+                    "z_score": 0.3,
+                    "value": "150"
+                },
+                {
+                    "feature": "steps_per_day",
+                    "z_score": 0.2,
+                    "value": "8200"
+                }
+            ]
+        },
+        "diet": {
+            "_leaves": [
+                {
+                    "feature": "fruit_veg_servings",
+                    "z_score": 0.2,
+                    "value": "4/day"
+                },
+                {
+                    "feature": "iron_rich_foods",
+                    "z_score": -0.3,
+                    "value": "Low-Normal"
+                },
+                {
+                    "feature": "omega3_intake",
+                    "z_score": -0.1,
+                    "value": "Normal"
+                }
+            ]
+        },
+        "substance_use": {
+            "_leaves": [
+                {
+                    "feature": "caffeine_mg_day",
+                    "z_score": 0.9,
+                    "value": "260 mg"
+                },
+                {
+                    "feature": "alcohol_units_week",
+                    "z_score": -0.5,
+                    "value": "1"
+                },
+                {
+                    "feature": "tobacco_pack_years",
+                    "z_score": 0.0,
+                    "value": "0"
+                }
+            ]
+        },
+        "stress": {
+            "_leaves": [
+                {
+                    "feature": "perceived_stress_scale",
+                    "z_score": 0.7,
+                    "value": "Moderate"
+                },
+                {
+                    "feature": "caregiving_burden",
+                    "z_score": 0.8,
+                    "value": "Moderate"
+                }
+            ]
+        }
+    },
+    "COGNITION": {
+        "attention": {
+            "_leaves": [
+                {
+                    "feature": "CPT_dprime",
+                    "z_score": 0.1,
+                    "value": "Normal"
+                },
+                {
+                    "feature": "CPT_omissions",
+                    "z_score": -0.2,
+                    "value": "Normal"
+                }
+            ]
+        },
+        "memory": {
+            "_leaves": [
+                {
+                    "feature": "verbal_learning_total",
+                    "z_score": 0.3,
+                    "value": "High-Normal"
+                },
+                {
+                    "feature": "delayed_recall",
+                    "z_score": 0.1,
+                    "value": "Normal"
+                }
+            ]
+        },
+        "psychomotor_speed": {
+            "_leaves": [
+                {
+                    "feature": "TMT_A_time",
+                    "z_score": -0.6,
+                    "value": "Slightly Slow"
+                },
+                {
+                    "feature": "symbol_digit_modalities",
+                    "z_score": 0.0,
+                    "value": "Normal"
+                }
+            ]
+        },
+        "executive_function": {
+            "_leaves": [
+                {
+                    "feature": "TMT_B_time",
+                    "z_score": -0.7,
+                    "value": "Mildly Slow"
+                },
+                {
+                    "feature": "stroop_interference",
+                    "z_score": -0.4,
+                    "value": "Low-Normal"
+                }
+            ]
+        }
+    },
+    "BIOLOGICAL_ASSAY": {
+        "hematology": {
+            "_leaves": [
+                {
+                    "feature": "hemoglobin",
+                    "z_score": -0.4,
+                    "value": "11.9 g/dL",
+                    "ref_range": "12-16"
+                },
+                {
+                    "feature": "hematocrit",
+                    "z_score": -0.3,
+                    "value": "35%",
+                    "ref_range": "36-46"
+                }
+            ]
+        },
+        "iron_status": {
+            "_leaves": [
+                {
+                    "feature": "ferritin",
+                    "z_score": -0.8,
+                    "value": "18 ng/mL",
+                    "ref_range": "20-200"
+                },
+                {
+                    "feature": "transferrin_saturation",
+                    "z_score": -0.5,
+                    "value": "18%",
+                    "ref_range": "20-50"
+                }
+            ]
+        },
+        "thyroid": {
+            "_leaves": [
+                {
+                    "feature": "TSH",
+                    "z_score": 0.1,
+                    "value": "2.3 mIU/L",
+                    "ref_range": "0.4-4.0"
+                },
+                {
+                    "feature": "free_T4",
+                    "z_score": 0.0,
+                    "value": "1.2 ng/dL",
+                    "ref_range": "0.8-1.8"
+                }
+            ]
+        },
+        "vitamins": {
+            "_leaves": [
+                {
+                    "feature": "vitamin_D",
+                    "z_score": -0.6,
+                    "value": "26 ng/mL",
+                    "ref_range": ">30"
+                },
+                {
+                    "feature": "B12",
+                    "z_score": 0.2,
+                    "value": "540 pg/mL",
+                    "ref_range": "200-900"
+                }
+            ]
+        },
+        "inflammation_markers": {
+            "_leaves": [
+                {
+                    "feature": "CRP",
+                    "z_score": 0.2,
+                    "value": "1.4 mg/L",
+                    "ref_range": "<3.0"
+                }
+            ]
+        }
+    }
+}

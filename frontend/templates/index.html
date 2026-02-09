@@ -1042,6 +1042,21 @@
             pointer-events: auto;
         }
 
+        .critic-fallback {
+            margin-top: 10px;
+            padding: 10px 12px;
+            border-radius: 8px;
+            border: 1px solid rgba(245, 158, 11, 0.5);
+            background: rgba(245, 158, 11, 0.08);
+            color: #f6c976;
+            font-size: 0.75rem;
+            line-height: 1.35;
+        }
+
+        .critic-fallback strong {
+            color: #f59e0b;
+        }
+
         .toast-header {
             display: flex;
             align-items: center;
@@ -1626,6 +1641,7 @@
                         <div class="verdict-title">Critic Verdict</div>
                         <div class="verdict-value" id="critic-verdict">--</div>
                         <div class="verdict-sub" id="critic-summary">Awaiting critic evaluation...</div>
+                        <div class="critic-fallback" id="critic-fallback" style="display:none;"></div>
                         <div class="verdict-checklist" id="critic-checklist"></div>
                     </div>
                 </div>
@@ -2499,6 +2515,13 @@
             return pills;
         }
 
+        function formatFallbackMessage(criticData) {
+            if (!criticData || !criticData.fallback_used) return '';
+            const reason = (criticData.fallback_reason || 'invalid_json').replace(/_/g, ' ');
+            const recommendation = criticData.fallback_recommendation || 'Strongly recommend using a higher-quality critic model.';
+            return `<strong>Fallback Mode:</strong> Critic output required repair (${escapeHtml(reason)}). ${escapeHtml(recommendation)}`;
+        }
+
         function showCriticToast(criticData) {
             if (!criticData || criticData.verdict !== 'UNSATISFACTORY') return;
             const toast = document.getElementById('critic-toast');
@@ -2524,11 +2547,13 @@
                 }
             }
             const suggestionText = suggestionLabel ? `Fix: ${escapeHtml(suggestionLabel)}` : '';
+            const fallbackText = criticData.fallback_used ? `<div class="critic-fallback" style="margin-top:8px;">${formatFallbackMessage(criticData)}</div>` : '';
 
             body.innerHTML = `
                 <div>${escapeHtml(summary)}</div>
                 ${weaknessText ? `<div style="margin-top:6px;">${weaknessText}</div>` : ''}
                 ${suggestionText ? `<div style="margin-top:6px;">${suggestionText}</div>` : ''}
+                ${fallbackText}
                 <div style="margin-top:6px;">${buildChecklistPills(criticData.checklist, true)}</div>
             `;
 
@@ -2810,6 +2835,11 @@
                     document.getElementById('critic-verdict').textContent = '--';
                     document.getElementById('critic-summary').textContent = 'Awaiting critic evaluation...';
                     document.getElementById('critic-checklist').innerHTML = '';
+                    const fallbackEl = document.getElementById('critic-fallback');
+                    if (fallbackEl) {
+                        fallbackEl.innerHTML = '';
+                        fallbackEl.style.display = 'none';
+                    }
                 }
 
                 if (state.prediction) {
@@ -2826,6 +2856,16 @@
                     document.getElementById('critic-verdict').style.color = verdict === 'SATISFACTORY' ? 'var(--verdict_ok)' : 'var(--verdict_bad)';
                     document.getElementById('critic-summary').textContent = state.critic.summary || 'No critic summary provided.';
                     document.getElementById('critic-checklist').innerHTML = buildChecklistPills(state.critic.checklist, true);
+                    const fallbackEl = document.getElementById('critic-fallback');
+                    if (fallbackEl) {
+                        if (state.critic.fallback_used) {
+                            fallbackEl.innerHTML = formatFallbackMessage(state.critic);
+                            fallbackEl.style.display = 'block';
+                        } else {
+                            fallbackEl.innerHTML = '';
+                            fallbackEl.style.display = 'none';
+                        }
+                    }
 
                     const verdictBadge = document.getElementById('final-verdict');
                     verdictBadge.textContent = verdict;

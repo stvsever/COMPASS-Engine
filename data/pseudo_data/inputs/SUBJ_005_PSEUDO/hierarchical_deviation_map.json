@@ -1,0 +1,70 @@
+{
+    "BRAIN_MRI": {
+        "functional_connectivity": {
+            "default_mode_network": {
+                "score": -1.3
+            },
+            "salience_network": {
+                "score": 1.2
+            },
+            "social_brain_network": {
+                "score": -1.5
+            },
+            "sensory_network": {
+                "score": 1.1
+            }
+        },
+        "structural": {
+            "temporal_lobe": {
+                "score": -1.2
+            },
+            "cerebellum": {
+                "score": -0.8
+            }
+        }
+    },
+    "COGNITION": {
+        "social_cognition": {
+            "score": -1.5
+        },
+        "executive_function": {
+            "score": -1.0
+        },
+        "attention": {
+            "score": 0.8
+        },
+        "language_pragmatics": {
+            "score": -1.2
+        }
+    },
+    "GENOMICS": {
+        "polygenic_risk_scores": {
+            "score": 1.2
+        },
+        "synaptic_pathways": {
+            "score": 0.9
+        }
+    },
+    "DEMOGRAPHICS": {
+        "age_related": {
+            "score": 0.0
+        },
+        "education": {
+            "score": 0.0
+        }
+    },
+    "LIFESTYLE_ENVIRONMENT": {
+        "sleep": {
+            "score": -0.6
+        },
+        "physical_activity": {
+            "score": -0.2
+        },
+        "sensory_environment": {
+            "score": 1.4
+        },
+        "routines": {
+            "score": 1.2
+        }
+    }
+}

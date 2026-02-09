@@ -1,0 +1,66 @@
+{
+    "BRAIN_MRI": {
+        "structural": {
+            "score": -1.2
+        },
+        "vascular": {
+            "score": 2.0
+        },
+        "diffusion": {
+            "score": -1.3
+        },
+        "perfusion": {
+            "score": -0.9
+        }
+    },
+    "COGNITION": {
+        "processing_speed": {
+            "score": -1.0
+        },
+        "executive_function": {
+            "score": -0.8
+        },
+        "memory": {
+            "score": -0.4
+        },
+        "motor": {
+            "score": -1.2
+        }
+    },
+    "BIOLOGICAL_ASSAY": {
+        "metabolic": {
+            "score": 1.6
+        },
+        "inflammation_markers": {
+            "score": 0.8
+        },
+        "vascular_markers": {
+            "score": 1.2
+        },
+        "renal_function": {
+            "score": -0.2
+        }
+    },
+    "DEMOGRAPHICS": {
+        "age_related": {
+            "score": 0.9
+        },
+        "anthropometrics": {
+            "score": 1.1
+        }
+    },
+    "LIFESTYLE_ENVIRONMENT": {
+        "physical_activity": {
+            "score": -1.0
+        },
+        "diet": {
+            "score": 0.6
+        },
+        "substance_use": {
+            "score": 0.5
+        },
+        "sleep": {
+            "score": -0.4
+        }
+    }
+}

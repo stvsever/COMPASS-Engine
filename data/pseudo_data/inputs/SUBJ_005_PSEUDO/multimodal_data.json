@@ -1,0 +1,289 @@
+{
+    "BRAIN_MRI": {
+        "functional_connectivity": {
+            "resting_state": {
+                "default_mode_network": {
+                    "_leaves": [
+                        {
+                            "feature": "mPFC-PCC_connectivity",
+                            "z_score": -1.3,
+                            "value": "Hypoconnectivity",
+                            "significance": "Abnormal"
+                        }
+                    ]
+                },
+                "salience_network": {
+                    "_leaves": [
+                        {
+                            "feature": "AI-dACC_connectivity",
+                            "z_score": 1.2,
+                            "value": "Hyperconnectivity",
+                            "significance": "Borderline"
+                        }
+                    ]
+                },
+                "social_brain_network": {
+                    "_leaves": [
+                        {
+                            "feature": "TPJ-mPFC_connectivity",
+                            "z_score": -1.5,
+                            "value": "Reduced",
+                            "significance": "Abnormal"
+                        }
+                    ]
+                },
+                "sensory_network": {
+                    "_leaves": [
+                        {
+                            "feature": "auditory_cortex_connectivity",
+                            "z_score": 1.1,
+                            "value": "Elevated",
+                            "significance": "Borderline"
+                        },
+                        {
+                            "feature": "somatosensory_connectivity",
+                            "z_score": 1.0,
+                            "value": "Elevated",
+                            "significance": "Borderline"
+                        }
+                    ]
+                }
+            }
+        },
+        "structural": {
+            "cortical_thickness": {
+                "temporal_lobe": {
+                    "_leaves": [
+                        {
+                            "feature": "superior_temporal_thickness",
+                            "z_score": -1.2,
+                            "value": "Thinning",
+                            "significance": "Borderline"
+                        },
+                        {
+                            "feature": "middle_temporal_thickness",
+                            "z_score": -0.8,
+                            "value": "Low-Normal",
+                            "significance": "Normal"
+                        }
+                    ]
+                }
+            },
+            "cerebellum": {
+                "_leaves": [
+                    {
+                        "feature": "cerebellar_volume",
+                        "z_score": -0.8,
+                        "value": "Low-Normal",
+                        "significance": "Borderline"
+                    }
+                ]
+            }
+        }
+    },
+    "COGNITION": {
+        "social_cognition": {
+            "_leaves": [
+                {
+                    "feature": "emotion_recognition_accuracy",
+                    "z_score": -1.6,
+                    "value": "Low"
+                },
+                {
+                    "feature": "theory_of_mind_task",
+                    "z_score": -1.4,
+                    "value": "Low"
+                },
+                {
+                    "feature": "social_inference_index",
+                    "z_score": -1.2,
+                    "value": "Low"
+                }
+            ]
+        },
+        "executive_function": {
+            "_leaves": [
+                {
+                    "feature": "set_shifting_cost",
+                    "z_score": -1.2,
+                    "value": "Elevated"
+                },
+                {
+                    "feature": "working_memory_span",
+                    "z_score": 0.2,
+                    "value": "Normal"
+                }
+            ]
+        },
+        "attention": {
+            "_leaves": [
+                {
+                    "feature": "CPT_variability",
+                    "z_score": 1.1,
+                    "value": "Elevated"
+                },
+                {
+                    "feature": "CPT_omissions",
+                    "z_score": 0.6,
+                    "value": "Mild"
+                }
+            ]
+        },
+        "language_pragmatics": {
+            "_leaves": [
+                {
+                    "feature": "pragmatic_inference",
+                    "z_score": -1.5,
+                    "value": "Low"
+                },
+                {
+                    "feature": "prosody_comprehension",
+                    "z_score": -1.2,
+                    "value": "Low"
+                },
+                {
+                    "feature": "verbal_fluency",
+                    "z_score": 0.1,
+                    "value": "Normal"
+                }
+            ]
+        }
+    },
+    "GENOMICS": {
+        "polygenic_risk_scores": {
+            "_leaves": [
+                {
+                    "feature": "Social_Communication_PRS",
+                    "z_score": 1.4,
+                    "percentile": "90th"
+                },
+                {
+                    "feature": "Language_Processing_PRS",
+                    "z_score": 1.1,
+                    "percentile": "80th"
+                },
+                {
+                    "feature": "Sensory_Sensitivity_PRS",
+                    "z_score": 1.5,
+                    "percentile": "92nd"
+                },
+                {
+                    "feature": "Attention_Regulation_PRS",
+                    "z_score": 0.7,
+                    "percentile": "72nd"
+                },
+                {
+                    "feature": "Circadian_Rhythm_PRS",
+                    "z_score": 0.9,
+                    "percentile": "78th"
+                }
+            ]
+        },
+        "synaptic_pathways": {
+            "_leaves": [
+                {
+                    "feature": "synapse_organization_burden",
+                    "z_score": 0.8,
+                    "value": "Moderate"
+                },
+                {
+                    "feature": "axon_guidance_burden",
+                    "z_score": 0.6,
+                    "value": "Mild"
+                }
+            ]
+        }
+    },
+    "DEMOGRAPHICS": {
+        "_leaves": [
+            {
+                "feature": "age_at_recruitment",
+                "z_score": 24.0,
+                "value": "24"
+            },
+            {
+                "feature": "sex",
+                "z_score": 0.0,
+                "value": "Female"
+            },
+            {
+                "feature": "education_years",
+                "z_score": 16.0,
+                "value": "16"
+            },
+            {
+                "feature": "bmi",
+                "z_score": -0.2,
+                "value": "21.8"
+            },
+            {
+                "feature": "handedness",
+                "z_score": 0.0,
+                "value": "Left"
+            },
+            {
+                "feature": "employment_status",
+                "z_score": 0.0,
+                "value": "Full-time"
+            }
+        ]
+    },
+    "LIFESTYLE_ENVIRONMENT": {
+        "sleep": {
+            "_leaves": [
+                {
+                    "feature": "avg_sleep_hours",
+                    "z_score": -0.7,
+                    "value": "6.2 h"
+                },
+                {
+                    "feature": "sleep_onset_latency",
+                    "z_score": 1.0,
+                    "value": "Prolonged"
+                }
+            ]
+        },
+        "physical_activity": {
+            "_leaves": [
+                {
+                    "feature": "weekly_aerobic_minutes",
+                    "z_score": -0.2,
+                    "value": "120"
+                },
+                {
+                    "feature": "steps_per_day",
+                    "z_score": -0.3,
+                    "value": "7000"
+                }
+            ]
+        },
+        "sensory_environment": {
+            "_leaves": [
+                {
+                    "feature": "noise_sensitivity_index",
+                    "z_score": 1.6,
+                    "value": "High"
+                },
+                {
+                    "feature": "texture_aversion_score",
+                    "z_score": 1.3,
+                    "value": "Elevated"
+                }
+            ]
+        },
+        "routines": {
+            "_leaves": [
+                {
+                    "feature": "routine_adherence",
+                    "z_score": 1.4,
+                    "value": "High"
+                },
+                {
+                    "feature": "change_tolerance",
+                    "z_score": -1.2,
+                    "value": "Low"
+                }
+            ]
+        }
+    }
+}

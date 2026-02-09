@@ -1,0 +1,46 @@
+Patient ID: SUBJ_003_PSEUDO
+Date of Assessment: 2025-11-02
+Clinician: Dr. C. Rivera
+
+REASON FOR VISIT:
+Baseline research screening. No acute complaints.
+
+HISTORY:
+33-year-old female, 6 months postpartum. Reports variable sleep due to nighttime awakenings and intermittent tension-type headaches during high workload weeks. No persistent low mood, panic episodes, or intrusive thoughts. Appetite stable; energy generally good but fatigued when sleep is disrupted.
+
+MEDICAL HISTORY:
+- Mild intermittent asthma
+- Seasonal allergic rhinitis
+- Iron deficiency noted last year; completed supplementation
+
+MEDICATIONS:
+- Albuterol inhaler as needed
+- Prenatal multivitamin
+
+FAMILY HISTORY:
+- Mother with migraines
+- Father with hypertension
+
+SOCIAL HISTORY:
+- Lives with partner and infant
+- Employed in project management
+- Exercises 2-3 times/week
+- Caffeine 2-3 cups/day; alcohol 1-2 drinks/month; non-smoker
+
+EXAMINATION:
+- Vitals normal
+- Neurologic exam normal
+- Mood: "tired but okay"
+- Cognition intact on bedside tasks
+
+COGNITIVE TESTING (Summary):
+Performance in average to high-average range. Slightly slower set-shifting speed attributed to fatigue during testing. No evidence of memory impairment.
+
+LABORATORY SUMMARY:
+- Ferritin low-normal
+- Vitamin D slightly low
+- Thyroid indices within normal limits
+- CRP within normal range
+
+IMPRESSION:
+Overall healthy participant with situational sleep disruption and mild fatigue-related slowing. No evidence of neurologic or psychiatric disorder.

@@ -93,9 +93,21 @@ class Critic(BaseAgent):
         )
         
         try:
-            # Call LLM with auto-repair parsing
-            evaluation_data = self._call_llm(user_prompt)
-            # Convert to CriticEvaluation
+            # Call LLM and parse with repair fallback (fast-model safe)
+            raw = self._call_llm_raw(
+                user_prompt,
+                max_tokens=self._critic_max_output_tokens(),
+                temperature=self.LLM_TEMPERATURE,
+            )
+            evaluation_data = self._parse_json_with_repair(
+                raw,
+                prediction=prediction,
+                executor_output=executor_output,
+                data_overview=data_overview,
+                hierarchical_deviation=hierarchical_deviation,
+                non_numerical_data=non_numerical_data,
+                control_condition=control_condition,
+            )
             evaluation = self._parse_evaluation(evaluation_data, prediction.prediction_id)
         except Exception as e:
             logger.exception("Critic evaluation failed; returning deterministic UNSAT fallback.")
@@ -282,6 +294,308 @@ class Critic(BaseAgent):
         
         return "\n".join(prompt_parts)
 
+    def _critic_max_output_tokens(self) -> int:
+        max_agent_out = int(getattr(self.settings.token_budget, "max_agent_output_tokens", 4096) or 4096)
+        if self.LLM_MAX_TOKENS:
+            return min(int(self.LLM_MAX_TOKENS), max_agent_out)
+        return max_agent_out
+
+    def _call_llm_raw(
+        self,
+        user_prompt: str,
+        model: Optional[str] = None,
+        max_tokens: Optional[int] = None,
+        temperature: Optional[float] = None,
+        expect_json: bool = True,
+        system_prompt: Optional[str] = None,
+    ) -> str:
+        """Call LLM and return raw text (allows custom JSON repair)."""
+        model = model or self.LLM_MODEL or self.settings.models.tool_model
+        max_tokens = max_tokens or self._critic_max_output_tokens()
+        temperature = temperature if temperature is not None else (self.LLM_TEMPERATURE or 0.0)
+
+        messages = [
+            {"role": "system", "content": system_prompt or self.system_prompt},
+            {"role": "user", "content": user_prompt},
+        ]
+        kwargs = {"messages": messages, "model": model, "max_tokens": max_tokens, "temperature": temperature}
+        if expect_json:
+            kwargs["response_format"] = {"type": "json_object"}
+
+        response = self.llm_client.call(**kwargs)
+        self._record_tokens(response.prompt_tokens, response.completion_tokens)
+        return response.content
+
+    def _parse_json_with_repair(
+        self,
+        raw_text: str,
+        *,
+        prediction: PredictionResult,
+        executor_output: Dict[str, Any],
+        data_overview: Dict[str, Any],
+        hierarchical_deviation: Dict[str, Any],
+        non_numerical_data: str,
+        control_condition: Optional[str],
+    ) -> Dict[str, Any]:
+        """Parse JSON with LLM repair + compact fallback to avoid UNSAT on fast models."""
+        def _attach_fallback(data: Dict[str, Any], reason: str) -> Dict[str, Any]:
+            data = dict(data or {})
+            data["fallback_used"] = True
+            data["fallback_reason"] = reason
+            data["fallback_recommendation"] = (
+                "Critic used fallback parsing due to invalid JSON output. "
+                "Strongly recommend a higher-quality critic model for reliable evaluations."
+            )
+            return data
+
+        try:
+            return parse_json_response(raw_text)
+        except Exception as first_err:
+            logger.warning("Critic JSON parse failed; attempting repair: %s", first_err)
+
+        # 1) LLM-based JSON repair using tool model (small prompt, strict JSON)
+        try:
+            truncated = truncate_text_by_tokens(raw_text, 4000, model_hint="gpt-5")
+            repair_prompt = (
+                "You are a JSON repair utility. Convert the INPUT into valid JSON.\n"
+                "Rules:\n"
+                "- Return ONLY valid JSON (no markdown, no commentary).\n"
+                "- Preserve keys/values when possible; add missing keys with reasonable defaults.\n"
+                "- Ensure strings are properly escaped.\n\n"
+                "INPUT:\n"
+                f"{truncated}\n"
+            )
+            repaired_raw = self._call_llm_raw(
+                repair_prompt,
+                model=self.settings.models.tool_model,
+                max_tokens=1200,
+                temperature=0.0,
+                expect_json=True,
+                system_prompt="You are a strict JSON repair utility. Return ONLY valid JSON.",
+            )
+            return _attach_fallback(parse_json_response(repaired_raw), "json_repair")
+        except Exception as repair_err:
+            logger.warning("Critic JSON repair failed; attempting compact re-eval: %s", repair_err)
+
+        # 2) Compact re-evaluation prompt (lower output complexity)
+        compact_prompt = self._build_compact_prompt(
+            prediction,
+            executor_output,
+            data_overview,
+            hierarchical_deviation,
+            non_numerical_data,
+            control_condition=control_condition,
+        )
+        compact_raw = self._call_llm_raw(
+            compact_prompt,
+            model=self.settings.models.tool_model,
+            max_tokens=1200,
+            temperature=0.0,
+            expect_json=True,
+        )
+        try:
+            return _attach_fallback(parse_json_response(compact_raw), "compact_reval")
+        except Exception as compact_err:
+            logger.warning("Critic compact JSON parse failed; falling back to heuristic evaluation: %s", compact_err)
+            return _attach_fallback(self._heuristic_evaluation_data(
+                prediction=prediction,
+                executor_output=executor_output,
+                data_overview=data_overview,
+                hierarchical_deviation=hierarchical_deviation,
+                non_numerical_data=non_numerical_data,
+                control_condition=control_condition,
+            ), "heuristic")
+
+    def _build_compact_prompt(
+        self,
+        prediction: PredictionResult,
+        executor_output: Dict[str, Any],
+        data_overview: Dict[str, Any],
+        hierarchical_deviation: Dict[str, Any],
+        non_numerical_data: str,
+        control_condition: Optional[str] = None,
+    ) -> str:
+        """Smaller critic prompt for fast/unstable JSON models."""
+        prediction_summary = {
+            "classification": prediction.binary_classification.value,
+            "probability": prediction.probability_score,
+            "confidence": prediction.confidence_level.value,
+            "key_findings": [
+                {"domain": f.domain, "finding": f.finding}
+                for f in prediction.key_findings[:5]
+            ],
+            "clinical_summary": prediction.clinical_summary[:800],
+        }
+        coverage_summary = {}
+        if "domain_coverage" in data_overview:
+            for domain, cov in data_overview["domain_coverage"].items():
+                coverage_summary[domain] = {
+                    "coverage": cov.get("coverage_percentage", 0),
+                    "present": cov.get("present_leaves", 0),
+                }
+        ctrl = (
+            getattr(prediction, "control_condition", None)
+            or control_condition
+            or executor_output.get("control_condition")
+            or "Control condition not provided"
+        )
+        notes_snippet = truncate_text_by_tokens(
+            str(non_numerical_data or "Not provided"), 800, model_hint="gpt-5"
+        )
+        deviation_snippet = truncate_text_by_tokens(
+            json_to_toon(hierarchical_deviation) if hierarchical_deviation else "Not provided",
+            800,
+            model_hint="gpt-5",
+        )
+        return "\n".join([
+            "You are a strict JSON-only evaluator. Output ONLY valid JSON.",
+            "Return a minimal evaluation object with keys:",
+            "verdict, confidence_in_verdict, composite_score, concise_summary,",
+            "score_breakdown {logic,evidence,completeness,relevance},",
+            "checklist {has_binary_outcome,valid_probability,sufficient_coverage,evidence_based_reasoning,clinically_relevant,logically_coherent,critical_domains_processed},",
+            "improvement_suggestions (optional list), reasoning (short).",
+            "",
+            "## PREDICTION",
+            json.dumps(prediction_summary, indent=2),
+            "",
+            "## DOMAINS",
+            f"processed: {executor_output.get('domains_processed', [])}",
+            f"coverage: {coverage_summary}",
+            "",
+            "## NOTES (SNIPPET)",
+            notes_snippet,
+            "",
+            "## HIERARCHICAL DEVIATION (SNIPPET)",
+            deviation_snippet,
+            "",
+            "## TARGET",
+            prediction.target_condition,
+            "",
+            "## CONTROL",
+            ctrl,
+        ])
+
+    def _heuristic_evaluation_data(
+        self,
+        *,
+        prediction: PredictionResult,
+        executor_output: Dict[str, Any],
+        data_overview: Dict[str, Any],
+        hierarchical_deviation: Dict[str, Any],
+        non_numerical_data: str,
+        control_condition: Optional[str],
+    ) -> Dict[str, Any]:
+        """Deterministic evaluation fallback using available structured data."""
+        available_domains = []
+        for domain, cov in (data_overview.get("domain_coverage", {}) or {}).items():
+            if cov.get("present_leaves", 0) > 0 or cov.get("coverage_percentage", 0) > 0:
+                available_domains.append(domain)
+
+        processed = executor_output.get("domains_processed") or prediction.domains_processed or []
+        processed_set = set(str(d) for d in processed)
+        available_set = set(str(d) for d in available_domains)
+
+        coverage_ratio = 1.0
+        if available_set:
+            coverage_ratio = len(available_set & processed_set) / max(1, len(available_set))
+
+        sufficient_coverage = (coverage_ratio >= 0.7) if available_set else True
+
+        critical = ["BRAIN_MRI", "GENOMICS", "BIOLOGICAL_ASSAY", "COGNITION"]
+        present_critical = [d for d in critical if d in available_set]
+        critical_domains_processed = all(d in processed_set for d in present_critical) if present_critical else True
+
+        has_binary_outcome = bool(getattr(prediction, "binary_classification", None))
+        valid_probability = 0.0 <= float(prediction.probability_score or 0.0) <= 1.0
+        if prediction.binary_classification.value == "CASE":
+            valid_probability = valid_probability and float(prediction.probability_score or 0.0) >= 0.5
+        if prediction.binary_classification.value == "CONTROL":
+            valid_probability = valid_probability and float(prediction.probability_score or 0.0) < 0.5
+
+        key_domains = [str(f.domain) for f in (prediction.key_findings or []) if getattr(f, "domain", None)]
+        evidence_based_reasoning = bool(key_domains) and all(d in available_set for d in key_domains)
+        logically_coherent = bool(prediction.reasoning_chain) or bool(prediction.clinical_summary)
+        clinically_relevant = bool(prediction.key_findings) and bool(prediction.clinical_summary)
+
+        logic_score = 1.0 if logically_coherent else 0.0
+        evidence_score = 1.0 if evidence_based_reasoning else 0.0
+        completeness_score = min(1.0, max(0.0, coverage_ratio))
+        relevance_score = 1.0 if clinically_relevant else 0.0
+
+        composite_score = (
+            0.4 * logic_score
+            + 0.3 * evidence_score
+            + 0.2 * completeness_score
+            + 0.1 * relevance_score
+        )
+
+        checklist = {
+            "has_binary_outcome": has_binary_outcome,
+            "valid_probability": valid_probability,
+            "sufficient_coverage": sufficient_coverage,
+            "evidence_based_reasoning": evidence_based_reasoning,
+            "clinically_relevant": clinically_relevant,
+            "logically_coherent": logically_coherent,
+            "critical_domains_processed": critical_domains_processed,
+        }
+
+        improvement_suggestions = []
+        if not sufficient_coverage:
+            improvement_suggestions.append({
+                "issue": "Insufficient domain coverage processed",
+                "suggestion": "Ensure all available domains are passed to the predictor and referenced in reasoning.",
+                "priority": "HIGH",
+            })
+        if not evidence_based_reasoning:
+            improvement_suggestions.append({
+                "issue": "Key findings not clearly grounded in available data",
+                "suggestion": "Cite only findings present in predictor input snapshot and domain coverage.",
+                "priority": "HIGH",
+            })
+        if not clinically_relevant:
+            improvement_suggestions.append({
+                "issue": "Clinical relevance unclear",
+                "suggestion": "Link findings explicitly to target phenotype rather than generic statements.",
+                "priority": "MEDIUM",
+            })
+        if not logically_coherent:
+            improvement_suggestions.append({
+                "issue": "Reasoning chain missing or unclear",
+                "suggestion": "Provide a short, logically ordered reasoning chain based on data.",
+                "priority": "MEDIUM",
+            })
+        if not critical_domains_processed and present_critical:
+            improvement_suggestions.append({
+                "issue": "Critical domains not processed",
+                "suggestion": f"Include critical domains: {', '.join(present_critical)}.",
+                "priority": "HIGH",
+            })
+
+        verdict = "SATISFACTORY" if (composite_score >= 0.7 and evidence_based_reasoning and logically_coherent) else "UNSATISFACTORY"
+        concise_summary = (
+            f"Heuristic evaluation applied due to JSON failure. Coverage={coverage_ratio:.2f}, "
+            f"evidence_based={evidence_based_reasoning}, coherent={logically_coherent}."
+        )
+        domains_missed = [d for d in available_domains if d not in processed_set]
+
+        return {
+            "evaluation_id": str(uuid.uuid4())[:8],
+            "verdict": verdict,
+            "confidence_in_verdict": 0.4 if verdict == "UNSATISFACTORY" else 0.6,
+            "composite_score": round(composite_score, 2),
+            "concise_summary": concise_summary,
+            "score_breakdown": {
+                "logic": round(logic_score, 2),
+                "evidence": round(evidence_score, 2),
+                "completeness": round(completeness_score, 2),
+                "relevance": round(relevance_score, 2),
+            },
+            "checklist": checklist,
+            "improvement_suggestions": improvement_suggestions,
+            "domains_missed": domains_missed,
+            "reasoning": concise_summary,
+        }
+
     
     def _parse_evaluation(
         self,
@@ -349,7 +663,10 @@ class Critic(BaseAgent):
             improvement_suggestions=suggestions,
             domains_missed=evaluation_data.get("domains_missed", []),
             reasoning=evaluation_data.get("reasoning", ""),
-            concise_summary=concise_summary
+            concise_summary=concise_summary,
+            fallback_used=bool(evaluation_data.get("fallback_used", False) or evaluation_data.get("_fallback_used", False)),
+            fallback_reason=str(evaluation_data.get("fallback_reason", "") or ""),
+            fallback_recommendation=str(evaluation_data.get("fallback_recommendation", "") or ""),
         )
 
     def _build_fallback_evaluation(self, prediction_id: str, error: str) -> CriticEvaluation:
@@ -400,6 +717,12 @@ class Critic(BaseAgent):
             concise_summary=(
                 "Critic response was invalid JSON; applied deterministic UNSAT fallback. "
                 "Pipeline continues without crashing."
+            ),
+            fallback_used=True,
+            fallback_reason="deterministic_fallback",
+            fallback_recommendation=(
+                "Critic used deterministic fallback due to invalid JSON output. "
+                "Strongly recommend a higher-quality critic model for reliable evaluations."
             ),
         )
 

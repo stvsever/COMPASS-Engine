@@ -1,0 +1,61 @@
+{
+    "DEMOGRAPHICS": {
+        "age_related": {
+            "score": 0.1
+        },
+        "education": {
+            "score": 0.0
+        },
+        "anthropometrics": {
+            "score": 0.2
+        }
+    },
+    "LIFESTYLE_ENVIRONMENT": {
+        "sleep": {
+            "score": 0.6
+        },
+        "physical_activity": {
+            "score": 0.2
+        },
+        "diet": {
+            "score": -0.1
+        },
+        "substance_use": {
+            "score": 0.1
+        },
+        "stress": {
+            "score": 0.7
+        }
+    },
+    "COGNITION": {
+        "attention": {
+            "score": -0.2
+        },
+        "memory": {
+            "score": 0.2
+        },
+        "psychomotor_speed": {
+            "score": -0.5
+        },
+        "executive_function": {
+            "score": -0.4
+        }
+    },
+    "BIOLOGICAL_ASSAY": {
+        "hematology": {
+            "score": -0.4
+        },
+        "iron_status": {
+            "score": -0.6
+        },
+        "thyroid": {
+            "score": 0.1
+        },
+        "vitamins": {
+            "score": -0.5
+        },
+        "inflammation_markers": {
+            "score": 0.2
+        }
+    }
+}

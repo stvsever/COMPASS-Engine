@@ -802,7 +802,10 @@ def run_compass_pipeline(
                 domains_missed=evaluation.domains_missed[:5],
                 composite_score=evaluation.composite_score,
                 score_breakdown=evaluation.score_breakdown,
-                iteration=iteration
+                iteration=iteration,
+                fallback_used=getattr(evaluation, "fallback_used", False),
+                fallback_reason=getattr(evaluation, "fallback_reason", ""),
+                fallback_recommendation=getattr(evaluation, "fallback_recommendation", "")
             )
         
         final_prediction = prediction

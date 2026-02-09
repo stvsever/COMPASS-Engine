@@ -1,53 +1,80 @@
 {
     "BIOLOGICAL_ASSAY": {
-        "lipidomics": {
-            "sphingolipids": {
-                "ceramides": {
-                    "_leaves": [
-                        {
-                            "feature": "Cer(d18:1/16:0)",
-                            "z_score": 0.2,
-                            "value": "Normal",
-                            "ref_range": "Normal"
-                        },
-                        {
-                            "feature": "Cer(d18:1/24:1)",
-                            "z_score": -0.1,
-                            "value": "Normal",
-                            "ref_range": "Normal"
-                        }
-                    ]
+        "metabolic": {
+            "_leaves": [
+                {
+                    "feature": "fasting_glucose",
+                    "z_score": -0.2,
+                    "value": "92 mg/dL",
+                    "ref_range": "70-99"
+                },
+                {
+                    "feature": "HbA1c",
+                    "z_score": -0.1,
+                    "value": "5.2%",
+                    "ref_range": "<5.7"
+                },
+                {
+                    "feature": "fasting_insulin",
+                    "z_score": 0.1,
+                    "value": "7 uIU/mL",
+                    "ref_range": "2-20"
                 }
-            }
+            ]
         },
-        "proteomics": {
-            "inflammation_markers": {
-                "_leaves": [
-                    {
-                        "feature": "CRP",
-                        "z_score": -0.5,
-                        "value": "0.8 mg/L",
-                        "ref_range": "<3.0 mg/L"
-                    },
-                    {
-                        "feature": "IL-6",
-                        "z_score": -0.2,
-                        "value": "Normal",
-                        "ref_range": "Normal"
-                    }
-                ]
-            }
+        "lipids": {
+            "_leaves": [
+                {
+                    "feature": "LDL",
+                    "z_score": 0.0,
+                    "value": "98 mg/dL",
+                    "ref_range": "<100"
+                },
+                {
+                    "feature": "HDL",
+                    "z_score": 0.2,
+                    "value": "56 mg/dL",
+                    "ref_range": ">40"
+                },
+                {
+                    "feature": "triglycerides",
+                    "z_score": -0.1,
+                    "value": "110 mg/dL",
+                    "ref_range": "<150"
+                }
+            ]
         },
-        "genomics": {
-            "polygenic_risk_scores": {
-                "_leaves": [
-                    {
-                        "feature": "MDD_PRS",
-                        "z_score": -0.8,
-                        "percentile": "20th"
-                    }
-                ]
-            }
+        "inflammation_markers": {
+            "_leaves": [
+                {
+                    "feature": "CRP",
+                    "z_score": -0.4,
+                    "value": "0.7 mg/L",
+                    "ref_range": "<3.0"
+                },
+                {
+                    "feature": "IL-6",
+                    "z_score": -0.2,
+                    "value": "Normal",
+                    "ref_range": "Normal"
+                }
+            ]
+        },
+        "vitamins": {
+            "_leaves": [
+                {
+                    "feature": "vitamin_D",
+                    "z_score": 0.3,
+                    "value": "34 ng/mL",
+                    "ref_range": ">30"
+                },
+                {
+                    "feature": "B12",
+                    "z_score": 0.1,
+                    "value": "520 pg/mL",
+                    "ref_range": "200-900"
+                }
+            ]
         }
     },
     "BRAIN_MRI": {
@@ -57,7 +84,7 @@
                     "_leaves": [
                         {
                             "feature": "left_hippocampus_volume",
-                            "z_score": -0.3,
+                            "z_score": 0.0,
                             "value": "Normal",
                             "significance": "Normal"
                         },
@@ -68,22 +95,106 @@
                             "significance": "Normal"
                         }
                     ]
-                }
-            }
-        },
-        "functional_connectivity": {
-            "resting_state": {
-                "default_mode_network": {
+                },
+                "amygdala": {
                     "_leaves": [
                         {
-                            "feature": "mPFC-PCC_connectivity",
-                            "z_score": 0.4,
+                            "feature": "left_amygdala_volume",
+                            "z_score": 0.1,
+                            "value": "Normal",
+                            "significance": "Normal"
+                        },
+                        {
+                            "feature": "right_amygdala_volume",
+                            "z_score": -0.1,
                             "value": "Normal",
                             "significance": "Normal"
                         }
                     ]
                 }
+            },
+            "incidental_findings": {
+                "_leaves": [
+                    {
+                        "feature": "arachnoid_cyst_size",
+                        "z_score": 0.0,
+                        "value": "Small",
+                        "significance": "Incidental"
+                    }
+                ]
             }
+        },
+        "diffusion": {
+            "_leaves": [
+                {
+                    "feature": "global_FA",
+                    "z_score": 0.2,
+                    "value": "Normal"
+                },
+                {
+                    "feature": "global_MD",
+                    "z_score": -0.1,
+                    "value": "Normal"
+                }
+            ]
+        }
+    },
+    "COGNITION": {
+        "attention": {
+            "_leaves": [
+                {
+                    "feature": "CPT_dprime",
+                    "z_score": 0.5,
+                    "value": "High-Normal"
+                },
+                {
+                    "feature": "CPT_omissions",
+                    "z_score": -0.3,
+                    "value": "Low"
+                }
+            ]
+        },
+        "memory": {
+            "_leaves": [
+                {
+                    "feature": "verbal_learning_total",
+                    "z_score": 0.3,
+                    "value": "Normal"
+                },
+                {
+                    "feature": "delayed_recall",
+                    "z_score": 0.2,
+                    "value": "Normal"
+                }
+            ]
+        },
+        "processing_speed": {
+            "_leaves": [
+                {
+                    "feature": "TMT_A_time",
+                    "z_score": 0.1,
+                    "value": "Normal"
+                },
+                {
+                    "feature": "symbol_digit_modalities",
+                    "z_score": 0.2,
+                    "value": "Normal"
+                }
+            ]
+        },
+        "executive_function": {
+            "_leaves": [
+                {
+                    "feature": "TMT_B_time",
+                    "z_score": 0.0,
+                    "value": "Normal"
+                },
+                {
+                    "feature": "stroop_interference",
+                    "z_score": 0.1,
+                    "value": "Normal"
+                }
+            ]
         }
     },
     "DEMOGRAPHICS": {
@@ -102,7 +213,85 @@
                 "feature": "education_years",
                 "z_score": 18.0,
                 "value": "18"
+            },
+            {
+                "feature": "bmi",
+                "z_score": 0.1,
+                "value": "24.3"
+            },
+            {
+                "feature": "handedness",
+                "z_score": 0.0,
+                "value": "Right"
+            },
+            {
+                "feature": "employment_status",
+                "z_score": 0.0,
+                "value": "Full-time"
             }
         ]
+    },
+    "LIFESTYLE_ENVIRONMENT": {
+        "sleep": {
+            "_leaves": [
+                {
+                    "feature": "avg_sleep_hours",
+                    "z_score": 0.3,
+                    "value": "7.5 h"
+                },
+                {
+                    "feature": "sleep_efficiency",
+                    "z_score": 0.2,
+                    "value": "Good"
+                }
+            ]
+        },
+        "physical_activity": {
+            "_leaves": [
+                {
+                    "feature": "weekly_aerobic_minutes",
+                    "z_score": 0.9,
+                    "value": "210"
+                },
+                {
+                    "feature": "steps_per_day",
+                    "z_score": 0.8,
+                    "value": "10500"
+                }
+            ]
+        },
+        "diet": {
+            "_leaves": [
+                {
+                    "feature": "fruit_veg_servings",
+                    "z_score": 0.4,
+                    "value": "5/day"
+                },
+                {
+                    "feature": "ultra_processed_percent",
+                    "z_score": -0.3,
+                    "value": "18%"
+                }
+            ]
+        },
+        "substance_use": {
+            "_leaves": [
+                {
+                    "feature": "caffeine_mg_day",
+                    "z_score": 0.3,
+                    "value": "190 mg"
+                },
+                {
+                    "feature": "alcohol_units_week",
+                    "z_score": 0.2,
+                    "value": "5"
+                },
+                {
+                    "feature": "tobacco_pack_years",
+                    "z_score": 0.0,
+                    "value": "0"
+                }
+            ]
+        }
     }
 }

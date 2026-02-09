@@ -2,47 +2,70 @@ Patient ID: SUBJ_001_PSEUDO
 Date of Assessment: 2025-10-15
 Clinician: Dr. A. Smith
 
-PRESENTING COMPLAINT:
-Patient is a 45-year-old female presenting with a 6-month history of persistent low mood, profound anhedonia, and significant fatigue ("feeling like I'm walking through mud"). She reports early morning awakening usually around 4 AM and is unable to fall back asleep. 
+PRESENTING CONCERNS:
+45-year-old female with 7-8 months of persistent low mood, reduced interest in usual activities, fatigue, and early morning awakening. Reports feeling emotionally "flat" and less reactive to positive events.
 
 HISTORY OF PRESENT ILLNESS:
-Symptoms began gradually following a period of high stress at work. She describes a "hollow" feeling and lack of emotional reactivity. She has withdrawn from her usual social circle and has stopped attending her weekly choir practice. Concentration is markedly impaired; she struggles to finish reading prolonged emails. Appetite is reduced with a 4kg weight loss over 2 months. She denies current suicidal ideation but admits to feeling that "life is a burden."
+Symptoms developed gradually after a sustained period of work-related stress and caregiving responsibilities. She notes reduced enjoyment in hobbies, social withdrawal, and diminished motivation. Concentration is impaired (difficulty following long emails and books). Appetite is reduced with a 4-5 kg weight change over 3 months. She denies suicidal intent but acknowledges passive thoughts that "life feels heavy" without planning or preparatory behaviors. No history of elevated mood, impulsive spending, or reduced need for sleep outside of the current insomnia.
 
-PAST PSYCHIATRIC HISTORY:
-- First episode of depression at age 22 during university. Treated with SSRIs (Sertraline) with good response.
-- Post-partum low mood requiring brief counseling (age 30).
-- No history of mania, psychosis, or hypomania.
+FUNCTIONAL IMPACT:
+- Occupational: decreased productivity, missed deadlines, increased sick days (2-3 in last month)
+- Social: stopped attending weekly choir and fewer social invitations accepted
+- Home: difficulty keeping up with household tasks
+
+PAST PSYCHIATRIC/SYMPTOM HISTORY:
+- Prior episode of prolonged low mood during university years; treated with short course of sertraline and counseling with partial benefit.
+- Brief post-partum adjustment period with low energy; no hospitalization.
 
 MEDICAL HISTORY:
-- Hypothyroidism (managed on Levothyroxine).
-- Irritable Bowel Syndrome.
+- Hypothyroidism (stable on levothyroxine)
+- Irritable bowel symptoms during stress
+- Migraines (1-2/month)
+
+MEDICATIONS:
+- Levothyroxine 75 mcg daily
+- Occasional ibuprofen
+- No current psychotropic medications
 
 FAMILY HISTORY:
-- Mother diagnosed with Major Depressive Disorder (recurrent).
-- Maternal aunt committed suicide in her 50s.
+- Mother with recurrent mood symptoms
+- Maternal aunt died by suicide in her 50s
+- Father with type 2 diabetes
 
 SOCIAL HISTORY:
-- Married, two teenage children. Works as a secondary school teacher. 
-- Non-smoker.
-- Alcohol: 1-2 units per week (reduced recently); no history of AUD
-- Reportedly high psychosocial stress due to caring for aging parents.
+- Married, two teenage children
+- Works as a secondary school teacher
+- Non-smoker; alcohol 1-2 units/week; caffeine 2-3 cups/day
+- High psychosocial stress caring for aging parents
+
+REVIEW OF SYSTEMS:
+- Sleep: early morning awakening (3-4 AM), non-restorative sleep
+- Appetite: decreased
+- Energy: low
+- No hallucinations or delusions reported
 
 MENTAL STATUS EXAMINATION:
-- Appearance: Well-groomed but appears tired. Psychomotor retardation noted (slowed speech and movement).
-- Mood: Subjectively "low" and "numb". Objectively depressed.
-- Affect: Restricted and congruent with mood.
-- Thought Process: Linear but slow latency of response.
-- Perception: No hallucinations or delusions elicited.
-- Cognition: MMSE 28/30 (lost points on serial 7s due to concentration).
-- Insight: Good. She recognizes she is depressed.
+- Appearance: well-groomed, appears tired
+- Psychomotor: mild slowing
+- Mood: "low and numb"
+- Affect: restricted
+- Thought process: linear, slowed response latency
+- Cognition: MMSE 28/30 (missed points on serial 7s)
+- Insight/judgment: intact
 
-NEUROIMAGING REPORT (Summary):
-Structural MRI indicates reduced volume in the left hippocampus compared to age-matched controls (Z-score -2.1). Mild thinning in the left dorsolateral prefrontal cortex. No white matter hyperintensities or evidence of ischemic changes.
+RATING SCALES (Summary):
+- Mood symptom scale: 17/27 (moderate)
+- Anxiety symptom scale: 9/21 (mild)
+- Sleep quality index: 19/28 (poor)
 
-LABORATORY RESULTS (Summary):
-- Thyroid function: Euthyroid.
-- CRP: Mildly elevated (4.5 mg/L).
-- Lipid panel: Normal.
+IMAGING SUMMARY:
+Structural MRI shows reduced left hippocampal volume and mild frontal cortical thinning; no acute lesions. Functional connectivity shows elevated default-mode coupling.
+
+LABORATORY SUMMARY:
+- CRP mildly elevated
+- BDNF low-normal to low
+- Thyroid indices within treated range
+- Vitamin D insufficient
 
 IMPRESSION:
-Symptoms are consistent with a recurrence of Major Depressive Disorder, moderate to severe severity. Biological markers (hippocampal atrophy, elevated CRP, low BDNF) align with this diagnosis.
+Persistent mood and sleep disturbance with cognitive slowing and biomarker changes. Further longitudinal monitoring and multimodal treatment planning recommended.

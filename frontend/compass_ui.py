@@ -1008,7 +1008,10 @@ class FlaskUI:
         domains_missed=None,
         composite_score=None,
         score_breakdown=None,
-        iteration=None
+        iteration=None,
+        fallback_used=False,
+        fallback_reason=None,
+        fallback_recommendation=None
     ):
         _event_store.add_event("CRITIC", {
             "verdict": verdict,
@@ -1022,7 +1025,10 @@ class FlaskUI:
             "domains_missed": domains_missed or [],
             "composite_score": composite_score,
             "score_breakdown": score_breakdown or {},
-            "iteration": iteration
+            "iteration": iteration,
+            "fallback_used": bool(fallback_used),
+            "fallback_reason": fallback_reason or "",
+            "fallback_recommendation": fallback_recommendation or ""
         })
         self.set_status(f"Critic Evaluation: {verdict}", stage=5)
         

@@ -1,0 +1,47 @@
+Patient ID: SUBJ_005_PSEUDO
+Date of Assessment: 2025-11-18
+Clinician: Dr. E. Novak
+
+PRESENTING COMPLAINT:
+24-year-old female referred for evaluation of longstanding social communication difficulties, sensory overload in crowded environments, and strong preference for predictable routines. Reports episodic anxiety in social settings but denies sustained low mood or elevated mood states.
+
+DEVELOPMENTAL HISTORY:
+Parents report early language delay (first words after age 2) and a longstanding tendency to interpret language literally. As a child she preferred solitary activities and had intense interests in transit maps and schedules. No history of seizures or head injury.
+
+HISTORY OF PRESENT ILLNESS:
+Difficulty reading social cues and maintaining reciprocal conversation leads to fatigue after group interactions. Sensory sensitivities include aversion to loud noises and certain clothing textures. She reports occasional meltdowns when routines change abruptly. Sleep onset latency is prolonged, total sleep time averages 6-7 hours.
+
+PAST PSYCHIATRIC HISTORY:
+- No psychiatric hospitalizations
+- Brief trial of low-dose anxiolytic in college with minimal benefit
+- No history of psychosis
+
+MEDICAL HISTORY:
+- Chronic functional gastrointestinal discomfort (intermittent bloating)
+- Seasonal allergies
+
+FAMILY HISTORY:
+- Sibling with attention and learning difficulties
+- No known family history of psychotic disorders
+
+SOCIAL HISTORY:
+- Lives alone; works as a data analyst
+- Limited social network; prefers structured, predictable activities
+- No tobacco; rare alcohol; no recreational drug use
+
+MENTAL STATUS EXAMINATION:
+- Appearance: neat, somewhat rigid posture
+- Speech: fluent but overly formal; limited prosody
+- Mood: "anxious in groups"
+- Affect: mildly restricted
+- Thought process: linear and goal-directed
+- Cognition: intact orientation; variable processing speed when distracted by environmental noise
+
+COGNITIVE TESTING (Summary):
+Strength in rote memory and attention to detail with weaknesses in social cognition and pragmatic language tasks. Set-shifting cost elevated relative to peers.
+
+IMAGING REPORT (Summary):
+Functional connectivity shows reduced integration between midline social brain regions with relative hyperconnectivity in sensory networks. Mild temporal cortical thinning noted.
+
+IMPRESSION:
+Longstanding social-communication and sensory processing differences with executive function variability. Recommend formal developmental history review and tailored supports. No evidence of primary mood or psychotic disorder.

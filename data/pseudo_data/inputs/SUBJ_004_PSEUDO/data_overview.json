@@ -1,20 +1,12 @@
 {
-    "participant_id": "SUBJ_002_PSEUDO",
+    "participant_id": "SUBJ_004_PSEUDO",
     "domain_coverage": {
-        "BIOLOGICAL_ASSAY": {
-            "present_leaves": 10,
-            "total_leaves": 220,
-            "coverage_percentage": 4.5,
-            "missing_count": 210,
-            "total_tokens": 900,
-            "is_available": true
-        },
         "BRAIN_MRI": {
-            "present_leaves": 7,
+            "present_leaves": 18,
             "total_leaves": 140,
-            "coverage_percentage": 5.0,
-            "missing_count": 133,
-            "total_tokens": 630,
+            "coverage_percentage": 12.9,
+            "missing_count": 122,
+            "total_tokens": 1620,
             "is_available": true
         },
         "COGNITION": {
@@ -23,6 +15,14 @@
             "coverage_percentage": 8.0,
             "missing_count": 92,
             "total_tokens": 640,
+            "is_available": true
+        },
+        "BIOLOGICAL_ASSAY": {
+            "present_leaves": 9,
+            "total_leaves": 220,
+            "coverage_percentage": 4.1,
+            "missing_count": 211,
+            "total_tokens": 810,
             "is_available": true
         },
         "DEMOGRAPHICS": {
@@ -34,21 +34,21 @@
             "is_available": true
         },
         "LIFESTYLE_ENVIRONMENT": {
-            "present_leaves": 9,
+            "present_leaves": 8,
             "total_leaves": 80,
-            "coverage_percentage": 11.2,
-            "missing_count": 71,
-            "total_tokens": 540,
+            "coverage_percentage": 10.0,
+            "missing_count": 72,
+            "total_tokens": 480,
             "is_available": true
         }
     },
-    "total_tokens": 3490,
+    "total_tokens": 4330,
     "available_domains": [
-        "BIOLOGICAL_ASSAY",
         "BRAIN_MRI",
         "COGNITION",
+        "BIOLOGICAL_ASSAY",
         "DEMOGRAPHICS",
         "LIFESTYLE_ENVIRONMENT"
     ],
-    "token_budget": 3990
+    "token_budget": 4830
 }
