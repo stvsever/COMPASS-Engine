@@ -99,6 +99,26 @@ Backend notes:
 - `Public API (OpenRouter)` is the default in UI/CLI.
 - Local runs can be configured in the Advanced Configuration panel (engine, dtype, quantization, context window, and role-specific overrides).
 
+### Docker (CPU/UI)
+
+For a clean containerized UI/API workflow, see:
+
+- `docker/README.md`
+
+Short usage:
+
+```bash
+tar --exclude-from=docker/.dockerignore -cf - . | docker buildx build --platform linux/arm64 -f docker/Dockerfile -t compass-ui:local --load -
+export OPENROUTER_API_KEY="<your_openrouter_api_key>"
+docker run --rm -p 5005:5005 --name compass-ui -e OPENROUTER_API_KEY="${OPENROUTER_API_KEY}" compass-ui:local
+```
+
+For Intel Mac/Linux/Windows builds, use `--platform linux/amd64` (see `docker/README.md` for the full matrix and troubleshooting).
+
+> [!NOTE]
+> Optional variant: includes local-inference deps (`torch`/`transformers`/`bitsandbytes`) for people who really want them.
+> GPU acceleration is explicitly not here; use `hpc/`.
+
 ### HPC Example (Single GPU)
 
 For a complete Slurm + Apptainer workflow example for single-GPU HPC execution, see:
@@ -130,6 +150,7 @@ multi_agent_system/
 ├── agents/             # Autonomous agent definitions (Orchestrator, Predictor, Critic, etc.) and prompts
 ├── tools/              # Clinical analysis tools (COMPASS Core Tools) and prompt templates
 ├── frontend/           # Interactive Web UI (Flask backend + HTML/CSS/JS frontend)
+├── docker/             # Containerized UI/API runtime (CPU-first) and optional full-dependency variant
 ├── hpc/                # Slurm + Apptainer scripts and HPC operational notebook
 ├── utils/              # System utilities (Core Engine, Logging, Embeddings, Logic)
 ├── data/               # Data package

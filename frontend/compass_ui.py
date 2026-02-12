@@ -911,17 +911,20 @@ class FlaskUI:
         self.server_thread = None
 
     def start_server(self, port=5005):
+        host = os.getenv("COMPASS_UI_HOST", "127.0.0.1")
+        resolved_port = int(os.getenv("COMPASS_UI_PORT", str(port)))
+
         def run():
-            app.run(port=port, debug=False, use_reloader=False)
+            app.run(host=host, port=resolved_port, debug=False, use_reloader=False)
         
         self.server_thread = threading.Thread(target=run, daemon=True)
         self.server_thread.start()
         self.enabled = True
-        print(f"[*] Dashboard live at http://127.0.0.1:{port}")
+        print(f"[*] Dashboard live at http://{host}:{resolved_port}")
         
         def open_browser():
             time.sleep(1.5)
-            # webbrowser.open(f"http://127.0.0.1:{port}")
+            # webbrowser.open(f"http://{host}:{resolved_port}")
             pass
         
         threading.Thread(target=open_browser, daemon=True).start()

@@ -1,0 +1,43 @@
+# Secrets and credentials
+.env
+.env.*
+*.pem
+*.key
+
+# Git and local tooling
+.git
+.gitignore
+.idea
+.vscode
+
+# Python artifacts
+__pycache__/
+*.py[cod]
+.pytest_cache/
+.cache/
+.ipynb_checkpoints/
+
+# Outputs and generated artifacts
+logs/
+results/
+outputs/
+build/
+dist/
+*.egg-info/
+
+# Local-only folders
+tests/
+local_tests/
+
+# Heavy or deployment-specific folders not needed in CPU/UI Docker image.
+# Keep lightweight repository data modules (e.g., data/models) available.
+data/__FEATURES__/
+data/__pycache__/
+hpc/
+
+# Documentation notebooks/assets not needed at runtime
+*.ipynb
+overview/
+
+# macOS
+.DS_Store

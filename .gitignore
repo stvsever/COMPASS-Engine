@@ -60,8 +60,7 @@ data/*
 !data/.keep
 !data/pseudo_data/
 !data/models/
-!data/__FEATURES__/
-!data/__FEATURES__/.keep
+data/__FEATURES__/
 
 # System
 .DS_Store
@@ -72,3 +71,6 @@ tests/
 
 # Outputs
 outputs/
+
+# Local-only checks (do not commit)
+local_tests/
