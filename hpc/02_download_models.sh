@@ -1,6 +1,6 @@
 #!/bin/bash
 # =============================================================================
-# COMPASS HPC — Step 2: Download LLM Models (v2)
+# COMPASS HPC — Step 2: Download LLM Models
 # =============================================================================
 #
 # PURPOSE: Downloads model weights from HuggingFace to shared storage.
