@@ -743,7 +743,11 @@ class Communicator(BaseAgent):
             }
             return idx, row
 
-        max_workers = min(10, max(1, total))
+        backend_value = getattr(self.settings.models.backend, "value", self.settings.models.backend)
+        is_local = str(backend_value).lower() == "local"
+        max_workers = 1 if is_local else min(10, max(1, total))
+        if is_local and total > 1:
+            print("[Communicator] Local Backend detected: Sequential chunk evidence extraction (max_workers=1)")
         with ThreadPoolExecutor(max_workers=max_workers) as pool:
             futures = {
                 pool.submit(run_one, idx, chunk): (idx, chunk)

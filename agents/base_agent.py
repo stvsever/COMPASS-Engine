@@ -5,11 +5,12 @@ Abstract base class for all agents in the system.
 """
 
 import logging
+import time
 from abc import ABC, abstractmethod
 from typing import Dict, Any, Optional
 from pathlib import Path
 
-from ..config.settings import get_settings
+from ..config.settings import get_settings, LLMBackend
 from ..utils.llm_client import LLMClient, get_llm_client
 from ..utils.json_parser import parse_json_response
 from ..utils.core.token_manager import TokenManager
@@ -122,48 +123,127 @@ class BaseAgent(ABC):
                       else(self.LLM_TEMPERATURE if self.LLM_TEMPERATURE is not None 
                            else self.settings.models.tool_temperature))
 
-        current_prompt = user_prompt
+        backend_value = getattr(self.settings.models.backend, "value", self.settings.models.backend)
+        backend_is_local = (
+            self.settings.models.backend == LLMBackend.LOCAL
+            or str(backend_value).lower() == "local"
+        )
+
+        base_prompt = user_prompt
+        if expect_json and backend_is_local:
+            base_prompt = (
+                f"{user_prompt}\n\n"
+                "STRICT OUTPUT REQUIREMENT:\n"
+                "- Return ONLY one valid JSON object.\n"
+                "- No markdown fences, no prose, no explanations.\n"
+                "- Use double quotes for all keys/strings.\n"
+                "- Ensure all required keys are present."
+            )
+
+        effective_max_retries = int(max_retries)
+        if expect_json and backend_is_local and effective_max_retries < 4:
+            # Local small models often need a few extra retries for strict JSON.
+            effective_max_retries = 4
+
+        current_prompt = base_prompt
         last_error = None
         
-        for attempt in range(max_retries + 1):
+        for attempt in range(effective_max_retries + 1):
             if attempt > 0:
-                print(f"[{self.AGENT_NAME}] ⚠ Auto-repair attempt {attempt}/{max_retries}...")
+                print(f"[{self.AGENT_NAME}] ⚠ Auto-repair attempt {attempt}/{effective_max_retries}...")
                 # Add error feedback to prompt
                 error_feedback = f"\n\n### PREVIOUS ERROR\nYour previous response failed validation with error: {last_error}\nPlease fix the JSON format and ensure all required fields are present."
-                current_prompt = user_prompt + error_feedback
+                current_prompt = base_prompt + error_feedback
 
             messages = [
                 {"role": "system", "content": self.system_prompt},
                 {"role": "user", "content": current_prompt}
             ]
             
+            effective_temperature = float(temperature)
+            if expect_json and backend_is_local:
+                effective_temperature = min(effective_temperature, 0.2)
+
             kwargs = {"messages": messages}
             kwargs["model"] = model
             kwargs["max_tokens"] = max_tokens
-            kwargs["temperature"] = temperature
+            kwargs["temperature"] = effective_temperature
             
             if expect_json:
                 kwargs["response_format"] = {"type": "json_object"}
             
             try:
+                call_start = time.time()
+                print(
+                    f"[{self.AGENT_NAME}] → LLM attempt {attempt + 1}/{effective_max_retries + 1} "
+                    f"backend={backend_value} model={model} max_tokens={max_tokens} temp={effective_temperature:.2f}"
+                )
                 # Use base call method
                 response = self.llm_client.call(**kwargs)
+                elapsed_ms = int((time.time() - call_start) * 1000)
+                print(
+                    f"[{self.AGENT_NAME}] ← LLM response in {elapsed_ms}ms "
+                    f"(prompt={response.prompt_tokens}, completion={response.completion_tokens}, finish={response.finish_reason})"
+                )
                 
                 # Record tokens
                 self._record_tokens(response.prompt_tokens, response.completion_tokens)
                 
                 if expect_json:
-                    return parse_json_response(response.content)
+                    try:
+                        parsed = parse_json_response(response.content)
+                    except Exception as parse_exc:
+                        if backend_is_local:
+                            # Cheap repair pass on malformed JSON to avoid a full expensive re-plan.
+                            try:
+                                print(f"[{self.AGENT_NAME}] JSON parse failed, trying lightweight JSON repair call...")
+                                repair_resp = self.llm_client.call(
+                                    messages=[
+                                        {
+                                            "role": "system",
+                                            "content": (
+                                                "You repair malformed JSON. "
+                                                "Return ONLY one valid JSON object, no markdown, no explanation."
+                                            ),
+                                        },
+                                        {"role": "user", "content": response.content},
+                                    ],
+                                    model=model,
+                                    max_tokens=min(int(max_tokens), 2048),
+                                    temperature=0.0,
+                                    response_format={"type": "json_object"},
+                                )
+                                self._record_tokens(repair_resp.prompt_tokens, repair_resp.completion_tokens)
+                                parsed = parse_json_response(repair_resp.content)
+                                print(f"[{self.AGENT_NAME}] ✓ JSON repair call succeeded")
+                                return parsed
+                            except Exception as repair_exc:
+                                logger.warning(
+                                    f"[{self.AGENT_NAME}] JSON repair attempt failed: {type(repair_exc).__name__}: {repair_exc}"
+                                )
+                        preview = str(response.content or "").replace("\n", " ")[:220]
+                        raise ValueError(f"JSON parse failed: {parse_exc}; preview={preview}") from parse_exc
+                    if isinstance(parsed, dict):
+                        print(f"[{self.AGENT_NAME}] ✓ Parsed JSON keys: {list(parsed.keys())[:8]}")
+                    else:
+                        print(f"[{self.AGENT_NAME}] ✓ Parsed JSON type: {type(parsed).__name__}")
+                    return parsed
                 
                 return {"content": response.content, "tokens": response.total_tokens}
                 
             except Exception as e:
-                last_error = str(e)
+                root_error = e
+                if hasattr(e, "last_attempt"):
+                    try:
+                        candidate = e.last_attempt.exception()
+                        if candidate is not None:
+                            root_error = candidate
+                    except Exception:
+                        pass
+                last_error = f"{type(root_error).__name__}: {root_error}"
                 logger.warning(f"[{self.AGENT_NAME}] Attempt {attempt} failed: {last_error}")
-                if attempt == max_retries:
-                    self._log_error(f"Failed after {max_retries} retries: {last_error}")
+                if attempt == effective_max_retries:
+                    self._log_error(f"Failed after {effective_max_retries} retries: {last_error}")
                     raise
         
         return {}
-
-

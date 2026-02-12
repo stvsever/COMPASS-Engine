@@ -57,6 +57,14 @@ class BaseTool(ABC):
     
     # Prompt file name (relative to tool_prompts directory)
     PROMPT_FILE: str = ""
+    # Tool policy scope:
+    # - "all": apply tool overrides on local + public backends
+    # - "local": apply tool overrides only on local backend
+    # - "public": apply tool overrides only on public API backends
+    TOOL_POLICY_SCOPE: str = "all"
+    TOOL_MAX_TOKENS: Optional[int] = None
+    TOOL_TEMPERATURE: Optional[float] = None
+    TOOL_MAX_RETRIES: int = 1
     
     def __init__(
         self,
@@ -113,23 +121,57 @@ class BaseTool(ABC):
             # Build user prompt
             user_prompt = self._build_prompt(input_data)
             
-            # Call LLM
-            response = self.llm_client.call_tool(
-                system_prompt=self.system_prompt,
-                user_prompt=user_prompt
-            )
-            
-            # Debug: Log raw response (handle empty)
-            content = response.content or ""
-            preview = content[:500] if len(content) > 500 else content
-            print(f"  [Tool:{self.TOOL_NAME}] Raw response ({len(content)} chars): {repr(preview)}")
-            
-            # Check for empty response
-            if not content or not content.strip():
-                raise ValueError("LLM returned empty response")
-            
-            # Parse response
-            output_data = parse_json_response(response.content)
+            max_tokens, temperature, max_attempts = self._resolve_runtime_policy()
+
+            output_data = None
+            response = None
+            last_error: Optional[Exception] = None
+            for attempt in range(1, max_attempts + 1):
+                attempt_user_prompt = user_prompt
+                if attempt > 1:
+                    attempt_user_prompt = (
+                        user_prompt
+                        + "\n\nSTRICT OUTPUT REQUIREMENT:\n"
+                        + "- Return ONLY one valid JSON object.\n"
+                        + "- Do not include reasoning, analysis, or markdown.\n"
+                        + "- Start with '{' and end with '}'."
+                    )
+
+                response = self.llm_client.call(
+                    messages=[
+                        {"role": "system", "content": self.system_prompt},
+                        {"role": "user", "content": attempt_user_prompt},
+                    ],
+                    model=self.settings.models.tool_model,
+                    max_tokens=max_tokens,
+                    temperature=temperature,
+                    response_format={"type": "json_object"},
+                )
+
+                content = response.content or ""
+                preview = content[:500] if len(content) > 500 else content
+                print(
+                    f"  [Tool:{self.TOOL_NAME}] Raw response "
+                    f"(attempt {attempt}/{max_attempts}, {len(content)} chars): {repr(preview)}"
+                )
+
+                if not content or not content.strip():
+                    last_error = ValueError("LLM returned empty response")
+                    if attempt < max_attempts:
+                        continue
+                    raise last_error
+
+                try:
+                    output_data = parse_json_response(content)
+                    break
+                except Exception as parse_exc:
+                    last_error = parse_exc
+                    if attempt < max_attempts:
+                        continue
+                    raise
+
+            if output_data is None:
+                raise RuntimeError(f"Failed to parse {self.TOOL_NAME} output: {last_error}")
             
             # Post-process output
             processed = self._process_output(output_data, input_data)
@@ -188,6 +230,43 @@ class BaseTool(ABC):
         Override in subclasses for tool-specific processing.
         """
         return output_data
+
+    def _is_local_backend(self) -> bool:
+        backend = getattr(self.settings.models.backend, "value", self.settings.models.backend)
+        return str(backend).lower() == "local"
+
+    def _policy_applies(self, is_local_backend: bool) -> bool:
+        scope = str(self.TOOL_POLICY_SCOPE or "all").strip().lower()
+        if scope == "all":
+            return True
+        if scope == "local":
+            return is_local_backend
+        if scope == "public":
+            return not is_local_backend
+        logger.warning(
+            "Unknown TOOL_POLICY_SCOPE='%s' on %s; defaulting to 'all'.",
+            scope,
+            self.TOOL_NAME,
+        )
+        return True
+
+    def _resolve_runtime_policy(self) -> tuple[int, float, int]:
+        is_local_backend = self._is_local_backend()
+        applies = self._policy_applies(is_local_backend)
+
+        max_tokens = int(self.settings.models.tool_max_tokens)
+        temperature = float(self.settings.models.tool_temperature)
+        default_retries = int(BaseTool.TOOL_MAX_RETRIES)
+        max_attempts = max(1, int(1 + default_retries))
+
+        if applies:
+            if self.TOOL_MAX_TOKENS is not None:
+                max_tokens = int(self.TOOL_MAX_TOKENS)
+            if self.TOOL_TEMPERATURE is not None:
+                temperature = float(self.TOOL_TEMPERATURE)
+            max_attempts = max(1, int(1 + self.TOOL_MAX_RETRIES))
+
+        return max_tokens, temperature, max_attempts
 
 
 # Tool registry and factory

@@ -4,6 +4,7 @@ COMPASS LLM Client
 Wrapper for OpenRouter API with retry logic, token tracking, and logging.
 """
 
+import threading
 import time
 import logging
 from typing import Optional, Dict, Any, List
@@ -211,18 +212,83 @@ class LLMClient:
         """
         model = model or self.settings.models.tool_model
         model = self._resolve_model_name(model)
-        max_tokens = max_tokens or self.settings.models.tool_max_tokens
-        temperature = temperature or self.settings.models.tool_temperature
+        if max_tokens is None:
+            max_tokens = self.settings.models.tool_max_tokens
+        if temperature is None:
+            temperature = self.settings.models.tool_temperature
         
         # --- LOCAL BACKEND ROUTING ---
-        if self.settings.models.backend == LLMBackend.LOCAL and self.local_llm:
+        backend_value = getattr(self.settings.models.backend, "value", self.settings.models.backend)
+        backend_is_local = (
+            self.settings.models.backend == LLMBackend.LOCAL
+            or self.backend == LLMBackend.LOCAL
+            or str(backend_value).lower() == "local"
+        )
+        if self.local_llm and backend_is_local:
             try:
-                # Local LLM generate
-                resp_data = self.local_llm.generate(
-                    messages=messages,
-                    max_tokens=int(max_tokens),
-                    temperature=float(temperature)
+                if not hasattr(self.local_llm, "device"):
+                    setattr(self.local_llm, "device", "cpu")
+                    logger.warning("LocalLLMHandler missing 'device' attribute; defaulting to 'cpu'.")
+                json_mode = (
+                    isinstance(response_format, dict)
+                    and str(response_format.get("type", "")).lower() == "json_object"
                 )
+                local_messages = list(messages or [])
+                local_temperature = float(temperature)
+                if json_mode:
+                    local_temperature = min(local_temperature, 0.15)
+                    local_temperature = max(local_temperature, 0.0)
+                    json_contract = (
+                        "\n\nSTRICT JSON OUTPUT:\n"
+                        "- Return ONLY one valid JSON object.\n"
+                        "- No markdown fences.\n"
+                        "- No commentary, analysis, or <think> blocks.\n"
+                        "- Start with '{' and end with '}'."
+                    )
+                    if local_messages:
+                        last = dict(local_messages[-1])
+                        if str(last.get("role", "")) == "user":
+                            last["content"] = f"{last.get('content', '')}{json_contract}"
+                            local_messages[-1] = last
+                        else:
+                            local_messages.append({"role": "user", "content": json_contract.strip()})
+                    else:
+                        local_messages = [{"role": "user", "content": json_contract.strip()}]
+
+                local_call_start = time.time()
+                print(
+                    f"[LLMClient][LOCAL] generate start "
+                    f"model={self.settings.models.local_model_name} "
+                    f"messages={len(local_messages)} max_tokens={int(max_tokens)} "
+                    f"temp={float(local_temperature):.2f} json_mode={json_mode}"
+                )
+                # Run local generation in a thread so we can emit heartbeats on long calls.
+                resp_data: Dict[str, Any] = {}
+                local_error: List[Exception] = []
+
+                def _run_local_generate() -> None:
+                    try:
+                        result = self.local_llm.generate(
+                            messages=local_messages,
+                            max_tokens=int(max_tokens),
+                            temperature=float(local_temperature),
+                        )
+                        resp_data.update(result or {})
+                    except Exception as exc:
+                        local_error.append(exc)
+
+                worker = threading.Thread(target=_run_local_generate, daemon=True)
+                worker.start()
+                while worker.is_alive():
+                    worker.join(timeout=30)
+                    if worker.is_alive():
+                        waited_s = int(time.time() - local_call_start)
+                        print(
+                            f"[LLMClient][LOCAL] still generating... waited={waited_s}s "
+                            f"model={self.settings.models.local_model_name}"
+                        )
+                if local_error:
+                    raise local_error[0]
                 
                 # Track usage
                 self.token_tracker.add(
@@ -230,13 +296,38 @@ class LLMClient:
                     resp_data["completion_tokens"], 
                     resp_data["model"]
                 )
+                print(
+                    f"[LLMClient][LOCAL] generate done "
+                    f"latency_ms={int(resp_data.get('latency_ms', 0))} "
+                    f"prompt_tokens={int(resp_data.get('prompt_tokens', 0))} "
+                    f"completion_tokens={int(resp_data.get('completion_tokens', 0))}"
+                )
                 
-                return LLMResponse(**resp_data)
+                return LLMResponse(
+                    content=str(resp_data.get("content", "")),
+                    model=str(resp_data.get("model", self.settings.models.local_model_name)),
+                    prompt_tokens=int(resp_data.get("prompt_tokens", 0)),
+                    completion_tokens=int(resp_data.get("completion_tokens", 0)),
+                    total_tokens=int(
+                        resp_data.get(
+                            "total_tokens",
+                            int(resp_data.get("prompt_tokens", 0)) + int(resp_data.get("completion_tokens", 0)),
+                        )
+                    ),
+                    finish_reason=str(resp_data.get("finish_reason", "stop")),
+                    latency_ms=int(resp_data.get("latency_ms", 0)),
+                )
             except Exception as e:
                 logger.error(f"Local LLM call failed: {str(e)}")
+                logger.exception("Local LLM traceback")
                 raise
 
         # --- Public API backends (OpenRouter/OpenAI) ---
+        if self.client is None:
+            raise RuntimeError(
+                f"Public API client is not initialized (backend={self.settings.models.backend}). "
+                "If you intended local inference, ensure backend is LOCAL."
+            )
         
         
         # Log call details for debugging
@@ -442,6 +533,8 @@ class LLMClient:
         wait=wait_exponential(multiplier=1, min=1, max=10)
     )
     def _embedding_backend(self) -> str:
+        if self.backend == LLMBackend.LOCAL:
+            return "local"
         if self.backend == LLMBackend.OPENROUTER:
             return "openrouter"
         if self.backend == LLMBackend.OPENAI:
@@ -481,7 +574,34 @@ class LLMClient:
         try:
             if len(text) > 30000:
                 text = text[:30000]
+            
             backend = self._embedding_backend()
+            
+            # --- LOCAL EMBEDDINGS (No API) ---
+            if backend == "local":
+                from sentence_transformers import SentenceTransformer
+                
+                # Determine model path
+                embed_model_name = (model or self.settings.models.embedding_model or "").strip()
+                if not embed_model_name:
+                    embed_model_name = "BAAI/bge-large-en-v1.5" # Default high-quality local model
+                
+                # Clean up if it's a full path
+                # If running on HPC, we might want to point to the specific downloaded model dir
+                # For now, we rely on the user having downloaded it or it being cached in HF_HOME
+                
+                # Log first load
+                if not getattr(self, "_local_embed_model", None):
+                    logger.info(f"Loading local embedding model to CPU: {embed_model_name}")
+                    # Offload to CPU (16GB) to save all VRAM for gpt-oss-20b (~21GB FP8)
+                    # Node has 1TB RAM, so this is very safe.
+                    self._local_embed_model = SentenceTransformer(embed_model_name, device="cpu")
+                
+                # Generate
+                embedding = self._local_embed_model.encode(text, convert_to_numpy=True).tolist()
+                return embedding
+
+            # --- API EMBEDDINGS ---
             client = self._ensure_embedding_client(backend)
             embed_model = (model or self.settings.models.embedding_model or "").strip()
             if not embed_model:

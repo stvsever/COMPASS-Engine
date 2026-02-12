@@ -83,7 +83,7 @@ Each participant folder must contain four core input files (see data/pseudo_data
 ```text
 - data_overview.json
 - hierarchical_deviation_map.json
-- multimodal_data.json
+- multi_modal_data.json
 - non_numerical_data.txt
 ```
 The first three JSON files are ontology-based structured feature maps created during pre-processing
@@ -99,10 +99,19 @@ Backend notes:
 - `Public API (OpenRouter)` is the default in UI/CLI.
 - Local runs can be configured in the Advanced Configuration panel (engine, dtype, quantization, context window, and role-specific overrides).
 
+### HPC Example (Single GPU)
+
+For a complete Slurm + Apptainer workflow example for single-GPU HPC execution, see:
+
+- `hpc/README.md`
+- `hpc/HPC_Operational_Guide.ipynb`
+
+This includes step-by-step setup, single-participant validation, sequential batch execution scripts, and a didactic HPC notebook.
+
 > [!NOTE]
 > **Batch Configuration**
-> The participant list and specific target conditions are defined within `batch_run.py`. 
-> Results, including Confusion Matrices and detailed logs, are saved to the `results/` directory.
+> The participant list and specific target conditions are defined within `utils/batch_run.py`.
+> Results, including confusion matrices and detailed logs, are saved to the `results/` directory.
 
 For a hands-on walkthrough, run the included Jupyter Notebook:
 

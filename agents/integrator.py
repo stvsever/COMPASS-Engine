@@ -48,6 +48,10 @@ class Integrator(BaseAgent):
 
     def _chunk_budget_tokens(self) -> int:
         max_tool_input = int(getattr(self.settings.token_budget, "max_tool_input_tokens", 20000) or 20000)
+        backend_value = getattr(self.settings.models.backend, "value", self.settings.models.backend)
+        is_local = str(backend_value).lower() == "local"
+        if is_local:
+            return max(10000, min(18000, int(max_tool_input * 0.9)))
         return max(30000, min(60000, int(max_tool_input * 2.0)))
         
     def execute(
@@ -288,7 +292,11 @@ class Integrator(BaseAgent):
             )
 
         from concurrent.futures import ThreadPoolExecutor, as_completed
-        max_workers = min(10, total)
+        backend_value = getattr(self.settings.models.backend, "value", self.settings.models.backend)
+        is_local = str(backend_value).lower() == "local"
+        max_workers = 1 if is_local else min(10, total)
+        if is_local and total > 1:
+            print("[Integrator] Local Backend detected: Sequential chunk evidence extraction (max_workers=1)")
         with ThreadPoolExecutor(max_workers=max_workers) as pool:
             future_map = {}
             for idx, chunk_sections in enumerate(chunks, 1):
@@ -378,7 +386,10 @@ class Integrator(BaseAgent):
                 retry_depth=depth,
             )
 
-        if len(chunk_sections) > 1 and depth < 3:
+        backend_value = getattr(self.settings.models.backend, "value", self.settings.models.backend)
+        is_local = str(backend_value).lower() == "local"
+        max_split_depth = 1 if is_local else 3
+        if len(chunk_sections) > 1 and depth < max_split_depth:
             mid = len(chunk_sections) // 2
             left = self._extract_chunk_with_fallback(
                 tool=tool,
@@ -506,7 +517,7 @@ class Integrator(BaseAgent):
             "retry_depth": max(int(r.get("retry_depth", 0) or 0) for r in rows) if rows else 0,
         }
 
-    def _chunk_feature_keys(self, sections: Sequence[PredictorSection], max_keys: int = 800) -> List[str]:
+    def _chunk_feature_keys(self, sections: Sequence[PredictorSection], max_keys: int = 120) -> List[str]:
         keys: List[str] = []
         seen: Set[str] = set()
         for sec in sections:

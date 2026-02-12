@@ -280,7 +280,7 @@ class PredictorInputAssembler:
             "priority": sec.priority,
             "provenance": sec.provenance,
             "feature_key_count": len(sec.feature_keys),
-            "feature_keys_sample": sec.feature_keys[:50],
+            "feature_keys_sample": sec.feature_keys[:12],
         }
         return f"### SECTION_META\n{json.dumps(head, default=str)}\n### SECTION_TEXT\n{sec.text}"
 

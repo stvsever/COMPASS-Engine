@@ -1254,8 +1254,8 @@
                                 </div>
                                 <div>
                                     <label class="form-label">Local Context Window</label>
-                                    <input type="number" id="input-max-tokens" class="form-input" placeholder="2048"
-                                        value="2048">
+                                    <input type="number" id="input-max-tokens" class="form-input" placeholder="32768"
+                                        value="32768">
                                 </div>
                                 <div>
                                     <label class="form-label">Local Embedding Model</label>
@@ -1702,6 +1702,18 @@
             document.getElementById('group-model').style.display = isLocal ? 'block' : 'none';
             document.getElementById('group-local-advanced').style.display = isLocal ? 'block' : 'none';
             document.getElementById('group-openrouter').style.display = isLocal ? 'none' : 'block';
+            if (isLocal) {
+                const localCtx = document.getElementById('input-max-tokens');
+                const localMaxLen = document.getElementById('input-local-maxlen');
+                if (localCtx && (!localCtx.value || localCtx.dataset.auto === 'true' || localCtx.value === '2048')) {
+                    localCtx.value = '32768';
+                    localCtx.dataset.auto = 'true';
+                }
+                if (localMaxLen && (!localMaxLen.value || localMaxLen.dataset.auto === 'true')) {
+                    localMaxLen.value = '32768';
+                    localMaxLen.dataset.auto = 'true';
+                }
+            }
         }
 
         function toggleRoleRouting() {
@@ -1926,7 +1938,7 @@
                 if (maxLen) return maxLen;
                 const maxTokens = _parsePositiveInt(document.getElementById('input-max-tokens')?.value);
                 if (maxTokens) return maxTokens;
-                return 2048;
+                return 32768;
             }
             const publicCtx = _parsePositiveInt(document.getElementById('input-public-max-context')?.value);
             return publicCtx || 128000;
@@ -1935,10 +1947,29 @@
         function applyTokenBudgetDefaults(force = false) {
             const ctx = getActiveContextWindow();
             if (!ctx) return;
-            const maxAgentInput = Math.floor(ctx * 0.95);
-            const maxToolInput = Math.floor(ctx * 0.40);
-            const maxAgentOutput = Math.floor(ctx * 0.25);
-            const maxToolOutput = Math.floor(ctx * 0.25);
+            const backend = document.getElementById('input-backend')?.value || 'openrouter';
+            let maxAgentInput;
+            let maxToolInput;
+            let maxAgentOutput;
+            let maxToolOutput;
+            if (backend === 'local') {
+                if (ctx >= 32000) {
+                    maxAgentInput = 24000;
+                    maxAgentOutput = 8000;
+                    maxToolInput = 16000;
+                    maxToolOutput = 8000;
+                } else {
+                    maxAgentInput = Math.floor(ctx * 0.75);
+                    maxToolInput = Math.floor(ctx * 0.50);
+                    maxAgentOutput = Math.floor(ctx * 0.25);
+                    maxToolOutput = Math.floor(ctx * 0.25);
+                }
+            } else {
+                maxAgentInput = Math.floor(ctx * 0.95);
+                maxToolInput = Math.floor(ctx * 0.40);
+                maxAgentOutput = Math.floor(ctx * 0.25);
+                maxToolOutput = Math.floor(ctx * 0.25);
+            }
             _setAutoBudgetInput(document.getElementById('input-max-agent'), maxAgentInput, force);
             _setAutoBudgetInput(document.getElementById('input-max-agent-output'), maxAgentOutput, force);
             _setAutoBudgetInput(document.getElementById('input-max-tool-input'), maxToolInput, force);
@@ -2349,9 +2380,19 @@
             const publicCtx = document.getElementById('input-public-max-context');
             if (publicCtx) publicCtx.addEventListener('input', () => applyTokenBudgetDefaults());
             const localMaxTokens = document.getElementById('input-max-tokens');
-            if (localMaxTokens) localMaxTokens.addEventListener('input', () => applyTokenBudgetDefaults());
+            if (localMaxTokens) {
+                localMaxTokens.addEventListener('input', () => {
+                    localMaxTokens.dataset.auto = 'false';
+                    applyTokenBudgetDefaults();
+                });
+            }
             const localMaxLen = document.getElementById('input-local-maxlen');
-            if (localMaxLen) localMaxLen.addEventListener('input', () => applyTokenBudgetDefaults());
+            if (localMaxLen) {
+                localMaxLen.addEventListener('input', () => {
+                    localMaxLen.dataset.auto = 'false';
+                    applyTokenBudgetDefaults();
+                });
+            }
             const backendSelect = document.getElementById('input-backend');
             if (backendSelect) backendSelect.addEventListener('change', () => applyTokenBudgetDefaults());
         });

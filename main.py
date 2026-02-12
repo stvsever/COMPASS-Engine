@@ -169,8 +169,8 @@ def _sync_role_token_limits_with_budgets(settings, role_max_tokens: Optional[Dic
             explicit_roles.add(role)
             setattr(settings.models, f"{role}_max_tokens", int(value))
 
-    max_agent_output = max(1, int(getattr(settings.token_budget, "max_agent_output_tokens", 4096) or 4096))
-    max_tool_output = max(1, int(getattr(settings.token_budget, "max_tool_output_tokens", 15000) or 15000))
+    max_agent_output = max(1, int(getattr(settings.token_budget, "max_agent_output_tokens", 8000) or 8000))
+    max_tool_output = max(1, int(getattr(settings.token_budget, "max_tool_output_tokens", 8000) or 8000))
 
     for role in ("orchestrator", "critic", "integrator", "predictor", "communicator"):
         if role not in explicit_roles:
@@ -180,8 +180,32 @@ def _sync_role_token_limits_with_budgets(settings, role_max_tokens: Optional[Dic
 
     _clamp_role_token_limits(settings)
 
-def _compute_token_budget_defaults(context_window: int) -> Dict[str, int]:
+def _compute_token_budget_defaults(settings, context_window: int) -> Dict[str, int]:
     ctx = max(1, int(context_window or 0))
+    backend_value = getattr(settings.models.backend, "value", settings.models.backend)
+    is_local = (
+        settings.models.backend == LLMBackend.LOCAL
+        or str(backend_value).lower() == "local"
+    )
+    if is_local:
+        # Local-hosting profile tuned for 32K context on Qwen3-class models.
+        if ctx >= 32000:
+            return {
+                "max_agent_input": 24000,
+                "max_agent_output": 8000,
+                "max_tool_input": 16000,
+                "max_tool_output": 8000,
+            }
+        agent_output = max(1024, min(8000, int(ctx * 0.25)))
+        tool_output = max(1024, min(8000, int(ctx * 0.25)))
+        agent_input = max(4096, min(24000, int(ctx * 0.75)))
+        tool_input = max(4096, min(16000, int(ctx * 0.50)))
+        return {
+            "max_agent_input": agent_input,
+            "max_agent_output": agent_output,
+            "max_tool_input": tool_input,
+            "max_tool_output": tool_output,
+        }
     return {
         "max_agent_input": int(ctx * 0.95),
         "max_agent_output": int(ctx * 0.25),
@@ -191,7 +215,7 @@ def _compute_token_budget_defaults(context_window: int) -> Dict[str, int]:
 
 
 def _apply_token_budget_defaults(settings, overrides: Dict[str, Any]) -> None:
-    defaults = _compute_token_budget_defaults(settings.effective_context_window())
+    defaults = _compute_token_budget_defaults(settings, settings.effective_context_window())
     if overrides.get("max_agent_input") in (None, "", 0):
         settings.token_budget.max_agent_input_tokens = defaults["max_agent_input"]
     if overrides.get("max_agent_output") in (None, "", 0):
@@ -209,10 +233,10 @@ def _sync_component_token_budgets(settings) -> None:
     Why: component budgets were historically static (e.g., critic_budget=50k), which
     can produce misleading CRITICAL percentages when users select large-context models.
     """
-    max_agent_input = int(getattr(settings.token_budget, "max_agent_input_tokens", 20000) or 20000)
-    max_agent_output = int(getattr(settings.token_budget, "max_agent_output_tokens", 4096) or 4096)
-    max_tool_input = int(getattr(settings.token_budget, "max_tool_input_tokens", 20000) or 20000)
-    max_tool_output = int(getattr(settings.token_budget, "max_tool_output_tokens", 15000) or 15000)
+    max_agent_input = int(getattr(settings.token_budget, "max_agent_input_tokens", 24000) or 24000)
+    max_agent_output = int(getattr(settings.token_budget, "max_agent_output_tokens", 8000) or 8000)
+    max_tool_input = int(getattr(settings.token_budget, "max_tool_input_tokens", 16000) or 16000)
+    max_tool_output = int(getattr(settings.token_budget, "max_tool_output_tokens", 8000) or 8000)
 
     # Agent-level budgets scale with agent context + generation capacity.
     settings.token_budget.orchestrator_budget = max(50000, int(max_agent_input * 0.80) + max_agent_output)
@@ -619,6 +643,7 @@ def run_compass_pipeline(
         try:
             get_llm_client()
         except Exception as e:
+            print(f"[Init][Local] Initialization failed: {type(e).__name__}: {e}")
             raise RuntimeError(
                 f"Local backend initialization failed: {e}"
             ) from e
@@ -650,12 +675,26 @@ def run_compass_pipeline(
         if interactive_ui: 
             ui.set_status("Orchestrator creating execution plan...", stage=1, iteration=iteration)
         print(f"\n[3/5] Orchestrator creating execution plan...")
+        print(
+            f"[Orchestrator] Runtime config: model={settings.models.orchestrator_model}, "
+            f"max_tokens={settings.models.orchestrator_max_tokens}, temp={settings.models.orchestrator_temperature}, "
+            f"agent_in={settings.token_budget.max_agent_input_tokens}, "
+            f"agent_out={settings.token_budget.max_agent_output_tokens}, "
+            f"tool_in={settings.token_budget.max_tool_input_tokens}, "
+            f"tool_out={settings.token_budget.max_tool_output_tokens}"
+        )
+        orchestrator_started = time.time()
         plan = orchestrator.execute(
             participant_data=participant_data,
             target_condition=target_condition,
             control_condition=control_condition,
             previous_feedback=previous_feedback,
             iteration=iteration
+        )
+        orchestrator_elapsed = int((time.time() - orchestrator_started) * 1000)
+        print(
+            f"[Orchestrator] Plan created in {orchestrator_elapsed}ms "
+            f"(steps={plan.total_steps}, est_tokens={plan.total_estimated_tokens})"
         )
         
         exec_logger.log_orchestrator({
@@ -672,12 +711,14 @@ def run_compass_pipeline(
         
         # Step 4: Executor runs plan
         print(f"\n[4/5] Executor processing plan...")
+        executor_started = time.time()
         executor_output = executor.execute(
             plan=plan,
             participant_data=participant_data,
             target_condition=target_condition,
             control_condition=control_condition,
         )
+        print(f"[Executor] Completed in {int((time.time() - executor_started) * 1000)}ms")
         final_executor_output = executor_output
         final_plan = plan
         
@@ -713,6 +754,7 @@ def run_compass_pipeline(
             control_condition=control_condition,
             iteration=iteration
         )
+        print(f"[Predictor] Completed for iteration {iteration}")
 
         dataflow_summary = _build_dataflow_summary(
             executor_output=executor_output,
@@ -755,6 +797,10 @@ def run_compass_pipeline(
             hierarchical_deviation=participant_data.hierarchical_deviation.model_dump(),
             non_numerical_data=participant_data.non_numerical_data.raw_text,
             control_condition=control_condition,
+        )
+        print(
+            f"[Critic] Verdict={evaluation.verdict.value} "
+            f"confidence={evaluation.confidence_in_verdict}"
         )
         
         exec_logger.log_critic({
@@ -1514,8 +1560,8 @@ Examples:
     parser.add_argument(
         "--max_tokens", 
         type=int, 
-        default=2048,
-        help="Max context tokens for local model (default: 2048). Only used if --backend local"
+        default=32768,
+        help="Max context tokens for local model (default: 32768). Only used if --backend local"
     )
 
     parser.add_argument(
@@ -1939,7 +1985,8 @@ Examples:
                 settings.models.local_max_tokens = args.max_tokens
                 settings.models.local_backend_type = args.local_engine
                 settings.models.local_dtype = args.local_dtype
-                settings.models.local_quantization = args.local_quant
+                if args.local_quant is not None:
+                    settings.models.local_quantization = args.local_quant
                 settings.models.local_kv_cache_dtype = args.local_kv_cache_dtype
                 settings.models.local_tensor_parallel_size = args.local_tensor_parallel
                 settings.models.local_pipeline_parallel_size = args.local_pipeline_parallel

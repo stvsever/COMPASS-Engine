@@ -17,6 +17,17 @@ from dotenv import load_dotenv
 # Load environment variables from .env file
 load_dotenv()
 
+# Suppress warnings for cleaner logs
+import warnings
+warnings.filterwarnings("ignore", category=UserWarning)
+warnings.filterwarnings("ignore", category=FutureWarning)
+warnings.filterwarnings("ignore", module="pydantic")
+
+# Configure HuggingFace environment variables to suppress specific warnings
+os.environ["HF_HUB_DISABLE_SYMLINKS_WARNING"] = "1"
+os.environ["TOKENIZERS_PARALLELISM"] = "false"
+os.environ["VLLM_WORKER_MULTIPROC_METHOD"] = "spawn"
+
 # System branding
 COMPASS_FULL_NAME = "Clinical Ontology-driven Multi-modal Predictive Agentic Support System"
 COMPASS_VERSION = "1.0.0"
@@ -43,21 +54,21 @@ class ModelConfig:
     backend: LLMBackend = LLMBackend.OPENROUTER
     public_model_name: str = "gpt-5-nano"
     public_max_context_tokens: int = 128000
-    embedding_model: str = "text-embedding-3-large"
-    local_model_name: str = "Qwen/Qwen2.5-0.5B-Instruct"  # Corrected ID for Qwen2.5 0.5B Instruct
-    local_max_tokens: int = 2048
+    embedding_model: str = field(default_factory=lambda: os.getenv("EMBEDDING_MODEL", "text-embedding-3-large"))
+    local_model_name: str = "Qwen/Qwen3-14B-AWQ"  
+    local_max_tokens: int = 32768  # Local-hosting default context window
     # Local backend advanced configuration
-    local_backend_type: str = "auto"  # auto|vllm|transformers
-    local_dtype: str = "auto"  # auto|float16|bfloat16|float32|fp8
-    local_quantization: Optional[str] = None  # e.g., awq|gptq|4bit|8bit|fp8
+    local_backend_type: str = "vllm"
+    local_dtype: str = "auto"
+    local_quantization: Optional[str] = None
     local_tensor_parallel_size: int = 1
     local_pipeline_parallel_size: int = 1
     local_gpu_memory_utilization: float = 0.9
-    local_max_model_len: int = 0  # 0 = use local_max_tokens / backend default
-    local_kv_cache_dtype: Optional[str] = None  # e.g., fp8_e4m3|fp8_e5m2
+    local_max_model_len: int = 32768
+    local_kv_cache_dtype: Optional[str] = "fp8"  # Enable FP8 cache for massive context
     local_enforce_eager: bool = False
     local_trust_remote_code: bool = True
-    local_attn_implementation: str = "auto"  # transformers: auto|flash_attention_2|sdpa|eager
+    local_attn_implementation: str = "auto"  
     
     # TESTING MODE: All gpt-5-nano
     # PRODUCTION: Change orchestrator/critic/predictor/integrator/communicator to "gpt-5"
@@ -106,10 +117,10 @@ class TokenBudgetConfig:
     communicator_budget: int = 100000
     
     # Granular controls
-    max_agent_input_tokens: int = 20000   # Max context window for agent prompts
-    max_agent_output_tokens: int = 4096   # Max tokens for agent generation
-    max_tool_input_tokens: int = 20000    # Max input size passed to tools
-    max_tool_output_tokens: int = 15000   # Max output size for tools/compressors
+    max_agent_input_tokens: int = 24000   # Local 32K profile default
+    max_agent_output_tokens: int = 8000   # Local 32K profile default
+    max_tool_input_tokens: int = 16000    # Local 32K profile default
+    max_tool_output_tokens: int = 8000    # Local 32K profile default
 
 
 @dataclass
@@ -127,7 +138,7 @@ class ExplainabilityConfig:
     external_adaptive: bool = True
 
     # Internal (IGA)
-    internal_model: str = "Qwen/Qwen2.5-0.5B-Instruct"
+    internal_model: str = "Qwen/Qwen3-0.5B-Instruct"
     internal_steps: int = 8
     internal_baseline_mode: str = "mask"
     internal_span_mode: str = "value"

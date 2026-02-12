@@ -16,6 +16,10 @@ class ChunkEvidenceExtractor(BaseTool):
 
     TOOL_NAME = "ChunkEvidenceExtractor"
     PROMPT_FILE = "chunk_evidence_extractor.txt"
+    TOOL_POLICY_SCOPE = "local"
+    TOOL_MAX_TOKENS = 1024
+    TOOL_TEMPERATURE = 0.0
+    TOOL_MAX_RETRIES = 2
 
     def _validate_input(self, input_data: Dict[str, Any]) -> Optional[str]:
         required = ["chunk_text", "target_condition", "control_condition", "chunk_index", "chunk_total"]
@@ -42,4 +46,10 @@ class ChunkEvidenceExtractor(BaseTool):
             "",
             "Chunk content:",
             f"```text\n{chunk_text}\n```",
+            "",
+            "OUTPUT CONTRACT:",
+            "- Return only one JSON object matching the schema.",
+            "- Do not output analysis or <think> blocks.",
+            "- Keep key_findings concise (max 8 items).",
+            "- Keep for_case and for_control concise (max 6 items each).",
         ])
