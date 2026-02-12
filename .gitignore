@@ -67,15 +67,8 @@ data/*
 .DS_Store
 __init__.py
 
-# Tests
+# Tests (local only; do not commit)
 tests/
-!tests/
-tests/**/*
-!tests/*.py
 
 # Outputs
 outputs/
-
-# Local-only tests (do not commit)
-tests/test_plan_executor_inline_paths.py
-tests/test_plan_executor_narrative_fallback.py
