@@ -21,24 +21,19 @@ MAIN_SCRIPT = PROJECT_ROOT / "main.py"
 RESULTS_DIR = PROJECT_ROOT.parent / "results"
 
 # ─── Participant Cohort ───────────────────────────────────────────────────
-# UK Biobank participants for clinical validation (Major Depressive Disorder)
-# 5 CASE + 5 CONTROL, balanced cohort for binary classification evaluation
+# Example participant cohort (anonymized placeholders).
+# Replace these IDs with your real participant IDs / EIDs for your dataset.
 #
 # Format:
-#   id         — UK Biobank EID (folder: participant_ID{eid})
+#   id         — participant identifier (folder: participant_ID{id})
 #   expected   — ground-truth label (CASE or CONTROL)
 #   target_str — phenotype string passed to main.py --target
 PARTICIPANTS = [
-    {"id": "1416463", "expected": "CASE",    "target_str": "MAJOR_DEPRESSIVE_DISORDER | F329:Major depressive disorder, single episode, unspecified"},
-    {"id": "3950738", "expected": "CONTROL", "target_str": "MAJOR_DEPRESSIVE_DISORDER"},
-    {"id": "3674748", "expected": "CONTROL", "target_str": "MAJOR_DEPRESSIVE_DISORDER"},
-    {"id": "3530988", "expected": "CONTROL", "target_str": "MAJOR_DEPRESSIVE_DISORDER"},
-    {"id": "4437905", "expected": "CASE",    "target_str": "MAJOR_DEPRESSIVE_DISORDER | F329:Major depressive disorder, single episode, unspecified"},
-    {"id": "4819798", "expected": "CASE",    "target_str": "MAJOR_DEPRESSIVE_DISORDER | F329:Major depressive disorder, single episode, unspecified"},
-    {"id": "2519442", "expected": "CONTROL", "target_str": "MAJOR_DEPRESSIVE_DISORDER"},
-    {"id": "3895610", "expected": "CASE",    "target_str": "MAJOR_DEPRESSIVE_DISORDER | F329:Major depressive disorder, single episode, unspecified"},
-    {"id": "4931262", "expected": "CONTROL", "target_str": "MAJOR_DEPRESSIVE_DISORDER"},
-    {"id": "4612723", "expected": "CASE",    "target_str": "MAJOR_DEPRESSIVE_DISORDER | F329:Major depressive disorder, single episode, unspecified"},
+    {"id": "01", "expected": "CASE",    "target_str": "MAJOR_DEPRESSIVE_DISORDER | F329:Major depressive disorder, single episode, unspecified"},
+    {"id": "02", "expected": "CONTROL", "target_str": "MAJOR_DEPRESSIVE_DISORDER"},
+    {"id": "03", "expected": "CONTROL", "target_str": "MAJOR_DEPRESSIVE_DISORDER"},
+    {"id": "04", "expected": "CASE",    "target_str": "MAJOR_DEPRESSIVE_DISORDER | F329:Major depressive disorder, single episode, unspecified"},
+    {"id": "05", "expected": "CONTROL", "target_str": "MAJOR_DEPRESSIVE_DISORDER"},
 ]
 
 def run_participant(pid_info):

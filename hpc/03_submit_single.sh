@@ -30,7 +30,13 @@ MODELS_DIR="${HOME}/compass_models"
 MODEL_NAME="${MODELS_DIR}/Qwen_Qwen3-14B-AWQ"
 EMBEDDING_MODEL_NAME="${MODELS_DIR}/Qwen_Qwen3-Embedding-8B"
 
-PARTICIPANT_ID="4765961"
+#
+# Example participant ID (placeholder).
+# Replace this with a real participant ID present under DATA_DIR (folder: participant_ID<id>),
+# or override at submit time:
+#   PARTICIPANT_ID=01 bash hpc/03_submit_single.sh
+#
+: "${PARTICIPANT_ID:=01}"
 DATA_DIR="${PROJECT_DIR}/../data/__FEATURES__/HPC_data"
 PARTICIPANT_DIR="${DATA_DIR}/participant_ID${PARTICIPANT_ID}"
 TARGET="MAJOR_DEPRESSIVE_DISORDER | F329:Major depressive disorder, single episode, unspecified"

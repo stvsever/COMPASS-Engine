@@ -130,6 +130,7 @@ multi_agent_system/
 ├── agents/             # Autonomous agent definitions (Orchestrator, Predictor, Critic, etc.) and prompts
 ├── tools/              # Clinical analysis tools (COMPASS Core Tools) and prompt templates
 ├── frontend/           # Interactive Web UI (Flask backend + HTML/CSS/JS frontend)
+├── hpc/                # Slurm + Apptainer scripts and HPC operational notebook
 ├── utils/              # System utilities (Core Engine, Logging, Embeddings, Logic)
 ├── data/               # Data package
 │   ├── models/         # Pydantic data models & execution plan schemas
