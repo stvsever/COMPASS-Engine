@@ -34,7 +34,7 @@ EMBEDDING_MODEL_NAME="${MODELS_DIR}/Qwen_Qwen3-Embedding-8B"
 # Example participant ID (placeholder).
 # Replace this with a real participant ID present under DATA_DIR (folder: participant_ID<id>),
 # or override at submit time:
-#   PARTICIPANT_ID=01 bash hpc/03_submit_single.sh
+#   PARTICIPANT_ID=01 bash hpc/04_submit_single.sh
 #
 : "${PARTICIPANT_ID:=01}"
 DATA_DIR="${PROJECT_DIR}/../data/__FEATURES__/HPC_data"
@@ -131,7 +131,7 @@ echo ""
 # ─── Preconditions ──────────────────────────────────────────────────────────
 if [[ ! -f "${CONTAINER_IMAGE}" ]]; then
     echo "✗ ERROR: Container not found at ${CONTAINER_IMAGE}"
-    echo "  Run: bash hpc/01_setup_environment.sh"
+    echo "  Run: bash hpc/02_setup_environment.sh"
     exit 1
 fi
 if ! command -v apptainer >/dev/null 2>&1; then
@@ -140,7 +140,7 @@ if ! command -v apptainer >/dev/null 2>&1; then
 fi
 if [[ ! -x "${VENV_DIR}/bin/python3" ]]; then
     echo "✗ ERROR: venv python not found at ${VENV_DIR}/bin/python3"
-    echo "  Run: bash hpc/01_setup_environment.sh"
+    echo "  Run: bash hpc/02_setup_environment.sh"
     exit 1
 fi
 if [[ ! -f "${PROJECT_DIR}/main.py" ]]; then
@@ -149,12 +149,12 @@ if [[ ! -f "${PROJECT_DIR}/main.py" ]]; then
 fi
 if [[ ! -d "${MODEL_NAME}" ]]; then
     echo "✗ ERROR: Model dir not found: ${MODEL_NAME}"
-    echo "  Run: bash hpc/02_download_models.sh"
+    echo "  Run: bash hpc/03_download_models.sh"
     exit 1
 fi
 if [[ ! -d "${EMBEDDING_MODEL_NAME}" ]]; then
     echo "✗ ERROR: Embedding model dir not found: ${EMBEDDING_MODEL_NAME}"
-    echo "  Run: bash hpc/02_download_models.sh"
+    echo "  Run: bash hpc/03_download_models.sh"
     exit 1
 fi
 if [[ ! -d "${PARTICIPANT_DIR}" ]]; then

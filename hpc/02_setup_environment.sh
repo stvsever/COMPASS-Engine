@@ -14,7 +14,7 @@
 #
 # USAGE:
 #   cd ~/compass_pipeline/multi_agent_system
-#   bash hpc/01_setup_environment.sh
+#   bash hpc/02_setup_environment.sh
 #   # logs: ~/compass_pipeline/multi_agent_system/logs/setup_<JOBID>.out
 # =============================================================================
 
@@ -223,5 +223,5 @@ echo "   Container: ${CONTAINER_IMAGE}"
 echo "   Venv:      ${VENV_DIR}"
 echo ""
 echo " NEXT STEP: Download model weights:"
-echo "   bash hpc/02_download_models.sh"
+echo "   bash hpc/03_download_models.sh"
 echo ""

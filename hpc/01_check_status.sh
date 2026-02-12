@@ -13,7 +13,7 @@
 #
 # USAGE:
 #   cd ~/compass_pipeline/multi_agent_system
-#   bash hpc/00_check_status.sh
+#   bash hpc/01_check_status.sh
 #
 # =============================================================================
 
@@ -89,7 +89,7 @@ if [ -f "${CONTAINER}" ]; then
     check "Container exists (${SIZE})" "pass"
 else
     check "Container missing at ${CONTAINER}" "fail"
-    echo "       → Fix: bash hpc/01_setup_environment.sh"
+    echo "       → Fix: bash hpc/02_setup_environment.sh"
 fi
 
 # ─── 3. Virtual Environment ──────────────────────────────────────────────
@@ -105,7 +105,7 @@ if [ -d "${VENV}" ]; then
     fi
 else
     check "Venv not found at ${VENV}" "fail"
-    echo "       → Fix: bash hpc/01_setup_environment.sh"
+    echo "       → Fix: bash hpc/02_setup_environment.sh"
 fi
 
 # ─── 3b. Python Package Versions (Qwen3 compatibility) ───────────────────
@@ -160,7 +160,7 @@ PY
             check "vllm found (version check requires compute node)" "warn"
         else
             check "pip missing in venv" "fail"
-            echo "       → Fix: bash hpc/01_setup_environment.sh"
+            echo "       → Fix: bash hpc/02_setup_environment.sh"
         fi
     fi
 else
@@ -179,12 +179,12 @@ if [ -d "${MODELS}" ]; then
             check "Model: ${expected_model} (${size})" "pass"
         else
             check "Model: ${expected_model} NOT FOUND" "fail"
-            echo "       → Fix: bash hpc/02_download_models.sh"
+            echo "       → Fix: bash hpc/03_download_models.sh"
         fi
     done
 else
     check "Models directory not found at ${MODELS}" "fail"
-    echo "       → Fix: bash hpc/02_download_models.sh"
+    echo "       → Fix: bash hpc/03_download_models.sh"
 fi
 
 # ─── 5. Project Source Files ─────────────────────────────────────────────
@@ -287,9 +287,10 @@ if [ ${FAIL} -gt 0 ]; then
     echo " ✗ Fix the failed checks before submitting jobs."
     echo ""
     echo " Run scripts in order:"
-    echo "   1. bash hpc/01_setup_environment.sh   # Container + venv"
-    echo "   2. bash hpc/02_download_models.sh     # Model weights"
-    echo "   3. sbatch hpc/03_submit_single.sh     # Test run"
+    echo "   0. bash hpc/00_deploy_and_run.sh      # Optional: deploy repo to HPC"
+    echo "   1. bash hpc/02_setup_environment.sh   # Container + venv"
+    echo "   2. bash hpc/03_download_models.sh     # Model weights"
+    echo "   3. sbatch hpc/04_submit_single.sh     # Test run"
     exit 1
 elif [ ${WARN} -gt 0 ]; then
     echo ""
@@ -301,6 +302,6 @@ fi
 
 echo ""
 echo " Quick start:"
-echo "   sbatch hpc/03_submit_single.sh  # Test with 1 participant"
-echo "   sbatch hpc/04_submit_batch.sh   # Full batch (10 participants)"
+echo "   sbatch hpc/04_submit_single.sh  # Test with 1 participant"
+echo "   sbatch hpc/05_submit_batch.sh   # Full batch"
 echo ""

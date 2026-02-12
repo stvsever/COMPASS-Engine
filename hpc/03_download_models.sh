@@ -16,7 +16,7 @@
 #
 # USAGE:
 #   cd ~/compass_pipeline/multi_agent_system
-#   bash hpc/02_download_models.sh
+#   bash hpc/03_download_models.sh
 #
 # OPTIONAL ENV:
 #   LOCAL_DIR_USE_SYMLINKS=1|0   (default 1; 0 = real copies, slower)
@@ -331,5 +331,5 @@ echo " HF cache stored in: ${HF_HOME_DIR}"
 du -sh "${HF_HOME_DIR}" 2>/dev/null || true
 echo ""
 echo " NEXT STEP: Test with one participant:"
-echo "   sbatch hpc/03_submit_single.sh"
+echo "   sbatch hpc/04_submit_single.sh"
 echo ""

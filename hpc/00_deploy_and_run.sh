@@ -6,7 +6,7 @@
 # and initiating the setup process.
 #
 # USAGE:
-#   bash hpc/deploy_and_run.sh
+#   bash hpc/00_deploy_and_run.sh
 # =============================================================================
 
 # Configuration
@@ -17,7 +17,7 @@ HPC_DIR="~/compass_pipeline"
 # Local paths (override via environment if needed)
 # - Defaults are derived relative to this repo.
 # - Examples:
-#     LOCAL_CODE_DIR=/path/to/multi_agent_system LOCAL_DATA_DIR=/path/to/HPC_data bash hpc/deploy_and_run.sh
+#     LOCAL_CODE_DIR=/path/to/multi_agent_system LOCAL_DATA_DIR=/path/to/HPC_data bash hpc/00_deploy_and_run.sh
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 REPO_ROOT="$(cd "${SCRIPT_DIR}/.." && pwd)"
 : "${LOCAL_CODE_DIR:=${REPO_ROOT}}"
@@ -79,7 +79,7 @@ echo "To start the pipeline, run these commands inside the HPC:"
 echo ""
 echo "  ssh ${HPC_USER}@${HPC_HOST}"
 echo "  cd ~/compass_pipeline/multi_agent_system"
-echo "  bash hpc/00_check_status.sh"
+echo "  bash hpc/01_check_status.sh"
 echo ""
 echo "Connecting you now..."
 echo "========================================================"

@@ -8,7 +8,7 @@
 #
 # USAGE:
 #   cd ~/compass_pipeline/multi_agent_system
-#   bash hpc/04_submit_batch.sh
+#   bash hpc/05_submit_batch.sh
 #   # auto-submits from login node
 #
 # TIMING: ~10-30 min per participant × 10 participants ≈ 2-5 hours total.
@@ -145,7 +145,7 @@ fi
 
 if [ ${PREREQ_ERROR} -ne 0 ]; then
     echo ""
-    echo "  Fix: Run hpc/01_setup_environment.sh and hpc/02_download_models.sh first."
+    echo "  Fix: Run hpc/02_setup_environment.sh and hpc/03_download_models.sh first."
     exit 1
 fi
 

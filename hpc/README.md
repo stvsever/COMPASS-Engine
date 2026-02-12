@@ -5,8 +5,8 @@ This folder contains an **example HPC workflow** for running COMPASS on Slurm-ba
 It was developed to support **clinical validation runs** of the COMPASS engine on a **single-GPU node** (example target hardware: **NVIDIA L40S, 48 GB VRAM**). The defaults in these scripts reflect that operating constraint.
 
 It is intentionally written as a reproducible template for:
-- Single-participant validation (`03_submit_single.sh`)
-- Sequential batch clinical validation (`04_submit_batch.sh`)
+- Single-participant validation (`04_submit_single.sh`)
+- Sequential batch clinical validation (`05_submit_batch.sh`)
 
 Use it as a starting point. For your cluster, adapt partition/GPU/path settings as needed.
 
@@ -21,11 +21,12 @@ Use it as a starting point. For your cluster, adapt partition/GPU/path settings 
 
 ## What these scripts do
 
-- `00_check_status.sh`: pre-flight checks (paths, models, Slurm/apptainer availability)
-- `01_setup_environment.sh`: create container + venv environment
-- `02_download_models.sh`: download/patch models in shared storage
-- `03_submit_single.sh`: submit one participant smoke test job
-- `04_submit_batch.sh`: submit sequential batch run across participant list in `utils/batch_run.py`
+- `00_deploy_and_run.sh`: optional helper to copy this repo (and optionally data) to an HPC and SSH in
+- `01_check_status.sh`: pre-flight checks (paths, models, Slurm/apptainer availability)
+- `02_setup_environment.sh`: create container + venv environment
+- `03_download_models.sh`: download/patch models in shared storage
+- `04_submit_single.sh`: submit one participant smoke test job
+- `05_submit_batch.sh`: submit sequential batch run across participant list in `utils/batch_run.py`
 - `HPC_Operational_Guide.ipynb`: didactic notebook explaining HPC components and the end-to-end workflow with these scripts
 
 ## Notebook-first onboarding (recommended)
@@ -56,11 +57,12 @@ Design choices you will likely adapt for other hardware:
 From `~/compass_pipeline/multi_agent_system`:
 
 ```bash
-bash hpc/00_check_status.sh
-bash hpc/01_setup_environment.sh
-bash hpc/02_download_models.sh
-bash hpc/03_submit_single.sh
-bash hpc/04_submit_batch.sh
+bash hpc/00_deploy_and_run.sh   # optional
+bash hpc/01_check_status.sh
+bash hpc/02_setup_environment.sh
+bash hpc/03_download_models.sh
+bash hpc/04_submit_single.sh
+bash hpc/05_submit_batch.sh
 ```
 
 All submission scripts are login-node safe:
@@ -79,13 +81,13 @@ cat logs/compass_batch_<JOBID>.err
 
 ## Single run vs batch run
 
-### `03_submit_single.sh`
+### `04_submit_single.sh`
 
 - Validates one participant end-to-end.
 - Uses local backend settings tuned for a single-GPU run.
 - Intended as the gate before batch execution.
 
-### `04_submit_batch.sh`
+### `05_submit_batch.sh`
 
 - Runs the participant cohort defined in `utils/batch_run.py`.
 - Keeps execution **sequential** (single GPU) by design.
@@ -123,14 +125,14 @@ They are intentionally configurable independently. The HPC scripts in this folde
 - Local open-source inference on 1x L40S is expected to be slower than hosted public APIs.
 - Most runtime is model generation latency and repeated agent/tool calls (COMPASS is intentionally multi-step).
 - Longer context windows and higher output budgets increase latency.
-- `04_submit_batch.sh` is tuned for reliability on single-GPU sequential execution.
+- `05_submit_batch.sh` is tuned for reliability on single-GPU sequential execution.
 
 ## Quick adaptation checklist for other clusters
 
-1. Update Slurm directives in `03_submit_single.sh` and `04_submit_batch.sh`.
+1. Update Slurm directives in `04_submit_single.sh` and `05_submit_batch.sh`.
 2. Update paths (`PROJECT_DIR`, `MODELS_DIR`, `VENV_DIR`, `CONTAINER_IMAGE`).
 3. Confirm `apptainer` command availability on compute nodes.
-4. Run `00` -> `03` before running `04`.
+4. Run `01` -> `04` successfully before running `05`.
 
 ## Push-ready note
 
