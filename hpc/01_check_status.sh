@@ -207,7 +207,7 @@ fi
 
 # ─── 6. Participant Data ─────────────────────────────────────────────────
 echo ""
-echo "─── Participant Data (V2) ─────────────────────────────────────"
+echo "─── Participant Data ─────────────────────────────────────"
 DATA_DIR="${PROJECT}/../data/__FEATURES__/HPC_data"
 if [ -d "${DATA_DIR}" ]; then
     PCOUNT=$(find "${DATA_DIR}" -maxdepth 1 -type d -name "participant_*" 2>/dev/null | wc -l | tr -d ' ')
