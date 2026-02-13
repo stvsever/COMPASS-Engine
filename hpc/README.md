@@ -133,12 +133,3 @@ They are intentionally configurable independently. The HPC scripts in this folde
 2. Update paths (`PROJECT_DIR`, `MODELS_DIR`, `VENV_DIR`, `CONTAINER_IMAGE`).
 3. Confirm `apptainer` command availability on compute nodes.
 4. Run `01` -> `04` successfully before running `05`.
-
-## Push-ready note
-
-If you push this folder to GitHub as-is, it is clearly an **example deployment profile** for:
-- Slurm + Apptainer based HPC usage
-- single-GPU validation and sequential batch execution
-- mode: sequential HPC clinical validation
-
-That framing is intentional and reusable across clusters.
