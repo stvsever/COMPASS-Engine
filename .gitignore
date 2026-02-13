@@ -74,3 +74,8 @@ outputs/
 
 # Local-only checks (do not commit)
 local_tests/
+
+# Local dynamic batch selection artifacts (do not commit)
+mdd_cases_subset.txt
+mdd_controls_subset.txt
+mdd_batch_subset.txt
