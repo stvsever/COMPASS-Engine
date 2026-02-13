@@ -1,18 +1,20 @@
 #!/bin/bash
 # =============================================================================
-# COMPASS HPC — Step 4: Run a Batch (Subset of Participants)
+# COMPASS HPC — Step 5: Run Clinical Validation Batch (Dynamic Selection)
 # =============================================================================
 #
-# PURPOSE: Runs a subset of participants through COMPASS pipeline using batch_run.py.
-# Run AFTER validating with 03_submit_single.sh.
+# PURPOSE: Runs a specific subset of participants (cases & controls) through the pipeline.
 #
 # USAGE:
 #   cd ~/compass_pipeline/multi_agent_system
+#   # 1. To run the default balanced subset (10 MDD Cases + 10 MDD Controls ; for pilot test):
 #   bash hpc/05_submit_batch.sh
-#   # auto-submits from login node
 #
-# TIMING: ~10-30 min per participant × 10 participants ≈ 2-5 hours total.
-# Time limit set to 10 hours for safety.
+#   # 2. To run ALL participants in the file:
+#   BATCH_SIZE=ALL bash hpc/05_submit_batch.sh
+#
+#   # 3. To run a specific custom size:
+#   BATCH_SIZE=50 bash hpc/05_submit_batch.sh
 #
 # =============================================================================
 
@@ -23,7 +25,7 @@
 #SBATCH --cpus-per-task=16
 #SBATCH --mem=64G
 #SBATCH --gres=gpu:l40s:1
-#SBATCH --time=10:00:00
+#SBATCH --time=48:00:00
 #SBATCH --output=logs/compass_batch_%j.out
 #SBATCH --error=logs/compass_batch_%j.err
 
@@ -38,6 +40,7 @@ VENV_DIR="${HOME}/compass_venv"
 MODELS_DIR="${HOME}/compass_models"
 
 DATA_DIR="${PROJECT_DIR}/../data/__FEATURES__/HPC_data"
+TARGETS_FILE="${PROJECT_DIR}/../data/__TARGETS__/cases_controls_with_specific_subtypes.txt"
 
 MODEL_NAME="${MODELS_DIR}/Qwen_Qwen3-14B-AWQ"
 EMBEDDING_MODEL_NAME="${MODELS_DIR}/Qwen_Qwen3-Embedding-8B"
@@ -49,11 +52,12 @@ EMBEDDING_MODEL_NAME="${MODELS_DIR}/Qwen_Qwen3-Embedding-8B"
 : "${MAX_AGENT_OUTPUT:=8000}"
 : "${MAX_TOOL_INPUT:=16000}"
 : "${MAX_TOOL_OUTPUT:=8000}"
-: "${LOCAL_ENGINE:=vllm}"            # vllm|transformers|auto
+: "${LOCAL_ENGINE:=vllm}"
 : "${LOCAL_DTYPE:=auto}"
 : "${LOCAL_QUANT:=awq_marlin}"
-: "${LOCAL_ENFORCE_EAGER:=1}"        # 1=on, 0=off
+: "${LOCAL_ENFORCE_EAGER:=1}"
 : "${LOCAL_ATTN:=auto}"
+: "${BATCH_SIZE:=20}"  # Default: 10 Cases + 10 Controls = 20 total. Set to "ALL" for everything.
 
 # ─── Auto-Submit to Compute Node ───────────────────────────────────────────
 CURRENT_HOST="$(hostname)"
@@ -73,7 +77,7 @@ if [[ "${CURRENT_HOST}" == login* ]]; then
         --cpus-per-task=16 \
         --mem=64G \
         --gres=gpu:l40s:1 \
-        --time=10:00:00 \
+        --time=48:00:00 \
         --chdir="${PROJECT_DIR}" \
         "$0")"
 
@@ -82,11 +86,8 @@ if [[ "${CURRENT_HOST}" == login* ]]; then
     echo "  Monitor:"
     echo "    tail -f ${LOG_DIR}/compass_batch_${JOB_ID}.out"
     echo ""
-    echo "  Errors (do NOT run as bash):"
+    echo "  Errors:"
     echo "    cat ${LOG_DIR}/compass_batch_${JOB_ID}.err"
-    echo ""
-    echo "  Queue:"
-    echo "    squeue -u $(whoami)"
     echo ""
     exit 0
 fi
@@ -98,121 +99,153 @@ fi
 mkdir -p "${LOG_DIR}"
 cd "${PROJECT_DIR}"
 
-# ─── Pre-flight Checks ───────────────────────────────────────────────────
 echo "============================================="
-echo " COMPASS HPC — Batch Run (v2)"
+echo " COMPASS HPC — Batch Run (Dynamic Selection)"
 echo "============================================="
 echo ""
-echo "SCRIPT_PATH:  $0"
-echo "SCRIPT_SHA:   $(sha256sum "$0" | awk '{print $1}')"
-echo "Job ID:       ${SLURM_JOB_ID:-N/A}"
-echo "Node:         $(hostname)"
 echo "Date:         $(date)"
-echo "PWD:          $(pwd)"
-echo "CUDA_VISIBLE_DEVICES: ${CUDA_VISIBLE_DEVICES:-<unset>}"
-echo "GPU:          $(nvidia-smi --query-gpu=name,memory.total,driver_version --format=csv,noheader 2>/dev/null || echo 'N/A')"
-echo "Time Limit:   10 hours"
-echo ""
-echo "Container:    ${CONTAINER_IMAGE}"
-echo "Venv:         ${VENV_DIR}"
-echo "Model:        ${MODEL_NAME}"
-echo "Embed model:  ${EMBEDDING_MODEL_NAME}"
-echo "Runtime:      local/${LOCAL_ENGINE} (quant=${LOCAL_QUANT}, eager=${LOCAL_ENFORCE_EAGER})"
-echo "Context:      ${MAX_TOKENS} tokens"
-echo "Agent budget: in=${MAX_AGENT_INPUT}, out=${MAX_AGENT_OUTPUT}"
-echo "Tool budget:  in=${MAX_TOOL_INPUT}, out=${MAX_TOOL_OUTPUT}"
-echo "Data:         ${DATA_DIR}"
+echo "Target File:  ${TARGETS_FILE}"
+echo "Batch Size:   ${BATCH_SIZE}"
 echo ""
 
-# Validate prerequisites
-PREREQ_ERROR=0
-for CHECK_PATH in "${CONTAINER_IMAGE}" "${VENV_DIR}" "${MODEL_NAME}" "${EMBEDDING_MODEL_NAME}" "${PROJECT_DIR}/main.py" "${PROJECT_DIR}/utils/batch_run.py"; do
-    if [ ! -e "${CHECK_PATH}" ]; then
-        echo "✗ ERROR: ${CHECK_PATH} not found!"
-        PREREQ_ERROR=1
-    fi
-done
-
-if ! command -v apptainer >/dev/null 2>&1; then
-    echo "✗ ERROR: apptainer not found in PATH on this node."
-    PREREQ_ERROR=1
-fi
-
-if [ ! -x "${VENV_DIR}/bin/python3" ]; then
-    echo "✗ ERROR: ${VENV_DIR}/bin/python3 not found/executable."
-    PREREQ_ERROR=1
-fi
-
-if [ ${PREREQ_ERROR} -ne 0 ]; then
-    echo ""
-    echo "  Fix: Run hpc/02_setup_environment.sh and hpc/03_download_models.sh first."
+# ─── Dynamic Participant Selection ───────────────────────────────────────────
+if [[ ! -f "${TARGETS_FILE}" ]]; then
+    echo "✗ ERROR: Target file not found at ${TARGETS_FILE}"
+    echo "  Ensure you have synced the data directory."
     exit 1
 fi
 
-if [ ! -d "${DATA_DIR}" ]; then
-    echo "⚠ WARNING: Data directory not found at ${DATA_DIR}"
-    echo "  batch_run.py may fail if DATA_ROOT is not set correctly."
+echo "Parsing participants..."
+# Create a temporary list of IDs
+TMP_LIST=$(mktemp)
+CASE_TMP=$(mktemp)
+CTRL_TMP=$(mktemp)
+
+cleanup_tmp_files() {
+    rm -f "${TMP_LIST}" "${CASE_TMP}" "${CTRL_TMP}"
+}
+trap cleanup_tmp_files EXIT
+
+if [[ "${BATCH_SIZE}" == "ALL" ]]; then
+    echo "  - Mode: ALL participants"
+    awk '{print $1}' "${TARGETS_FILE}" > "${TMP_LIST}"
+else
+    # Validate integer batch size for balanced mode.
+    if ! [[ "${BATCH_SIZE}" =~ ^[0-9]+$ ]]; then
+        echo "✗ ERROR: BATCH_SIZE must be an integer or ALL (received: ${BATCH_SIZE})"
+        exit 1
+    fi
+    if (( BATCH_SIZE < 2 )); then
+        echo "✗ ERROR: BATCH_SIZE must be >= 2 for balanced selection (received: ${BATCH_SIZE})"
+        exit 1
+    fi
+    if (( BATCH_SIZE % 2 != 0 )); then
+        echo "⚠  WARNING: BATCH_SIZE=${BATCH_SIZE} is odd. Using $((BATCH_SIZE - 1)) for balanced split."
+        BATCH_SIZE=$((BATCH_SIZE - 1))
+    fi
+
+    # Calculate split (half cases, half controls).
+    HALF_BATCH=$((BATCH_SIZE / 2))
+    echo "  - Mode: Balanced Subset (${HALF_BATCH} Cases / ${HALF_BATCH} Controls)"
+
+    # Extract IDs with relaxed matching to avoid brittle literal-pattern failures.
+    # We only require lines to contain MAJOR_DEPRESSIVE_DISORDER plus CASE/CONTROL.
+    awk 'BEGIN{IGNORECASE=1}
+         /MAJOR_DEPRESSIVE_DISORDER/ && /CASE/ {print $1}' "${TARGETS_FILE}" > "${CASE_TMP}"
+    awk 'BEGIN{IGNORECASE=1}
+         /MAJOR_DEPRESSIVE_DISORDER/ && /CONTROL/ {print $1}' "${TARGETS_FILE}" > "${CTRL_TMP}"
+
+    AVAILABLE_CASES=$(wc -l < "${CASE_TMP}")
+    AVAILABLE_CONTROLS=$(wc -l < "${CTRL_TMP}")
+    echo "  - Available candidates: ${AVAILABLE_CASES} Cases / ${AVAILABLE_CONTROLS} Controls"
+
+    if (( AVAILABLE_CASES == 0 || AVAILABLE_CONTROLS == 0 )); then
+        echo "✗ ERROR: No selectable CASE/CONTROL rows found for MAJOR_DEPRESSIVE_DISORDER."
+        echo "  Check format in: ${TARGETS_FILE}"
+        exit 1
+    fi
+
+    TAKE_CASES=${HALF_BATCH}
+    TAKE_CONTROLS=${HALF_BATCH}
+    if (( AVAILABLE_CASES < HALF_BATCH )); then
+        echo "⚠  WARNING: Requested ${HALF_BATCH} Cases but only ${AVAILABLE_CASES} available."
+        TAKE_CASES=${AVAILABLE_CASES}
+    fi
+    if (( AVAILABLE_CONTROLS < HALF_BATCH )); then
+        echo "⚠  WARNING: Requested ${HALF_BATCH} Controls but only ${AVAILABLE_CONTROLS} available."
+        TAKE_CONTROLS=${AVAILABLE_CONTROLS}
+    fi
+
+    echo "  - Selecting: ${TAKE_CASES} Cases / ${TAKE_CONTROLS} Controls"
+    head -n "${TAKE_CASES}" "${CASE_TMP}" > "${TMP_LIST}"
+    head -n "${TAKE_CONTROLS}" "${CTRL_TMP}" >> "${TMP_LIST}"
 fi
 
-# ─── GPU Information ──────────────────────────────────────────────────────
-echo "─── GPU Information ─────────────────────────────────────"
-nvidia-smi 2>/dev/null || echo "  nvidia-smi not available"
+QUEUE_SIZE=$(wc -l < "${TMP_LIST}")
+if (( QUEUE_SIZE == 0 )); then
+    echo "✗ ERROR: Participant queue is empty after selection."
+    exit 1
+fi
+echo "  - Queue size: ${QUEUE_SIZE}"
+echo ""
+cat "${TMP_LIST}"
 echo ""
 
-# ─── Detect model max length and clamp ─────────────────────────────────────
-MODEL_CFG="${MODEL_NAME}/config.json"
-TOKENIZER_CFG="${MODEL_NAME}/tokenizer_config.json"
-DETECTED_MAX=""
+# ─── Run Loop ──────────────────────────────────────────────────────────────
+# We run them sequentially in this single job (no parallel sruns to avoid VRAM collision)
 
-if [[ -f "${MODEL_CFG}" || -f "${TOKENIZER_CFG}" ]]; then
-    DETECTED_MAX="$(apptainer exec "${CONTAINER_IMAGE}" python3 - "${MODEL_CFG}" "${TOKENIZER_CFG}" <<'PY'
-import json, os, sys
-paths = [p for p in sys.argv[1:] if p and os.path.isfile(p)]
-keys = [
-    "max_position_embeddings",
-    "max_sequence_length",
-    "max_seq_len",
-    "max_seq_length",
-    "seq_length",
-    "model_max_length",
-]
-vals = []
-for p in paths:
-    try:
-        cfg = json.load(open(p, "r"))
-    except Exception:
-        continue
-    for k in keys:
-        v = cfg.get(k)
-        if isinstance(v, int) and v > 0:
-            vals.append(v)
-print(max(vals) if vals else "")
+# Detect model max length once
+echo "Detecting model max context length..."
+MODEL_CFG="${MODEL_NAME}/config.json"
+DETECTED_MAX=""
+if [[ -f "${MODEL_CFG}" ]]; then
+     DETECTED_MAX="$(apptainer exec "${CONTAINER_IMAGE}" python3 - "${MODEL_CFG}" <<'PY'
+import json, sys
+try:
+    cfg = json.load(open(sys.argv[1]))
+    print(cfg.get("max_position_embeddings") or cfg.get("max_sequence_length") or "")
+except: pass
 PY
 )"
 fi
-
-if [[ -n "${DETECTED_MAX}" ]]; then
-    echo "✓ Detected model/tokenizer limit: ${DETECTED_MAX}"
-    if (( MAX_TOKENS > DETECTED_MAX )); then
-        echo "⚠  Clamping MAX_TOKENS from ${MAX_TOKENS} -> ${DETECTED_MAX}"
-        MAX_TOKENS="${DETECTED_MAX}"
-    fi
-else
-    echo "⚠  Could not detect model max length; continuing with MAX_TOKENS=${MAX_TOKENS}"
+if [[ -n "${DETECTED_MAX}" ]] && (( MAX_TOKENS > DETECTED_MAX )); then
+    echo "⚠  Clamping MAX_TOKENS ${MAX_TOKENS} -> ${DETECTED_MAX}"
+    MAX_TOKENS="${DETECTED_MAX}"
 fi
-echo ""
 
-# ─── Run Batch ─────────────────────────────────────────────────────────────
-echo "─── Starting COMPASS Batch Pipeline ─────────────────────"
-echo "  Start time: $(date)"
-echo ""
 START_TIME=${SECONDS}
+COUNTER=0
 
-mkdir -p "${MODELS_DIR}/hf_cache"
+while read -r PARTICIPANT_ID; do
+    COUNTER=$((COUNTER + 1))
+    echo "----------------------------------------------------------------"
+    echo " Processing ${COUNTER}/${QUEUE_SIZE}: ${PARTICIPANT_ID}"
+    echo "----------------------------------------------------------------"
+    
+    PARTICIPANT_DIR="${DATA_DIR}/participant_ID${PARTICIPANT_ID}"
+    
+    # Check if exists
+    if [[ ! -d "${PARTICIPANT_DIR}" ]]; then
+        echo "  ⚠ Directory not found: ${PARTICIPANT_DIR} (Skipping)"
+        continue
+    fi
 
-# Apptainer is at /usr/bin/apptainer on compute nodes (no module load needed)
-set +e
-apptainer exec \
+    # Determine target based on file lookup.
+    FULL_TARGET_LINE=$(grep "^${PARTICIPANT_ID}" "${TARGETS_FILE}")
+
+    # Leak Protection: Strip CASE/CONTROL literals and parentheses
+    # Ensures the engine is blinded to the ground truth label.
+    SPECIFIC_TARGET=$(echo "${FULL_TARGET_LINE}" | cut -d'|' -f2- | sed -E 's/\bCASE\b//g; s/\bCONTROL\b//g; s/[()]//g' | xargs)
+    
+    # HARDCODED CONTROL baseline
+    FIXED_CONTROL="possible brain-implicated pathology, but NOT psychiatric"
+
+    echo "  Leaked label:   $(echo "${FULL_TARGET_LINE}" | grep -oE "CASE|CONTROL")" # Log internally in .out
+    echo "  Engine Target:  '${SPECIFIC_TARGET}'"
+    echo "  Engine Control: '${FIXED_CONTROL}'"
+    
+    # Run main.py for this participant
+    apptainer exec \
     --nv \
     --bind "${PROJECT_DIR}:${PROJECT_DIR}" \
     --bind "${MODELS_DIR}:${MODELS_DIR}" \
@@ -221,15 +254,17 @@ apptainer exec \
     --env HF_HOME="${MODELS_DIR}/hf_cache" \
     --env TRANSFORMERS_CACHE="${MODELS_DIR}/hf_cache" \
     --env EMBEDDING_MODEL="${EMBEDDING_MODEL_NAME}" \
-    --env DATA_ROOT="${DATA_DIR}" \
+    --env PYTORCH_CUDA_ALLOC_CONF="expandable_segments:True" \
     --env PYTHONUNBUFFERED="1" \
+    --env MODEL_NAME="${MODEL_NAME}" \
+    --env MAX_TOKENS="${MAX_TOKENS}" \
+    --env GPU_MEM_UTIL="${GPU_MEM_UTIL}" \
     "${CONTAINER_IMAGE}" \
     bash -lc "
-        set -euo pipefail
-        source ${VENV_DIR}/bin/activate
-        cd ${PROJECT_DIR}
-
-        # Triton on some HPC images expects libcuda.so (not only libcuda.so.1).
+        source '${VENV_DIR}/bin/activate'
+        cd '${PROJECT_DIR}'
+        
+        # Libcuda shim
         if [[ -f '/usr/local/cuda/compat/lib/libcuda.so.1' ]]; then
             export TRITON_LIBCUDA_PATH=\"\${HOME}/.cache/triton_libcuda\"
             mkdir -p \"\${TRITON_LIBCUDA_PATH}\"
@@ -238,62 +273,40 @@ apptainer exec \
             export LD_LIBRARY_PATH=\"\${TRITON_LIBCUDA_PATH}:\${LD_LIBRARY_PATH:-}\"
         fi
 
-        echo '--- Runtime Information ---'
-        echo 'Python:  \$(python3 --version)'
-        echo 'PyTorch: \$(python3 -c \"import torch; print(torch.__version__)\")'
-        echo 'CUDA:    \$(python3 -c \"import torch; print(torch.cuda.is_available())\")'
-        echo 'vLLM:    \$(python3 -c \"import vllm; print(vllm.__version__)\" 2>/dev/null || echo \"not found\")'
-        echo 'DataRoot:' \"${DATA_DIR}\"
-        echo ''
+        # Compute Flags
+        LOCAL_ENGINE_FLAG='${LOCAL_ENGINE}'
+        if [[ \"\${LOCAL_ENGINE_FLAG}\" == 'auto' ]]; then LOCAL_ENGINE_FLAG='vllm'; fi
+        
+        EXTRA_FLAGS=''
+        if [[ '${LOCAL_ENFORCE_EAGER}' == '1' ]]; then EXTRA_FLAGS='--local_enforce_eager'; fi
+        if [[ '${LOCAL_QUANT}' != 'None' ]]; then EXTRA_FLAGS=\"\${EXTRA_FLAGS} --local_quant ${LOCAL_QUANT}\"; fi
 
-        ENFORCE_FLAG=''
-        if [[ '${LOCAL_ENFORCE_EAGER}' == '1' ]]; then
-            ENFORCE_FLAG='--local_enforce_eager'
-        fi
+        python3 main.py \
+            '${PARTICIPANT_DIR}' \
+            --target '${SPECIFIC_TARGET}' \
+            --control '${FIXED_CONTROL}' \
+            --backend local \
+            --model '${MODEL_NAME}' \
+            --max_tokens ${MAX_TOKENS} \
+            --local_engine \${LOCAL_ENGINE_FLAG} \
+            --local_dtype ${LOCAL_DTYPE} \
+            --local_gpu_mem_util ${GPU_MEM_UTIL} \
+            --local_max_model_len ${MAX_TOKENS} \
+            --max_agent_input ${MAX_AGENT_INPUT} \
+            --max_agent_output ${MAX_AGENT_OUTPUT} \
+            --max_tool_input ${MAX_TOOL_INPUT} \
+            --max_tool_output ${MAX_TOOL_OUTPUT} \
+            --local_trust_remote_code \
+            \${EXTRA_FLAGS} \
+            --detailed_log \
+            --quiet
+    " || echo "  ✗ Failed processing ${PARTICIPANT_ID}"
 
-        echo 'Batch mode: sequential participant processing on single GPU'
-        echo ''
-
-        # Run batch pipeline with detailed per-participant logs
-        python3 utils/batch_run.py \\
-            --backend local \\
-            --model '${MODEL_NAME}' \\
-            --max_tokens ${MAX_TOKENS} \\
-            --max_agent_input ${MAX_AGENT_INPUT} \\
-            --max_agent_output ${MAX_AGENT_OUTPUT} \\
-            --max_tool_input ${MAX_TOOL_INPUT} \\
-            --max_tool_output ${MAX_TOOL_OUTPUT} \\
-            --local_engine '${LOCAL_ENGINE}' \\
-            --local_dtype '${LOCAL_DTYPE}' \\
-            --local_quant '${LOCAL_QUANT}' \\
-            --local_gpu_mem_util ${GPU_MEM_UTIL} \\
-            --local_max_model_len ${MAX_TOKENS} \\
-            --local_attn '${LOCAL_ATTN}' \\
-            --local_trust_remote_code \\
-            \${ENFORCE_FLAG}
-    "
-
-EXIT_CODE=$?
-set -e
+done < "${TMP_LIST}"
 ELAPSED=$((SECONDS - START_TIME))
-
-# ─── Post-run Summary ────────────────────────────────────────────────────
 echo ""
 echo "============================================="
-if [ ${EXIT_CODE} -eq 0 ]; then
-    echo " ✓ COMPASS batch completed successfully!"
-    echo "   Results: ${PROJECT_DIR}/../results/"
-else
-    echo " ✗ COMPASS batch exited with code ${EXIT_CODE}"
-    echo "   Check:"
-    echo "     ${LOG_DIR}/compass_batch_${SLURM_JOB_ID:-unknown}.out"
-    echo "     ${LOG_DIR}/compass_batch_${SLURM_JOB_ID:-unknown}.err"
-    echo ""
-    echo "   Tip: use 'cat' or 'tail', don't run the .err as a script."
-fi
+echo " Batch Completed"
+echo " End time:  $(date)"
+echo " Wall time: ${ELAPSED}s"
 echo "============================================="
-echo "End time:  $(date)"
-echo "Wall time: ${ELAPSED}s ($((ELAPSED / 3600))h $(((ELAPSED % 3600) / 60))m)"
-echo ""
-
-exit ${EXIT_CODE}

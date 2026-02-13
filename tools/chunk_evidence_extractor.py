@@ -17,7 +17,7 @@ class ChunkEvidenceExtractor(BaseTool):
     TOOL_NAME = "ChunkEvidenceExtractor"
     PROMPT_FILE = "chunk_evidence_extractor.txt"
     TOOL_POLICY_SCOPE = "local"
-    TOOL_MAX_TOKENS = 1024
+    TOOL_MAX_TOKENS = 2048
     TOOL_TEMPERATURE = 0.0
     TOOL_MAX_RETRIES = 2
 

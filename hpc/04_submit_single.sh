@@ -4,6 +4,7 @@
 # =============================================================================
 # - Tries vLLM first (if LOCAL_ENGINE=auto), falls back to Transformers if vLLM init fails
 # - Prints vLLM traceback to STDOUT so it shows up in .out logs
+# - Uses DYNAMIC TARGET LOOKUP from file for strict blinding (same as batch logic)
 # =============================================================================
 
 #SBATCH --job-name=compass_single
@@ -13,7 +14,7 @@
 #SBATCH --cpus-per-task=16
 #SBATCH --mem=64G
 #SBATCH --gres=gpu:l40s:1
-#SBATCH --time=02:00:00
+#SBATCH --time=04:00:00
 #SBATCH --output=logs/compass_single_%j.out
 #SBATCH --error=logs/compass_single_%j.err
 
@@ -30,6 +31,11 @@ MODELS_DIR="${HOME}/compass_models"
 MODEL_NAME="${MODELS_DIR}/Qwen_Qwen3-14B-AWQ"
 EMBEDDING_MODEL_NAME="${MODELS_DIR}/Qwen_Qwen3-Embedding-8B"
 
+# Data Config
+DATA_DIR="${PROJECT_DIR}/../data/__FEATURES__/HPC_data"
+# EXPLICIT SHARED PATH
+TARGETS_FILE="/shared/home/itellaetxe01/compass_pipeline/data/__TARGETS__/cases_controls_with_specific_subtypes.txt"
+
 #
 # Example participant ID (placeholder).
 # Replace this with a real participant ID present under DATA_DIR (folder: participant_ID<id>),
@@ -37,9 +43,7 @@ EMBEDDING_MODEL_NAME="${MODELS_DIR}/Qwen_Qwen3-Embedding-8B"
 #   PARTICIPANT_ID=01 bash hpc/04_submit_single.sh
 #
 : "${PARTICIPANT_ID:=01}"
-DATA_DIR="${PROJECT_DIR}/../data/__FEATURES__/HPC_data"
 PARTICIPANT_DIR="${DATA_DIR}/participant_ID${PARTICIPANT_ID}"
-TARGET="MAJOR_DEPRESSIVE_DISORDER | F329:Major depressive disorder, single episode, unspecified"
 
 # Tunables (override via env if needed)
 : "${MAX_TOKENS:=32768}"
@@ -70,7 +74,7 @@ if [[ "${CURRENT_HOST}" == login* ]]; then
         --cpus-per-task=16 \
         --mem=64G \
         --gres=gpu:l40s:1 \
-        --time=02:00:00 \
+        --time=04:00:00 \
         --chdir="${PROJECT_DIR}" \
         "$0")"
 
@@ -126,6 +130,7 @@ echo "Venv:         ${VENV_DIR}"
 echo "Model:        ${MODEL_NAME}"
 echo "Embed model:  ${EMBEDDING_MODEL_NAME}"
 echo "Participant:  ${PARTICIPANT_DIR}"
+echo "Target File:  ${TARGETS_FILE}"
 echo ""
 
 # ─── Preconditions ──────────────────────────────────────────────────────────
@@ -163,6 +168,32 @@ if [[ ! -d "${PARTICIPANT_DIR}" ]]; then
     ls -d "${DATA_DIR}"/participant* 2>/dev/null | head -10 || true
     exit 1
 fi
+
+# ─── Dynamic Target Lookup & Blinding ────────────────────────────────────────
+# This logic mirrors hpc/05_submit_batch.sh exactly to avoid discrepancy
+if [[ ! -f "${TARGETS_FILE}" ]]; then
+    echo "✗ ERROR: Target file not found at ${TARGETS_FILE}"
+    echo "  Ensure you have synced the data directory."
+    exit 1
+fi
+
+FULL_TARGET_LINE=$(grep "^${PARTICIPANT_ID}" "${TARGETS_FILE}")
+if [[ -z "${FULL_TARGET_LINE}" ]]; then
+    echo "✗ ERROR: Participant ID ${PARTICIPANT_ID} not found in target file."
+    exit 1
+fi
+
+# Leak Protection: Strip CASE/CONTROL literals and parentheses
+# Ensures the engine is blinded to the ground truth label.
+SPECIFIC_TARGET=$(echo "${FULL_TARGET_LINE}" | cut -d'|' -f2- | sed -E 's/\bCASE\b//g; s/\bCONTROL\b//g; s/[()]//g' | xargs)
+
+# HARDCODED CONTROL baseline
+FIXED_CONTROL="possible brain-implicated pathology, but NOT psychiatric"
+
+echo "  Leaked label:   $(echo "${FULL_TARGET_LINE}" | grep -oE "CASE|CONTROL")" # Log internally in .out
+echo "  Engine Target:  '${SPECIFIC_TARGET}'"
+echo "  Engine Control: '${FIXED_CONTROL}'"
+echo ""
 
 # ─── Detect model max length and clamp ───────────────────────────────────────
 MODEL_CFG="${MODEL_NAME}/config.json"
@@ -387,7 +418,8 @@ PY
 
         python3 main.py \
             '${PARTICIPANT_DIR}' \
-            --target '${TARGET}' \
+            --target '${SPECIFIC_TARGET}' \
+            --control '${FIXED_CONTROL}' \
             --backend local \
             --model '${MODEL_NAME}' \
             --max_tokens ${MAX_TOKENS} \

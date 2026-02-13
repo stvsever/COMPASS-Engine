@@ -101,7 +101,7 @@ class RetryConfig:
     max_retries: int = 3
     retry_delay_seconds: float = 1.0
     auto_repair_enabled: bool = True
-    max_critic_iterations: int = 3
+    max_critic_iterations: int = 2
 
 
 @dataclass
