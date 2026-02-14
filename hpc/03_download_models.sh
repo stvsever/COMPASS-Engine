@@ -5,15 +5,6 @@
 #
 # PURPOSE: Downloads model weights from HuggingFace to shared storage.
 #
-# FIXES IN v2:
-#   - Uses local_dir_use_symlinks=True by default so the target dir is NOT empty
-#     while downloading (no "download forever into cache then copy at the end").
-#   - Forces HF cache into ${MODELS_DIR}/hf_home to keep everything on the same FS.
-#   - Enables hf_transfer acceleration when available.
-#   - Adds explicit apptainer binds (HOME/MODELS/PROJECT) for reliability.
-#   - YaRN patch uses rope_type=yarn (correct key for Qwen3/Transformers>=4.51).
-#   - YaRN patch is OPTIONAL (ENABLE_YARN=1). Default is OFF (safer).
-#
 # USAGE:
 #   cd ~/compass_pipeline/multi_agent_system
 #   bash hpc/03_download_models.sh
@@ -48,7 +39,7 @@ TRANSFORMERS_CACHE_DIR="${HF_HOME_DIR}/transformers"
 
 # ─── Header ────────────────────────────────────────────────────────────────
 echo "============================================="
-echo " COMPASS HPC — Model Download (v2)"
+echo " COMPASS HPC — Model Download"
 echo "============================================="
 echo ""
 echo "Host:    $(hostname)"

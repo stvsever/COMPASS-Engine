@@ -39,7 +39,7 @@ PIN_TRANSFORMERS="4.51.3"
 
 # ─── Header / Fingerprint ───────────────────────────────────────────────────
 echo "============================================="
-echo " COMPASS HPC — Environment Setup (v2)"
+echo " COMPASS HPC — Environment Setup"
 echo "============================================="
 echo ""
 echo "SCRIPT_PATH:  $0"
