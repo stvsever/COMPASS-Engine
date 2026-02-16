@@ -70,8 +70,12 @@ class FusionLayer:
         # Initialize encoder for token counting (approximate)
         try:
             self.encoder = tiktoken.encoding_for_model("gpt-5")
-        except:
-            self.encoder = tiktoken.get_encoding("cl100k_base")
+        except Exception:
+            try:
+                self.encoder = tiktoken.get_encoding("cl100k_base")
+            except Exception:
+                # Offline/no-cache fallback: keep pipeline operational without tiktoken files.
+                self.encoder = None
             
         model_hint = getattr(self.settings.models, "predictor_model", None)
         max_ctx = int(self.settings.effective_context_window(model_hint))
@@ -79,6 +83,18 @@ class FusionLayer:
         logger.info(f"FusionLayer: Dynamic Threshold set to {self.threshold} (Context: {max_ctx} max)")
             
         logger.info("FusionLayer initialized")
+
+    def _token_len(self, text: Any) -> int:
+        raw = str(text or "")
+        if not raw:
+            return 0
+        if self.encoder is not None:
+            try:
+                return len(self.encoder.encode(raw))
+            except Exception:
+                pass
+        # Conservative heuristic fallback when encoder is unavailable.
+        return max(1, int(len(raw) / 4))
 
     def _embedding_store_metadata(self) -> Dict[str, Any]:
         db_path = str(getattr(self.embedding_store, "db_path", "unknown"))
@@ -265,7 +281,7 @@ class FusionLayer:
             hierarchical_deviation=hierarchical_deviation,
             non_numerical_data=non_numerical_data,
         )
-        baseline_payload_tokens = len(self.encoder.encode(json.dumps(baseline_payload, default=str)))
+        baseline_payload_tokens = self._token_len(json.dumps(baseline_payload, default=str))
         single_chunk_limit = int(getattr(self.settings.token_budget, "max_agent_input_tokens", 20000) or 20000)
 
         processed_raw_tree: Dict[str, Any] = {}
@@ -294,7 +310,7 @@ class FusionLayer:
                 hierarchical_deviation=hierarchical_deviation,
                 non_numerical_data=non_numerical_data,
             )
-            processed_payload_tokens = len(self.encoder.encode(json.dumps(processed_payload, default=str)))
+            processed_payload_tokens = self._token_len(json.dumps(processed_payload, default=str))
 
         print(
             "[FusionLayer] Predictor payload estimate: "
@@ -351,7 +367,7 @@ class FusionLayer:
             hierarchical_deviation=hierarchical_deviation,
             non_numerical_data=non_numerical_data,
         )
-        final_payload_tokens = len(self.encoder.encode(json.dumps(final_payload_probe, default=str)))
+        final_payload_tokens = self._token_len(json.dumps(final_payload_probe, default=str))
         fill_report["predictor_payload_estimate"] = {
             "baseline_tokens": baseline_payload_tokens,
             "final_tokens": final_payload_tokens,
@@ -547,7 +563,7 @@ Please fuse these outputs into a unified representation. PRESERVE all clinical n
             hierarchical_deviation=hierarchical_deviation,
             non_numerical_data=non_numerical_data,
         )
-        baseline_tokens = len(self.encoder.encode(json.dumps(baseline_payload, default=str)))
+        baseline_tokens = self._token_len(json.dumps(baseline_payload, default=str))
         remaining_buffer = self.threshold - baseline_tokens
         
         if remaining_buffer > 2000 and multimodal_data:
@@ -914,7 +930,7 @@ Please fuse these outputs into a unified representation. PRESERVE all clinical n
 
                 # Estimate token cost of injecting this feature.
                 feat_str = json.dumps(feat, default=str)
-                feat_tokens = len(self.encoder.encode(feat_str))
+                feat_tokens = self._token_len(feat_str)
                 if feat_tokens >= remaining_tokens:
                     continue
 

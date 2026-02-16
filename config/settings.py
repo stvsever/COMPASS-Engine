@@ -65,7 +65,7 @@ class ModelConfig:
     local_pipeline_parallel_size: int = 1
     local_gpu_memory_utilization: float = 0.9
     local_max_model_len: int = 32768
-    local_kv_cache_dtype: Optional[str] = "fp8"  # Enable FP8 cache for massive context
+    local_kv_cache_dtype: Optional[str] = "auto"  # Prefer stable runtime default; override to fp8 explicitly if desired
     local_enforce_eager: bool = False
     local_trust_remote_code: bool = True
     local_attn_implementation: str = "auto"  
@@ -117,9 +117,9 @@ class TokenBudgetConfig:
     communicator_budget: int = 100000
     
     # Granular controls
-    max_agent_input_tokens: int = 24000   # Local 32K profile default
-    max_agent_output_tokens: int = 8000   # Local 32K profile default
-    max_tool_input_tokens: int = 16000    # Local 32K profile default
+    max_agent_input_tokens: int = 30000   # Local Qwen HPC profile default (high-input)
+    max_agent_output_tokens: int = 16000  # Local Qwen HPC profile default
+    max_tool_input_tokens: int = 30000    # Local tool input aligned with agent input budget
     max_tool_output_tokens: int = 8000    # Local 32K profile default
 
 
@@ -220,7 +220,7 @@ class Settings:
             local_len = int(getattr(self.models, "local_max_model_len", 0) or 0)
             if local_len > 0:
                 return local_len
-            return max(1024, int(getattr(self.models, "local_max_tokens", 2048) or 2048))
+            return max(1024, int(getattr(self.models, "local_max_tokens", 32768) or 32768))
 
         public_ctx = int(getattr(self.models, "public_max_context_tokens", 0) or 0)
         normalized_public = self._normalize_model_name(self.models.public_model_name)

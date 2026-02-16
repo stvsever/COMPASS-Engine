@@ -59,7 +59,10 @@ class Communicator(BaseAgent):
         try:
             self._encoder = tiktoken.encoding_for_model(self.LLM_MODEL or "gpt-5")
         except Exception:
-            self._encoder = tiktoken.get_encoding("cl100k_base")
+            try:
+                self._encoder = tiktoken.get_encoding("cl100k_base")
+            except Exception:
+                self._encoder = None
 
     def execute(
         self,
@@ -655,21 +658,40 @@ class Communicator(BaseAgent):
                 expanded.append(sec)
                 continue
             slice_budget = max(512, chunk_budget - 1500)
-            token_ids = self._encoder.encode(text)
-            part_idx = 1
-            for start in range(0, len(token_ids), slice_budget):
-                end = min(start + slice_budget, len(token_ids))
-                part = self._encoder.decode(token_ids[start:end])
-                expanded.append(
-                    _CommSection(
-                        name=f"{sec.name}#part{part_idx}",
-                        text=part,
-                        chunkable=sec.chunkable,
-                        optional=sec.optional,
-                        low_priority=sec.low_priority,
+            if self._encoder is not None:
+                token_ids = self._encoder.encode(text)
+                part_idx = 1
+                for start in range(0, len(token_ids), slice_budget):
+                    end = min(start + slice_budget, len(token_ids))
+                    part = self._encoder.decode(token_ids[start:end])
+                    expanded.append(
+                        _CommSection(
+                            name=f"{sec.name}#part{part_idx}",
+                            text=part,
+                            chunkable=sec.chunkable,
+                            optional=sec.optional,
+                            low_priority=sec.low_priority,
+                        )
                     )
-                )
-                part_idx += 1
+                    part_idx += 1
+            else:
+                approx_chars_per_token = 4
+                approx_total_tokens = max(1, int(len(text) / approx_chars_per_token))
+                parts_count = max(1, (approx_total_tokens + slice_budget - 1) // slice_budget)
+                char_chunk = max(1, int(len(text) / parts_count))
+                for part_idx in range(1, parts_count + 1):
+                    char_start = (part_idx - 1) * char_chunk
+                    char_end = len(text) if part_idx == parts_count else min(len(text), char_start + char_chunk)
+                    part = text[char_start:char_end]
+                    expanded.append(
+                        _CommSection(
+                            name=f"{sec.name}#part{part_idx}",
+                            text=part,
+                            chunkable=sec.chunkable,
+                            optional=sec.optional,
+                            low_priority=sec.low_priority,
+                        )
+                    )
 
         chunks: List[List[_CommSection]] = []
         current: List[_CommSection] = []
@@ -716,17 +738,18 @@ class Communicator(BaseAgent):
             }
             out = tool.execute(payload)
             if out.success:
+                out_payload = out.output if isinstance(out.output, dict) else {}
                 row = {
                     "chunk_index": idx,
                     "chunk_total": total,
                     "token_est": token_est,
                     "source_sections": names,
-                    "summary": out.output.get("summary", ""),
-                    "for_case": out.output.get("for_case", []),
-                    "for_control": out.output.get("for_control", []),
-                    "uncertainty_factors": out.output.get("uncertainty_factors", []),
-                    "key_findings": out.output.get("key_findings", []),
-                    "cited_feature_keys": out.output.get("cited_feature_keys", []),
+                    "summary": out_payload.get("summary", ""),
+                    "for_case": out_payload.get("for_case", []),
+                    "for_control": out_payload.get("for_control", []),
+                    "uncertainty_factors": out_payload.get("uncertainty_factors", []),
+                    "key_findings": out_payload.get("key_findings", []),
+                    "cited_feature_keys": out_payload.get("cited_feature_keys", []),
                 }
                 return idx, row
             row = {

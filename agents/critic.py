@@ -136,7 +136,7 @@ class Critic(BaseAgent):
     ) -> str:
         """Build user prompt for critic evaluation."""
 
-        max_in = int(getattr(self.settings.token_budget, "max_agent_input_tokens", 20000) or 20000)
+        max_in = int(getattr(self.settings.token_budget, "max_agent_input_tokens", 30000) or 30000)
         pred_input_budget = int(max_in * 0.38)
         dev_budget = int(max_in * 0.25)
         notes_budget = int(max_in * 0.22)
@@ -295,7 +295,7 @@ class Critic(BaseAgent):
         return "\n".join(prompt_parts)
 
     def _critic_max_output_tokens(self) -> int:
-        max_agent_out = int(getattr(self.settings.token_budget, "max_agent_output_tokens", 4096) or 4096)
+        max_agent_out = int(getattr(self.settings.token_budget, "max_agent_output_tokens", 16000) or 16000)
         if self.LLM_MAX_TOKENS:
             return min(int(self.LLM_MAX_TOKENS), max_agent_out)
         return max_agent_out

@@ -46,15 +46,110 @@ TARGETS_FILE="/shared/home/itellaetxe01/compass_pipeline/data/__TARGETS__/cases_
 PARTICIPANT_DIR="${DATA_DIR}/participant_ID${PARTICIPANT_ID}"
 
 # Tunables (override via env if needed)
-: "${MAX_TOKENS:=32768}"
+: "${MAX_TOKENS:=60000}"
 : "${GPU_MEM_UTIL:=0.95}"
 : "${QUIET:=0}"                  # 1 = pass --quiet
 : "${LOCAL_ENGINE:=auto}"         # auto|vllm|transformers
-: "${PREFLIGHT_VLLM:=0}"          # 1 = run vLLM preflight if engine allows (slower)
-: "${MAX_AGENT_INPUT:=24000}"
-: "${MAX_AGENT_OUTPUT:=8000}"
-: "${MAX_TOOL_INPUT:=16000}"
+: "${PREFLIGHT_VLLM:=1}"          # 1 = run vLLM preflight if engine allows (recommended)
+: "${PREFLIGHT_AUDIT:=1}"         # 1 = run fast offline dataflow audit before full run
+: "${MAX_AGENT_INPUT:=auto}"
+: "${MAX_AGENT_OUTPUT:=16000}"
+: "${MAX_TOOL_INPUT:=auto}"
 : "${MAX_TOOL_OUTPUT:=8000}"
+: "${LOCAL_KV_CACHE_DTYPE:=auto}"
+
+is_int() {
+    [[ "$1" =~ ^[0-9]+$ ]]
+}
+
+resolve_token_budgets() {
+    local ctx="$1"
+    local reserve=2048
+    local min_in=4096
+    local min_out=1024
+    local sync_tool_input=0
+
+    if ! is_int "${MAX_AGENT_OUTPUT}"; then
+        echo "⚠  Invalid MAX_AGENT_OUTPUT='${MAX_AGENT_OUTPUT}' -> using 16000"
+        MAX_AGENT_OUTPUT=16000
+    fi
+    if ! is_int "${MAX_TOOL_OUTPUT}"; then
+        echo "⚠  Invalid MAX_TOOL_OUTPUT='${MAX_TOOL_OUTPUT}' -> using 8000"
+        MAX_TOOL_OUTPUT=8000
+    fi
+
+    local max_agent_out=$((ctx - reserve))
+    if (( max_agent_out < min_out )); then
+        max_agent_out="${min_out}"
+    fi
+    if (( MAX_AGENT_OUTPUT > max_agent_out )); then
+        echo "⚠  Clamping MAX_AGENT_OUTPUT ${MAX_AGENT_OUTPUT} -> ${max_agent_out} (context=${ctx})"
+        MAX_AGENT_OUTPUT="${max_agent_out}"
+    fi
+
+    local max_tool_out=$((ctx - reserve))
+    if (( max_tool_out < min_out )); then
+        max_tool_out="${min_out}"
+    fi
+    if (( MAX_TOOL_OUTPUT > max_tool_out )); then
+        echo "⚠  Clamping MAX_TOOL_OUTPUT ${MAX_TOOL_OUTPUT} -> ${max_tool_out} (context=${ctx})"
+        MAX_TOOL_OUTPUT="${max_tool_out}"
+    fi
+
+    local agent_in_cap=$((ctx - MAX_AGENT_OUTPUT - reserve))
+    if (( agent_in_cap < min_in )); then
+        agent_in_cap="${min_in}"
+    fi
+    local tool_in_cap=$((ctx - MAX_TOOL_OUTPUT - reserve))
+    if (( tool_in_cap < min_in )); then
+        tool_in_cap="${min_in}"
+    fi
+
+    if [[ -z "${MAX_AGENT_INPUT}" || "${MAX_AGENT_INPUT,,}" == "auto" || "${MAX_AGENT_INPUT}" == "0" ]]; then
+        MAX_AGENT_INPUT=$((ctx * 75 / 100))
+    fi
+    if [[ -z "${MAX_TOOL_INPUT}" || "${MAX_TOOL_INPUT,,}" == "auto" || "${MAX_TOOL_INPUT}" == "0" ]]; then
+        MAX_TOOL_INPUT="${MAX_AGENT_INPUT}"
+        sync_tool_input=1
+    fi
+
+    if ! is_int "${MAX_AGENT_INPUT}"; then
+        echo "⚠  Invalid MAX_AGENT_INPUT='${MAX_AGENT_INPUT}' -> using auto"
+        MAX_AGENT_INPUT=$((ctx * 75 / 100))
+    fi
+    if ! is_int "${MAX_TOOL_INPUT}"; then
+        echo "⚠  Invalid MAX_TOOL_INPUT='${MAX_TOOL_INPUT}' -> using MAX_AGENT_INPUT"
+        MAX_TOOL_INPUT="${MAX_AGENT_INPUT}"
+        sync_tool_input=1
+    fi
+
+    if (( MAX_AGENT_INPUT > agent_in_cap )); then
+        echo "⚠  Clamping MAX_AGENT_INPUT ${MAX_AGENT_INPUT} -> ${agent_in_cap} (context=${ctx}, agent_out=${MAX_AGENT_OUTPUT})"
+        MAX_AGENT_INPUT="${agent_in_cap}"
+    fi
+    if (( MAX_TOOL_INPUT > tool_in_cap )); then
+        echo "⚠  Clamping MAX_TOOL_INPUT ${MAX_TOOL_INPUT} -> ${tool_in_cap} (context=${ctx}, tool_out=${MAX_TOOL_OUTPUT})"
+        MAX_TOOL_INPUT="${tool_in_cap}"
+    fi
+
+    if (( MAX_AGENT_INPUT < min_in )); then
+        MAX_AGENT_INPUT="${min_in}"
+    fi
+    if (( MAX_TOOL_INPUT < min_in )); then
+        MAX_TOOL_INPUT="${min_in}"
+    fi
+
+    # Keep tool input aligned with agent input when tool input is auto/invalid.
+    if (( sync_tool_input == 1 )); then
+        MAX_TOOL_INPUT="${MAX_AGENT_INPUT}"
+        if (( MAX_TOOL_INPUT > tool_in_cap )); then
+            MAX_TOOL_INPUT="${tool_in_cap}"
+        fi
+        if (( MAX_TOOL_INPUT < min_in )); then
+            MAX_TOOL_INPUT="${min_in}"
+        fi
+    fi
+}
 
 # ─── Auto-Submit to Compute Node ───────────────────────────────────────────
 CURRENT_HOST="$(hostname)"
@@ -113,8 +208,8 @@ echo "CUDA_VISIBLE_DEVICES: ${CUDA_VISIBLE_DEVICES:-<unset>}"
 echo "LOCAL_ENGINE: ${LOCAL_ENGINE}"
 echo "Requested ctx:${MAX_TOKENS} tokens"
 echo "GPU mem util: ${GPU_MEM_UTIL}"
-echo "Agent budget: in=${MAX_AGENT_INPUT}, out=${MAX_AGENT_OUTPUT}"
-echo "Tool budget:  in=${MAX_TOOL_INPUT}, out=${MAX_TOOL_OUTPUT}"
+echo "Budget request: agent(in=${MAX_AGENT_INPUT}, out=${MAX_AGENT_OUTPUT}) tool(in=${MAX_TOOL_INPUT}, out=${MAX_TOOL_OUTPUT})"
+echo "KV cache dtype request: ${LOCAL_KV_CACHE_DTYPE}"
 echo ""
 
 if command -v nvidia-smi >/dev/null 2>&1; then
@@ -203,26 +298,38 @@ DETECTED_MAX=""
 if [[ -f "${MODEL_CFG}" || -f "${TOKENIZER_CFG}" ]]; then
     DETECTED_MAX="$(apptainer exec "${CONTAINER_IMAGE}" python3 - "${MODEL_CFG}" "${TOKENIZER_CFG}" <<'PY'
 import json, os, sys
-paths = [p for p in sys.argv[1:] if p and os.path.isfile(p)]
-keys = [
-    "max_position_embeddings",
-    "max_sequence_length",
-    "max_seq_len",
-    "max_seq_length",
-    "seq_length",
-    "model_max_length",
-]
-vals = []
-for p in paths:
+model_cfg = sys.argv[1] if len(sys.argv) > 1 and os.path.isfile(sys.argv[1]) else None
+tok_cfg = sys.argv[2] if len(sys.argv) > 2 and os.path.isfile(sys.argv[2]) else None
+
+def collect(path, keys):
+    vals = []
+    if not path:
+        return vals
     try:
-        cfg = json.load(open(p, "r"))
+        cfg = json.load(open(path, "r"))
     except Exception:
-        continue
+        return vals
     for k in keys:
         v = cfg.get(k)
         if isinstance(v, int) and v > 0:
             vals.append(v)
-print(max(vals) if vals else "")
+    return vals
+
+model_vals = collect(
+    model_cfg,
+    ["max_position_embeddings", "max_sequence_length", "max_seq_len", "max_seq_length", "seq_length"],
+)
+tokenizer_vals = collect(
+    tok_cfg,
+    ["model_max_length", "max_position_embeddings", "max_sequence_length", "max_seq_len", "max_seq_length", "seq_length"],
+)
+
+if model_vals:
+    print(min(model_vals))
+elif tokenizer_vals:
+    print(min(tokenizer_vals))
+else:
+    print("")
 PY
 )"
 fi
@@ -236,6 +343,11 @@ if [[ -n "${DETECTED_MAX}" ]]; then
 else
     echo "⚠  Could not detect model max length; continuing with MAX_TOKENS=${MAX_TOKENS}"
 fi
+resolve_token_budgets "${MAX_TOKENS}"
+echo "Resolved runtime token profile:"
+echo "  Context window: ${MAX_TOKENS}"
+echo "  Agent budget:   in=${MAX_AGENT_INPUT}, out=${MAX_AGENT_OUTPUT}"
+echo "  Tool budget:    in=${MAX_TOOL_INPUT}, out=${MAX_TOOL_OUTPUT}"
 echo ""
 
 # ─── Decide engine and run ───────────────────────────────────────────────────
@@ -265,20 +377,34 @@ apptainer exec \
     --env MODEL_NAME="${MODEL_NAME}" \
     --env MAX_TOKENS="${MAX_TOKENS}" \
     --env GPU_MEM_UTIL="${GPU_MEM_UTIL}" \
+    --env LOCAL_KV_CACHE_DTYPE="${LOCAL_KV_CACHE_DTYPE}" \
     "${CONTAINER_IMAGE}" \
     bash -lc "
         set -euo pipefail
         source '${VENV_DIR}/bin/activate'
         cd '${PROJECT_DIR}'
 
-        # Triton on some HPC images expects libcuda.so (not only libcuda.so.1).
+        # CUDA driver shim: some stacks require libcuda.so (not only libcuda.so.1).
         if [[ -f '/usr/local/cuda/compat/lib/libcuda.so.1' ]]; then
-            export TRITON_LIBCUDA_PATH=\"\${HOME}/.cache/triton_libcuda\"
-            mkdir -p \"\${TRITON_LIBCUDA_PATH}\"
-            ln -sf '/usr/local/cuda/compat/lib/libcuda.so.1' \"\${TRITON_LIBCUDA_PATH}/libcuda.so.1\"
-            ln -sf '/usr/local/cuda/compat/lib/libcuda.so.1' \"\${TRITON_LIBCUDA_PATH}/libcuda.so\"
-            export LD_LIBRARY_PATH=\"\${TRITON_LIBCUDA_PATH}:\${LD_LIBRARY_PATH:-}\"
+            export COMPASS_LIBCUDA_PATH=\"\${HOME}/.cache/compass_libcuda\"
+            mkdir -p \"\${COMPASS_LIBCUDA_PATH}\"
+            ln -sf '/usr/local/cuda/compat/lib/libcuda.so.1' \"\${COMPASS_LIBCUDA_PATH}/libcuda.so.1\"
+            ln -sf '/usr/local/cuda/compat/lib/libcuda.so.1' \"\${COMPASS_LIBCUDA_PATH}/libcuda.so\"
+            export TRITON_LIBCUDA_PATH=\"\${COMPASS_LIBCUDA_PATH}\"
+            export CUDA_HOME='/usr/local/cuda'
+            export CUDA_PATH='/usr/local/cuda'
+            export LD_LIBRARY_PATH=\"\${COMPASS_LIBCUDA_PATH}:/usr/local/cuda/compat/lib:\${LD_LIBRARY_PATH:-}\"
+            export LIBRARY_PATH=\"\${COMPASS_LIBCUDA_PATH}:/usr/local/cuda/compat/lib:\${LIBRARY_PATH:-}\"
+            export LD_PRELOAD=\"\${COMPASS_LIBCUDA_PATH}/libcuda.so\${LD_PRELOAD:+:\${LD_PRELOAD}}\"
         fi
+        python3 - <<'PY'
+import ctypes
+try:
+    ctypes.CDLL('libcuda.so')
+    print('libcuda.so dynamic load: OK')
+except Exception as e:
+    print('libcuda.so dynamic load: WARN:', e)
+PY
 
         echo '--- Runtime Information ---'
         python3 - <<'PY'
@@ -324,11 +450,12 @@ PY
                 echo '--- vLLM preflight (will fallback if LOCAL_ENGINE=auto) ---'
                 if python3 - <<'PY'
 import inspect, json, os, sys, traceback
-from vllm import LLM
+from vllm import LLM, SamplingParams
 
 model=os.environ['MODEL_NAME']
 max_len=int(os.environ['MAX_TOKENS'])
 gpu_mem=float(os.environ['GPU_MEM_UTIL'])
+kv_dtype=(os.environ.get('LOCAL_KV_CACHE_DTYPE') or '').strip().lower()
 
 sig = inspect.signature(LLM)
 base_kwargs = dict(
@@ -338,6 +465,9 @@ base_kwargs = dict(
     max_model_len=max_len,
     gpu_memory_utilization=gpu_mem,
 )
+if kv_dtype and kv_dtype not in ('auto', 'none', 'null', '0'):
+    if 'kv_cache_dtype' in sig.parameters:
+        base_kwargs['kv_cache_dtype'] = kv_dtype
 
 # Determine a quantization hint from model name/config, but keep a safe fallback.
 quant_hint = None
@@ -368,7 +498,17 @@ for label, kwargs in candidates:
     try:
         print(f'Trying vLLM init ({label})')
         print('LLM init kwargs:', kwargs)
-        _ = LLM(**kwargs)
+        llm = LLM(**kwargs)
+        test = llm.generate(
+            ['Preflight health check'],
+            SamplingParams(temperature=0.0, max_tokens=8),
+        )
+        txt = ''
+        try:
+            txt = test[0].outputs[0].text if test and test[0].outputs else ''
+        except Exception:
+            txt = ''
+        print('vLLM preflight generate output preview:', repr(str(txt)[:80]))
         print('vLLM preflight: SUCCESS')
         raise SystemExit(0)
     except Exception:
@@ -416,6 +556,34 @@ PY
 
         export CUDA_LAUNCH_BLOCKING=1
 
+        if [[ '${PREFLIGHT_AUDIT}' == '1' ]]; then
+            echo '--- Dataflow preflight audit ---'
+            python3 main.py \
+                '${PARTICIPANT_DIR}' \
+                --target '${SPECIFIC_TARGET}' \
+                --control '${FIXED_CONTROL}' \
+                --backend local \
+                --model '${MODEL_NAME}' \
+                --max_tokens ${MAX_TOKENS} \
+                --local_engine \${LOCAL_ENGINE_FLAG} \
+                --local_dtype auto \
+                --local_kv_cache_dtype ${LOCAL_KV_CACHE_DTYPE} \
+                --local_gpu_mem_util ${GPU_MEM_UTIL} \
+                --local_max_model_len ${MAX_TOKENS} \
+                --max_agent_input ${MAX_AGENT_INPUT} \
+                --max_agent_output ${MAX_AGENT_OUTPUT} \
+                --max_tool_input ${MAX_TOOL_INPUT} \
+                --max_tool_output ${MAX_TOOL_OUTPUT} \
+                --local_trust_remote_code \
+                --audit \
+                --quiet || {
+                    echo '✗ Dataflow preflight audit failed; aborting before full LLM run.'
+                    exit 1
+                }
+            echo '✓ Dataflow preflight audit passed'
+            echo ''
+        fi
+
         python3 main.py \
             '${PARTICIPANT_DIR}' \
             --target '${SPECIFIC_TARGET}' \
@@ -425,6 +593,7 @@ PY
             --max_tokens ${MAX_TOKENS} \
             --local_engine \${LOCAL_ENGINE_FLAG} \
             --local_dtype auto \
+            --local_kv_cache_dtype ${LOCAL_KV_CACHE_DTYPE} \
             --local_gpu_mem_util ${GPU_MEM_UTIL} \
             --local_max_model_len ${MAX_TOKENS} \
             --max_agent_input ${MAX_AGENT_INPUT} \

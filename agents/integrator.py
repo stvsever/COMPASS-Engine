@@ -47,11 +47,16 @@ class Integrator(BaseAgent):
         self.LLM_TEMPERATURE = self.settings.models.integrator_temperature
 
     def _chunk_budget_tokens(self) -> int:
-        max_tool_input = int(getattr(self.settings.token_budget, "max_tool_input_tokens", 20000) or 20000)
+        max_tool_input = int(getattr(self.settings.token_budget, "max_tool_input_tokens", 30000) or 30000)
         backend_value = getattr(self.settings.models.backend, "value", self.settings.models.backend)
         is_local = str(backend_value).lower() == "local"
         if is_local:
-            return max(10000, min(18000, int(max_tool_input * 0.9)))
+            tool_model = getattr(self.settings.models, "tool_model", None)
+            ctx = int(self.settings.effective_context_window(model_name=tool_model))
+            max_tool_out = int(getattr(self.settings.token_budget, "max_tool_output_tokens", 8000) or 8000)
+            reserve = 2048
+            hard_cap = max(10000, ctx - max_tool_out - reserve)
+            return max(10000, min(hard_cap, int(max_tool_input * 0.9)))
         return max(30000, min(60000, int(max_tool_input * 2.0)))
         
     def execute(
@@ -441,7 +446,7 @@ class Integrator(BaseAgent):
     def _normalize_chunk_evidence(
         self,
         *,
-        payload: Dict[str, Any],
+        payload: Any,
         chunk_index: int,
         chunk_total: int,
         source_sections: List[str],
@@ -452,6 +457,30 @@ class Integrator(BaseAgent):
             if not isinstance(value, list):
                 return []
             return [str(v) for v in value if v is not None]
+
+        if not isinstance(payload, dict):
+            if isinstance(payload, list):
+                first_obj = next((item for item in payload if isinstance(item, dict)), None)
+                if first_obj is not None:
+                    payload = first_obj
+                else:
+                    payload = {
+                        "summary": "Chunk extractor returned a list without object payload.",
+                        "for_case": [],
+                        "for_control": [],
+                        "uncertainty_factors": ["invalid_chunk_payload:list_without_object"],
+                        "key_findings": [],
+                        "cited_feature_keys": [],
+                    }
+            else:
+                payload = {
+                    "summary": f"Chunk extractor returned invalid payload type: {type(payload).__name__}",
+                    "for_case": [],
+                    "for_control": [],
+                    "uncertainty_factors": [f"invalid_chunk_payload:{type(payload).__name__}"],
+                    "key_findings": [],
+                    "cited_feature_keys": [],
+                }
 
         cited = _as_str_list(payload.get("cited_feature_keys"))
         if not cited:
@@ -494,6 +523,8 @@ class Integrator(BaseAgent):
         cited: Set[str] = set(fallback_feature_keys)
 
         for row in rows:
+            if not isinstance(row, dict):
+                continue
             case_rows.extend(_as_str_list(row.get("for_case")))
             control_rows.extend(_as_str_list(row.get("for_control")))
             uncertainty_rows.extend(_as_str_list(row.get("uncertainty_factors")))
@@ -501,7 +532,11 @@ class Integrator(BaseAgent):
                 findings.extend([f for f in row.get("key_findings") if isinstance(f, dict)])
             cited.update(_as_str_list(row.get("cited_feature_keys")))
 
-        summary_parts = [str(r.get("summary") or "").strip() for r in rows if str(r.get("summary") or "").strip()]
+        summary_parts = [
+            str(r.get("summary") or "").strip()
+            for r in rows
+            if isinstance(r, dict) and str(r.get("summary") or "").strip()
+        ]
         summary = " | ".join(summary_parts) if summary_parts else "Merged chunk evidence."
 
         return {
@@ -514,7 +549,10 @@ class Integrator(BaseAgent):
             "uncertainty_factors": list(dict.fromkeys(uncertainty_rows + [f"merge_reason:{merge_reason}"])),
             "key_findings": findings[:20],
             "cited_feature_keys": sorted(cited),
-            "retry_depth": max(int(r.get("retry_depth", 0) or 0) for r in rows) if rows else 0,
+            "retry_depth": max(
+                (int(r.get("retry_depth", 0) or 0) for r in rows if isinstance(r, dict)),
+                default=0,
+            ),
         }
 
     def _chunk_feature_keys(self, sections: Sequence[PredictorSection], max_keys: int = 120) -> List[str]:

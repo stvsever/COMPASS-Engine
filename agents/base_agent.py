@@ -209,7 +209,20 @@ class BaseAgent(ABC):
                                         {"role": "user", "content": response.content},
                                     ],
                                     model=model,
-                                    max_tokens=min(int(max_tokens), 2048),
+                                    max_tokens=min(
+                                        int(max_tokens),
+                                        max(
+                                            1024,
+                                            int(
+                                                getattr(
+                                                    self.settings.token_budget,
+                                                    "max_agent_output_tokens",
+                                                    16000,
+                                                )
+                                                or 16000
+                                            ),
+                                        ),
+                                    ),
                                     temperature=0.0,
                                     response_format={"type": "json_object"},
                                 )

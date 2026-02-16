@@ -15,6 +15,7 @@ from .base_agent import BaseAgent
 from ..config.settings import get_settings
 from ..data.models.execution_plan import ExecutionPlan, PlanStep, ToolName
 from ..utils.core.data_loader import ParticipantData
+from ..utils.token_packer import count_tokens
 from ..utils.validation import validate_execution_plan
 
 logger = logging.getLogger("compass.orchestrator")
@@ -135,9 +136,8 @@ class Orchestrator(BaseAgent):
         previous_feedback: Optional[str]
     ) -> str:
         """Build the user prompt for the orchestrator."""
-        import tiktoken
         import json
-        
+
         # Format domain coverage
         coverage_lines = []
         for domain, cov in participant_data.data_overview.domain_coverage.items():
@@ -150,19 +150,26 @@ class Orchestrator(BaseAgent):
         
         coverage_text = "\n".join(coverage_lines)
         
-        # Calculate Data Volume Context
-        try:
-            encoder = tiktoken.encoding_for_model("gpt-4")
-        except:
-            encoder = tiktoken.get_encoding("cl100k_base")
-            
         max_ctx = int(self.settings.effective_context_window(self.settings.models.predictor_model))
         SMART_FUSION_THRESHOLD = int(0.9 * max_ctx)
         
         
         # Raw components estimation
-        dev_tokens = len(encoder.encode(json.dumps(participant_data.hierarchical_deviation.to_dict() if hasattr(participant_data.hierarchical_deviation, 'to_dict') else {}, default=str)))
-        notes_tokens = len(encoder.encode(str(participant_data.non_numerical_data.raw_text) if hasattr(participant_data.non_numerical_data, 'raw_text') else ""))
+        dev_tokens = count_tokens(
+            json.dumps(
+                participant_data.hierarchical_deviation.to_dict()
+                if hasattr(participant_data.hierarchical_deviation, "to_dict")
+                else {},
+                default=str,
+            ),
+            model_hint=self.settings.models.predictor_model or "gpt-5",
+        )
+        notes_tokens = count_tokens(
+            str(participant_data.non_numerical_data.raw_text)
+            if hasattr(participant_data.non_numerical_data, "raw_text")
+            else "",
+            model_hint=self.settings.models.predictor_model or "gpt-5",
+        )
         
         # Multimodal estimation: Sum of all LeafNode tokens from DomainCoverage? 
         # Or estimate from multimodal_data directly?

@@ -169,7 +169,7 @@ def _sync_role_token_limits_with_budgets(settings, role_max_tokens: Optional[Dic
             explicit_roles.add(role)
             setattr(settings.models, f"{role}_max_tokens", int(value))
 
-    max_agent_output = max(1, int(getattr(settings.token_budget, "max_agent_output_tokens", 8000) or 8000))
+    max_agent_output = max(1, int(getattr(settings.token_budget, "max_agent_output_tokens", 16000) or 16000))
     max_tool_output = max(1, int(getattr(settings.token_budget, "max_tool_output_tokens", 8000) or 8000))
 
     for role in ("orchestrator", "critic", "integrator", "predictor", "communicator"):
@@ -188,18 +188,18 @@ def _compute_token_budget_defaults(settings, context_window: int) -> Dict[str, i
         or str(backend_value).lower() == "local"
     )
     if is_local:
-        # Local-hosting profile tuned for 32K context on Qwen3-class models.
-        if ctx >= 32000:
-            return {
-                "max_agent_input": 24000,
-                "max_agent_output": 8000,
-                "max_tool_input": 16000,
-                "max_tool_output": 8000,
-            }
-        agent_output = max(1024, min(8000, int(ctx * 0.25)))
-        tool_output = max(1024, min(8000, int(ctx * 0.25)))
-        agent_input = max(4096, min(24000, int(ctx * 0.75)))
-        tool_input = max(4096, min(16000, int(ctx * 0.50)))
+        # Local-hosting profile:
+        # - fixed output caps (agent=16K, tool=8K)
+        # - tool input defaults to the same as agent input (capped for safety).
+        agent_output = 16000
+        tool_output = 8000
+        headroom = 2048
+
+        agent_input_cap = max(4096, ctx - agent_output - headroom)
+        tool_input_cap = max(4096, ctx - tool_output - headroom)
+
+        agent_input = max(4096, min(int(ctx * 0.75), agent_input_cap))
+        tool_input = max(4096, min(agent_input, tool_input_cap))
         return {
             "max_agent_input": agent_input,
             "max_agent_output": agent_output,
@@ -233,9 +233,9 @@ def _sync_component_token_budgets(settings) -> None:
     Why: component budgets were historically static (e.g., critic_budget=50k), which
     can produce misleading CRITICAL percentages when users select large-context models.
     """
-    max_agent_input = int(getattr(settings.token_budget, "max_agent_input_tokens", 24000) or 24000)
-    max_agent_output = int(getattr(settings.token_budget, "max_agent_output_tokens", 8000) or 8000)
-    max_tool_input = int(getattr(settings.token_budget, "max_tool_input_tokens", 16000) or 16000)
+    max_agent_input = int(getattr(settings.token_budget, "max_agent_input_tokens", 30000) or 30000)
+    max_agent_output = int(getattr(settings.token_budget, "max_agent_output_tokens", 16000) or 16000)
+    max_tool_input = int(getattr(settings.token_budget, "max_tool_input_tokens", 30000) or 30000)
     max_tool_output = int(getattr(settings.token_budget, "max_tool_output_tokens", 8000) or 8000)
 
     # Agent-level budgets scale with agent context + generation capacity.
@@ -1179,7 +1179,7 @@ def run_dataflow_audit(
     )
     predictor_input["coverage_ledger"] = coverage_ledger
 
-    max_tool_input = int(getattr(settings.token_budget, "max_tool_input_tokens", 20000) or 20000)
+    max_tool_input = int(getattr(settings.token_budget, "max_tool_input_tokens", 30000) or 30000)
     chunk_budget = max(30000, min(60000, int(max_tool_input * 2.0)))
     assembler = PredictorInputAssembler(max_chunk_tokens=chunk_budget, model_hint=settings.models.tool_model)
     executor_stub = {

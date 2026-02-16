@@ -37,7 +37,11 @@ class PredictorInputAssembler:
         try:
             self._encoder = tiktoken.encoding_for_model(model_hint)
         except Exception:
-            self._encoder = tiktoken.get_encoding("cl100k_base")
+            try:
+                self._encoder = tiktoken.get_encoding("cl100k_base")
+            except Exception:
+                # Offline/no-cache fallback.
+                self._encoder = None
 
     def build_sections(
         self,
@@ -201,10 +205,16 @@ class PredictorInputAssembler:
                 out.append(sec)
                 continue
 
-            # Split exactly on token boundaries to avoid text loss.
             slice_budget = max(512, self.max_chunk_tokens - 1500)
-            sec_tokens = self._encoder.encode(sec.text or "")
-            parts_count = max(1, (len(sec_tokens) + slice_budget - 1) // slice_budget)
+            if self._encoder is not None:
+                sec_tokens = self._encoder.encode(sec.text or "")
+                parts_count = max(1, (len(sec_tokens) + slice_budget - 1) // slice_budget)
+            else:
+                # Approximate fallback when tokenizer artifacts are unavailable.
+                sec_tokens = []
+                approx_chars_per_token = 4
+                approx_total_tokens = max(1, int(len(sec.text or "") / approx_chars_per_token))
+                parts_count = max(1, (approx_total_tokens + slice_budget - 1) // slice_budget)
             if parts_count == 1:
                 out.append(
                     PredictorSection(
@@ -222,9 +232,21 @@ class PredictorInputAssembler:
             else:
                 keys_per_part = 0
 
-            for part_idx, start in enumerate(range(0, len(sec_tokens), slice_budget), 1):
-                end = min(start + slice_budget, len(sec_tokens))
-                part_text = self._encoder.decode(sec_tokens[start:end])
+            if self._encoder is not None:
+                part_iter = list(enumerate(range(0, len(sec_tokens), slice_budget), 1))
+            else:
+                part_iter = list(enumerate(range(parts_count), 1))
+
+            for part_idx, start in part_iter:
+                if self._encoder is not None:
+                    end = min(start + slice_budget, len(sec_tokens))
+                    part_text = self._encoder.decode(sec_tokens[start:end])
+                else:
+                    text = sec.text or ""
+                    char_chunk = max(1, int(len(text) / max(1, parts_count)))
+                    char_start = (part_idx - 1) * char_chunk
+                    char_end = len(text) if part_idx == parts_count else min(len(text), char_start + char_chunk)
+                    part_text = text[char_start:char_end]
                 key_slice: List[str] = []
                 if keys_per_part:
                     ks = (part_idx - 1) * keys_per_part

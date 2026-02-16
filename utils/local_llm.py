@@ -12,6 +12,7 @@ Notes:
 import logging
 import threading
 import time
+import os
 from typing import List, Dict, Optional, Any, Iterator
 import warnings
 
@@ -53,6 +54,9 @@ class LocalLLMHandler:
         self.tokenizer = None
         self.hf_model = None
 
+        # Some HPC containers expose only libcuda.so.1; create a deterministic libcuda shim
+        # so all backends (vLLM/Transformers/bitsandbytes/triton) resolve consistently.
+        self._ensure_cuda_compat_shim()
         self._initialize_model()
 
     # ──────────────────────────────────────────────────────────────────────────
@@ -301,6 +305,7 @@ class LocalLLMHandler:
         Returns interface compatible with OpenAI-like responses.
         """
         with self._lock:
+            self._ensure_cuda_compat_shim()
             # Aggressive memory cleanup before generation (only if torch exists & CUDA)
             if self.backend_type == "transformers" and TRANSFORMERS_AVAILABLE and self.device == "cuda":
                 torch.cuda.empty_cache()
@@ -311,7 +316,14 @@ class LocalLLMHandler:
             prompt = self._apply_chat_template(messages)
 
             if self.backend_type == "vllm":
-                output_text = self._generate_vllm(prompt, max_tokens, temperature)
+                try:
+                    output_text = self._generate_vllm(prompt, max_tokens, temperature)
+                except Exception as e:
+                    if self._is_libcuda_error(e) and self._recover_from_libcuda_error():
+                        logger.warning("Recovered from libcuda runtime error; retrying vLLM generate once.")
+                        output_text = self._generate_vllm(prompt, max_tokens, temperature)
+                    else:
+                        raise
             elif self.backend_type == "transformers":
                 output_text = self._generate_transformers(prompt, max_tokens, temperature)
             else:
@@ -361,7 +373,83 @@ class LocalLLMHandler:
                 yield text
                 return
 
-            raise RuntimeError(f"Unknown backend_type: {self.backend_type}")
+        raise RuntimeError(f"Unknown backend_type: {self.backend_type}")
+
+    def _is_libcuda_error(self, exc: Exception) -> bool:
+        text = str(exc or "").lower()
+        return (
+            "libcuda.so cannot found" in text
+            or ("libcuda.so" in text and "create a symlink" in text)
+            or ("libcuda.so" in text and "cannot open shared object file" in text)
+        )
+
+    def _prepend_env_path(self, var_name: str, path: str) -> None:
+        current = os.environ.get(var_name, "")
+        parts = [p for p in current.split(":") if p]
+        if path in parts:
+            return
+        os.environ[var_name] = f"{path}:{current}" if current else path
+
+    def _recover_from_libcuda_error(self) -> bool:
+        """
+        Try to recover from runtime libcuda resolution failures.
+        """
+        shim_ok = self._ensure_cuda_compat_shim()
+        if self.backend_type != "vllm":
+            return shim_ok
+
+        kv_dtype = str(getattr(self.settings.models, "local_kv_cache_dtype", "") or "").strip().lower()
+        if kv_dtype.startswith("fp8"):
+            logger.warning(
+                "Switching local_kv_cache_dtype from %s to auto after libcuda runtime error and reinitializing vLLM.",
+                kv_dtype,
+            )
+            try:
+                self.settings.models.local_kv_cache_dtype = "auto"
+                self.llm_engine = None
+                self._initialize_model()
+                return True
+            except Exception as reinit_exc:
+                logger.error("vLLM reinitialization after libcuda error failed: %s", reinit_exc)
+                return False
+        return shim_ok
+
+    def _ensure_cuda_compat_shim(self) -> bool:
+        """
+        Ensure libcuda.so is discoverable in environments that only ship libcuda.so.1.
+        """
+        candidate = "/usr/local/cuda/compat/lib/libcuda.so.1"
+        if not os.path.isfile(candidate):
+            return False
+
+        try:
+            shim_dir = os.path.join(os.path.expanduser("~"), ".cache", "compass_libcuda")
+            os.makedirs(shim_dir, exist_ok=True)
+            for name in ("libcuda.so.1", "libcuda.so"):
+                link = os.path.join(shim_dir, name)
+                if os.path.islink(link):
+                    try:
+                        if os.readlink(link) != candidate:
+                            os.unlink(link)
+                    except OSError:
+                        pass
+                if not os.path.exists(link):
+                    os.symlink(candidate, link)
+
+            self._prepend_env_path("LD_LIBRARY_PATH", shim_dir)
+            self._prepend_env_path("LD_LIBRARY_PATH", "/usr/local/cuda/compat/lib")
+            self._prepend_env_path("LIBRARY_PATH", shim_dir)
+            self._prepend_env_path("LIBRARY_PATH", "/usr/local/cuda/compat/lib")
+            os.environ.setdefault("TRITON_LIBCUDA_PATH", shim_dir)
+            os.environ.setdefault("CUDA_HOME", "/usr/local/cuda")
+            os.environ.setdefault("CUDA_PATH", "/usr/local/cuda")
+
+            preload = os.path.join(shim_dir, "libcuda.so")
+            self._prepend_env_path("LD_PRELOAD", preload)
+            return True
+        except Exception as e:
+            logger.warning("Could not configure libcuda shim: %s", e)
+            return False
 
     # ──────────────────────────────────────────────────────────────────────────
     # Prompt formatting
@@ -500,32 +588,39 @@ class LocalLLMHandler:
         if req <= 0:
             return None
 
-        detected: Optional[int] = None
+        candidates: List[int] = []
 
         # Tokenizer-based detection
         if self.tokenizer is not None:
             try:
                 tmax = getattr(self.tokenizer, "model_max_length", None)
                 if isinstance(tmax, int) and tmax > 0 and tmax < 10**9:
-                    detected = tmax
+                    candidates.append(int(tmax))
             except Exception:
                 pass
 
-        # Config-based detection (if tokenizer didn’t provide)
-        if TRANSFORMERS_AVAILABLE and detected is None:
+        # Config-based detection
+        if TRANSFORMERS_AVAILABLE:
             try:
                 from transformers import AutoConfig
-                cfg = AutoConfig.from_pretrained(self.model_name, trust_remote_code=bool(self.settings.models.local_trust_remote_code))
+                cfg = AutoConfig.from_pretrained(
+                    self.model_name,
+                    trust_remote_code=bool(self.settings.models.local_trust_remote_code),
+                )
                 for k in ("max_position_embeddings", "max_sequence_length", "max_seq_len", "seq_length"):
                     v = getattr(cfg, k, None)
                     if isinstance(v, int) and v > 0:
-                        detected = max(detected or 0, v)
+                        candidates.append(int(v))
             except Exception:
                 pass
 
+        detected: Optional[int] = min(candidates) if candidates else None
+
         # If we detected something meaningful and the request exceeds it, clamp.
         if detected and detected > 0 and req > detected:
-            logger.warning(f"Requested max_len={req} exceeds detected limit={detected}. Clamping to {detected}.")
+            logger.warning(
+                f"Requested max_len={req} exceeds detected limit={detected}. Clamping to {detected}."
+            )
             return detected
 
         return req
