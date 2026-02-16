@@ -21,6 +21,12 @@ class AnomalyNarrativeBuilder(BaseTool):
     
     TOOL_NAME = "AnomalyNarrativeBuilder"
     PROMPT_FILE = "anomaly_narrative.txt"
+    TOOL_EXPECTED_KEYS = [
+        "overall_profile",
+        "domain_narratives",
+        "integrated_narrative",
+        "clinical_highlights",
+    ]
     
     def _validate_input(self, input_data: Dict[str, Any]) -> Optional[str]:
         """Validate that required inputs are present."""

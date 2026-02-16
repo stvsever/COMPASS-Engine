@@ -21,6 +21,11 @@ class PhenotypeRepresentation(BaseTool):
     
     TOOL_NAME = "PhenotypeRepresentation"
     PROMPT_FILE = "phenotype_representation.txt"
+    TOOL_EXPECTED_KEYS = [
+        "clinical_phenotype",
+        "phenotype_summary",
+        "biomarker_signature",
+    ]
     
     def _validate_input(self, input_data: Dict[str, Any]) -> Optional[str]:
         """Validate that required inputs are present."""

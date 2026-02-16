@@ -6,6 +6,8 @@ Executes orchestrator-generated plans step by step.
 
 import time
 import logging
+import json
+import re
 from typing import Dict, Any, Optional, List, Tuple
 from dataclasses import dataclass
 
@@ -157,15 +159,7 @@ class PlanExecutor:
                             print(f"[PlanExecutor] ✓ Step {step.step_id} completed ({result.tokens_used} tokens)")
                             
                             if self.ui.enabled:
-                                preview = ""
-                                output = result.output or {}
-                                for key in ['clinical_narrative', 'integrated_narrative', 'diagnosis', 'classification', 'summary']:
-                                    if key in output:
-                                        if isinstance(output[key], str):
-                                            preview = output[key]
-                                        elif isinstance(output[key], dict) and 'diagnosis' in output[key]:
-                                            preview = output[key]['diagnosis']
-                                        break
+                                preview = self._build_step_preview(step, result.output or {})
                                 self.ui.on_step_complete(step.step_id, result.tokens_used, result.execution_time_ms, preview)
                         else:
                             # Try auto-repair (SEQUENTIAL within the thread context, but here we are in main thread)
@@ -186,6 +180,14 @@ class PlanExecutor:
                                     )
                                     step_outputs[step.step_id] = repaired_result.output or {}
                                     print(f"[PlanExecutor] ✓ Step {step.step_id} repaired successfully")
+                                    if self.ui.enabled:
+                                        repaired_preview = self._build_step_preview(step, repaired_result.output or {})
+                                        self.ui.on_step_complete(
+                                            step.step_id,
+                                            repaired_result.tokens_used,
+                                            repaired_result.execution_time_ms,
+                                            repaired_preview,
+                                        )
                                 else:
                                     step.mark_failed(repaired_result.error or "Unknown error")
                                     print(f"[PlanExecutor] ✗ Step {step.step_id} failed: {repaired_result.error}")
@@ -212,6 +214,256 @@ class PlanExecutor:
         print(f"{'='*60}\n")
         
         return result
+
+    def _build_step_preview(self, step: PlanStep, output: Dict[str, Any]) -> str:
+        """Create a concise, human-readable preview for Live Execution."""
+        if not isinstance(output, dict):
+            return self._truncate_preview(step.description or "Step completed.")
+
+        tool = str(getattr(step.tool_name, "value", step.tool_name))
+
+        # Tool-specific extraction first to avoid low-signal generic keys.
+        if tool == "FeatureSynthesizer":
+            for key in (
+                "feature_synthesis_overview",
+                "domain_signal_overview",
+                "hierarchy_signal_overview",
+                "predictor_attention_guidance",
+            ):
+                text = self._value_to_preview_text(output.get(key))
+                if self._is_informative_preview(text):
+                    return self._truncate_preview(text)
+
+            # Backward-compat fallback for older payloads.
+            hierarchy_summary = output.get("hierarchy_summary")
+            if isinstance(hierarchy_summary, dict):
+                root_pattern = self._value_to_preview_text(hierarchy_summary.get("root_pattern"))
+                if self._is_informative_preview(root_pattern):
+                    return self._truncate_preview(root_pattern)
+
+        if tool == "ClinicalRelevanceRanker":
+            for key in (
+                "clinical_relevance_overview",
+                "case_control_discrimination",
+                "predictor_guidance",
+                "uncertainty_and_gaps",
+                "clinical_summary",
+            ):
+                text = self._value_to_preview_text(output.get(key))
+                if self._is_informative_preview(text):
+                    return self._truncate_preview(text)
+
+        if tool == "UnimodalCompressor":
+            dom = str(output.get("domain") or output.get("base_domain") or "").strip()
+            clinical_narrative = self._value_to_preview_text(output.get("clinical_narrative"))
+            if dom and self._is_informative_preview(clinical_narrative):
+                return self._truncate_preview(f"{dom}: {clinical_narrative}")
+            patterns = output.get("abnormality_patterns")
+            if dom and isinstance(patterns, list) and patterns:
+                first = patterns[0]
+                if isinstance(first, dict):
+                    name = self._value_to_preview_text(first.get("pattern_name"))
+                    interp = self._value_to_preview_text(first.get("clinical_interpretation"))
+                    if self._is_informative_preview(name) and self._is_informative_preview(interp):
+                        return self._truncate_preview(f"{dom}: {name} - {interp}")
+                    if self._is_informative_preview(interp):
+                        return self._truncate_preview(f"{dom}: {interp}")
+                    if self._is_informative_preview(name):
+                        return self._truncate_preview(f"{dom}: {name}")
+            synthesis = output.get("domain_synthesis")
+            if dom and isinstance(synthesis, dict):
+                dominant = self._value_to_preview_text(synthesis.get("dominant_pattern"))
+                severity = self._value_to_preview_text(synthesis.get("overall_severity"))
+                if self._is_informative_preview(dominant) and severity:
+                    return self._truncate_preview(f"{dom}: {dominant} ({severity})")
+                if self._is_informative_preview(dominant):
+                    return self._truncate_preview(f"{dom}: {dominant}")
+            key_abs = output.get("key_abnormalities")
+            if dom and isinstance(key_abs, list) and key_abs:
+                item = self._value_to_preview_text(key_abs[0])
+                if self._is_informative_preview(item):
+                    return self._truncate_preview(f"{dom}: {item}")
+
+        if tool == "HypothesisGenerator":
+            summary = self._value_to_preview_text(output.get("hypothesis_summary"))
+            if self._is_informative_preview(summary):
+                return self._truncate_preview(summary)
+            primary = output.get("primary_hypothesis")
+            if isinstance(primary, dict):
+                title = self._value_to_preview_text(primary.get("title"))
+                mechanism = self._value_to_preview_text(primary.get("mechanism"))
+                if self._is_informative_preview(title) and self._is_informative_preview(mechanism):
+                    return self._truncate_preview(f"{title}: {mechanism}")
+                if self._is_informative_preview(title):
+                    return self._truncate_preview(title)
+                if self._is_informative_preview(mechanism):
+                    return self._truncate_preview(mechanism)
+
+        preferred_keys = [
+            "integrated_narrative",
+            "clinical_narrative",
+            "phenotype_summary",
+            "clinical_summary",
+            "summary",
+            "narrative",
+            "diagnosis",
+            "classification",
+            "primary_hypothesis",
+            "primary_diagnosis",
+            "overall_profile",
+            "result",
+            "message",
+            "output",
+        ]
+
+        for key in preferred_keys:
+            if key not in output:
+                continue
+            text = self._value_to_preview_text(output.get(key))
+            if self._is_informative_preview(text):
+                return self._truncate_preview(text)
+
+        # Last resort: scan any nested value for text.
+        fallback_text = self._find_first_text(output, max_depth=3)
+        if self._is_informative_preview(fallback_text):
+            return self._truncate_preview(fallback_text)
+        return self._truncate_preview(step.description or "Step completed.")
+
+    def _value_to_preview_text(self, value: Any) -> str:
+        if value is None:
+            return ""
+        if isinstance(value, str):
+            return " ".join(value.split()).strip()
+        if isinstance(value, bool):
+            return ""
+        if isinstance(value, (int, float)):
+            return str(value)
+        if isinstance(value, dict):
+            for k in (
+                "diagnosis",
+                "summary",
+                "clinical_narrative",
+                "integrated_narrative",
+                "text",
+                "name",
+                "clinical_interpretation",
+                "rationale",
+                "title",
+                "mechanism",
+                "dominant_pattern",
+                "pattern_name",
+                "feature_name",
+                "feature",
+            ):
+                if k in value:
+                    text = self._value_to_preview_text(value.get(k))
+                    if text:
+                        return text
+            if not value:
+                return ""
+            compact = json.dumps(value, default=str)
+            return compact
+        if isinstance(value, list):
+            parts = []
+            for item in value[:3]:
+                text = self._value_to_preview_text(item)
+                if text:
+                    parts.append(text)
+            if parts:
+                return "; ".join(parts)
+            return ""
+        return str(value).strip()
+
+    def _find_first_text(self, payload: Any, max_depth: int = 2, _depth: int = 0) -> str:
+        skip_dict_keys = {
+            "tool_name",
+            "success",
+            "error",
+            "tokens_used",
+            "prompt_tokens",
+            "completion_tokens",
+            "execution_time_ms",
+            "_step_meta",
+            "_detailed_log",
+        }
+        if _depth > max_depth:
+            return ""
+        if isinstance(payload, str):
+            text = " ".join(payload.split()).strip()
+            return text if text else ""
+        if isinstance(payload, dict):
+            for key, value in payload.items():
+                if key in skip_dict_keys:
+                    continue
+                found = self._find_first_text(value, max_depth=max_depth, _depth=_depth + 1)
+                if self._is_informative_preview(found):
+                    return found
+            return ""
+        if isinstance(payload, list):
+            for item in payload:
+                found = self._find_first_text(item, max_depth=max_depth, _depth=_depth + 1)
+                if self._is_informative_preview(found):
+                    return found
+            return ""
+        if isinstance(payload, bool):
+            return ""
+        return ""
+
+    @staticmethod
+    def _is_informative_preview(text: Any) -> bool:
+        compact = " ".join(str(text or "").split()).strip()
+        if not compact:
+            return False
+        lower = compact.lower()
+        if PlanExecutor._looks_placeholder_text(lower):
+            return False
+        if len(compact) < 10 and lower not in {"case", "control", "normal", "mild", "moderate", "severe"}:
+            return False
+        if not any(ch.isalpha() for ch in compact):
+            return False
+
+        if lower in {
+            "done",
+            "complete",
+            "completed",
+            "step complete",
+            "step completed",
+            "success",
+            "ok",
+            "n/a",
+            "null",
+            "none",
+        }:
+            return False
+
+        if re.fullmatch(r"[a-z0-9_:+\- ]+:\s*compression complete\.?", lower):
+            return False
+
+        return True
+
+    @staticmethod
+    def _looks_placeholder_text(text: Any) -> bool:
+        lower = " ".join(str(text or "").split()).strip().lower()
+        if not lower:
+            return True
+        placeholders = (
+            "no feature provided",
+            "feature not provided",
+            "not provided",
+            "n/a",
+            "none",
+            "null",
+            "unknown",
+            "placeholder",
+        )
+        return any(marker in lower for marker in placeholders)
+
+    @staticmethod
+    def _truncate_preview(text: str, limit: int = 520) -> str:
+        compact = " ".join(str(text or "").split()).strip()
+        if len(compact) <= limit:
+            return compact
+        return compact[: limit - 1].rstrip() + "…"
     
     def _execute_step(
         self,

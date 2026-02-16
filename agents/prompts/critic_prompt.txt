@@ -59,6 +59,14 @@ Return a JSON evaluation with this structure:
   "evaluation_id": "unique_identifier",
   "verdict": "SATISFACTORY" | "UNSATISFACTORY",
   "confidence_in_verdict": 0.0-1.0,
+  "composite_score": 0.0-1.0,
+  "score_breakdown": {
+    "logic": 0.0-1.0,
+    "evidence": 0.0-1.0,
+    "completeness": 0.0-1.0,
+    "relevance": 0.0-1.0
+  },
+  "concise_summary": "1-2 sentences on why this verdict was reached",
   "checklist": {
     "has_binary_outcome": true|false,
     "valid_probability": true|false,
@@ -101,14 +109,18 @@ Return a JSON evaluation with this structure:
 
 6. **Phenotype Match vs Diagnosis**: The target is phenotype match, not a formal diagnosis. Penalize outputs that claim a clinical diagnosis without explicit symptom-level evidence.
 
-7. **False Positive Guardrails (CRITICAL)**:
+7. **Strict Output Contract (CRITICAL)**:
+- You MUST provide `composite_score`, `score_breakdown`, and `concise_summary`.
+- Do not omit keys; if uncertain, provide conservative values and explain uncertainty in `reasoning`.
+
+8. **False Positive Guardrails (CRITICAL)**:
 - If CASE is asserted based only on biomarkers (MRI/omics) without symptom-level evidence, deduct clinical relevance and evidence-based reasoning.
 - If reasoning leans on generic stress markers (sleep issues, loneliness, mild mood variability) without explicit target symptoms, treat as weak evidence.
 - If claims cite specific symptoms, z-scores, or domains that do not exist in the predictor input snapshot, mark as hallucination (UNSATISFACTORY).
 
 - IMPORTANT: so in general, avoid false positives by being aware that patterns with overall higher feature importance should have driven the phenotypic predicton more strongly. 
 
-8. **False Negative Guardrails (CRITICAL)**:
+9. **False Negative Guardrails (CRITICAL)**:
 - If non-numerical data contains explicit target symptoms/diagnosis/treatment and the prediction is CONTROL without strong counter-evidence, penalize coherence and clinical relevance.
 
 ## RE-ORCHESTRATION TRIGGERS

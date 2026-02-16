@@ -7,7 +7,7 @@ Abstract base class for all agents in the system.
 import logging
 import time
 from abc import ABC, abstractmethod
-from typing import Dict, Any, Optional
+from typing import Dict, Any, Optional, List
 from pathlib import Path
 
 from ..config.settings import get_settings, LLMBackend
@@ -39,6 +39,7 @@ class BaseAgent(ABC):
     LLM_MODEL: Optional[str] = None
     LLM_MAX_TOKENS: Optional[int] = None
     LLM_TEMPERATURE: Optional[float] = None
+    JSON_EXPECTED_KEYS: Optional[List[str]] = None
     
     def __init__(
         self,
@@ -191,7 +192,10 @@ class BaseAgent(ABC):
                 
                 if expect_json:
                     try:
-                        parsed = parse_json_response(response.content)
+                        parsed = parse_json_response(
+                            response.content,
+                            expected_keys=self.JSON_EXPECTED_KEYS,
+                        )
                     except Exception as parse_exc:
                         if backend_is_local:
                             # Cheap repair pass on malformed JSON to avoid a full expensive re-plan.
@@ -227,7 +231,10 @@ class BaseAgent(ABC):
                                     response_format={"type": "json_object"},
                                 )
                                 self._record_tokens(repair_resp.prompt_tokens, repair_resp.completion_tokens)
-                                parsed = parse_json_response(repair_resp.content)
+                                parsed = parse_json_response(
+                                    repair_resp.content,
+                                    expected_keys=self.JSON_EXPECTED_KEYS,
+                                )
                                 print(f"[{self.AGENT_NAME}] ✓ JSON repair call succeeded")
                                 return parsed
                             except Exception as repair_exc:

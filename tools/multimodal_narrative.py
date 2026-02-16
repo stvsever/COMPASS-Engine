@@ -21,6 +21,11 @@ class MultimodalNarrativeCreator(BaseTool):
     
     TOOL_NAME = "MultimodalNarrativeCreator"
     PROMPT_FILE = "multimodal_narrative.txt"
+    TOOL_EXPECTED_KEYS = [
+        "cross_modal_patterns",
+        "integrated_narrative",
+        "key_insights",
+    ]
     
     def _validate_input(self, input_data: Dict[str, Any]) -> Optional[str]:
         """Validate that required inputs are present."""

@@ -101,23 +101,35 @@ def _clamp_role_token_limits(settings) -> None:
             setattr(settings.models, max_attr, min(configured, safe_cap))
 
 
-def _strip_provider_prefix(model_name: str) -> str:
+def _is_openai_model_name(model_name: str) -> bool:
+    value = str(model_name or "").strip().lower()
+    if not value:
+        return False
+    return value.startswith(("gpt-", "o1", "o3", "o4", "text-embedding-"))
+
+
+def _to_openai_model_name(model_name: str) -> str:
     value = str(model_name or "").strip()
     if not value:
         return ""
     if "/" in value:
-        return value.split("/", 1)[1].strip()
-    return value
+        provider, name = value.split("/", 1)
+        if provider.strip().lower() != "openai":
+            return ""
+        candidate = name.strip()
+        return candidate if _is_openai_model_name(candidate) else ""
+    return value if _is_openai_model_name(value) else ""
 
 
 def _activate_openai_fallback(settings, reason: str, ui=None) -> None:
     settings.models.backend = LLMBackend.OPENAI
     role_names = ("orchestrator", "critic", "integrator", "predictor", "communicator", "tool")
-    settings.models.public_model_name = _strip_provider_prefix(settings.models.public_model_name) or "gpt-5-nano"
+    public_default = _to_openai_model_name(settings.models.public_model_name) or "gpt-5-nano"
+    settings.models.public_model_name = public_default
     for role in role_names:
         role_attr = f"{role}_model"
         current = getattr(settings.models, role_attr, "")
-        setattr(settings.models, role_attr, _strip_provider_prefix(current) or settings.models.public_model_name)
+        setattr(settings.models, role_attr, _to_openai_model_name(current) or public_default)
     reset_llm_client()
     msg = f"OpenRouter unavailable. Falling back to OpenAI backend ({reason})."
     logger.warning(msg)
@@ -618,10 +630,22 @@ def run_compass_pipeline(
         provider_label = "OpenRouter" if settings.models.backend == LLMBackend.OPENROUTER else "OpenAI"
         if interactive_ui:
             ui.set_status(f"Checking {provider_label} connectivity...", stage=0)
+        llm_client = get_llm_client()
         try:
-            get_llm_client().ping()
+            llm_client.ping()
         except Exception as e:
-            if settings.models.backend == LLMBackend.OPENROUTER and settings.openai_api_key:
+            can_openai_fallback = False
+            if settings.models.backend == LLMBackend.OPENROUTER:
+                try:
+                    can_openai_fallback = bool(
+                        llm_client._can_fallback_to_openai(
+                            e,
+                            requested_model=settings.models.public_model_name,
+                        )
+                    )
+                except Exception:
+                    can_openai_fallback = False
+            if settings.models.backend == LLMBackend.OPENROUTER and can_openai_fallback:
                 _activate_openai_fallback(settings, str(e), ui=ui if interactive_ui else None)
                 if interactive_ui:
                     ui.set_status("Checking OpenAI fallback connectivity...", stage=0)

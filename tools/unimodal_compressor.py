@@ -23,6 +23,11 @@ class UnimodalCompressor(BaseTool):
     
     TOOL_NAME = "UnimodalCompressor"
     PROMPT_FILE = "unimodal_compressor.txt"
+    TOOL_EXPECTED_KEYS = [
+        "abnormality_patterns",
+        "domain_synthesis",
+        "clinical_narrative",
+    ]
     
     def _validate_input(self, input_data: Dict[str, Any]) -> Optional[str]:
         """Validate that required inputs are present."""

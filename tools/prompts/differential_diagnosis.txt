@@ -14,7 +14,7 @@ Distinguish between:
 2. **Phenotype Concept**: The "Gold Standard" definition from PhenotypeRepresentation tool
 3. **Multimodal Narrative**: The ACTUAL patient profile from MultimodalNarrativeCreator
 4. **Hypotheses Generated**: Mechanistic hypotheses
-5. **Clinically Ranked Features**: Key patient features
+5. **Clinical Relevance Signals**: Narrative synthesis of clinically discriminative evidence
 6. **Clinical Notes**: Patient history and context
 7. **Data Overview**: domain coverage and token estimates
 8. **Multimodal Narratives**: integrated cross-domain narratives (all available)

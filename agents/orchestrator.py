@@ -8,6 +8,7 @@ import json
 import uuid
 import logging
 import time
+import re
 from typing import Dict, Any, Optional, List
 from datetime import datetime
 
@@ -38,6 +39,7 @@ class Orchestrator(BaseAgent):
     
     AGENT_NAME = "Orchestrator"
     PROMPT_FILE = "orchestrator_prompt.txt"
+    JSON_EXPECTED_KEYS = ["plan_id", "steps", "target_condition"]
     
     def __init__(self, **kwargs):
         super().__init__(**kwargs)
@@ -89,7 +91,11 @@ class Orchestrator(BaseAgent):
         
 
         # Call LLM with auto-repair parsing
-        plan_data = self._call_llm(user_prompt)
+        raw_plan_data = self._call_llm(user_prompt)
+        plan_data = self._normalize_plan_data(
+            raw_plan_data=raw_plan_data,
+            target_condition=target_condition,
+        )
         
         # Ensure required fields exist for validation/compatibility
         if isinstance(plan_data, dict) and "target_condition" not in plan_data:
@@ -110,6 +116,16 @@ class Orchestrator(BaseAgent):
             iteration=iteration,
             previous_feedback=previous_feedback
         )
+        if plan.total_steps == 0:
+            logger.warning("Orchestrator produced zero valid steps; switching to deterministic fallback plan.")
+            print("[Orchestrator] ⚠ No valid steps parsed; using deterministic fallback plan.")
+            plan = self._build_fallback_plan(
+                participant_data=participant_data,
+                target_condition=target_condition,
+                control_condition=control_condition,
+                iteration=iteration,
+                previous_feedback=previous_feedback,
+            )
         
         # UI Update: Send full plan
         if hasattr(ui, 'enabled') and ui.enabled:
@@ -305,24 +321,56 @@ Return a JSON object with:
         # Parse steps
         steps = []
         for step_data in plan_data.get("steps", []):
-            # Get tool name
-            tool_name_str = step_data.get("tool_name", "")
-            try:
-                tool_name = ToolName(tool_name_str)
-            except ValueError:
-                logger.warning(f"Unknown tool name: {tool_name_str}")
+            if not isinstance(step_data, dict):
+                logger.warning("Skipping non-dict step payload: %s", type(step_data).__name__)
                 continue
-            
+            # Get tool name
+            tool_name = self._coerce_tool_name(step_data)
+            if tool_name is None:
+                logger.warning("Unknown tool name in step payload: %s", step_data.get("tool_name"))
+                continue
+
+            depends_on_raw = step_data.get("depends_on", [])
+            if isinstance(depends_on_raw, (int, str)):
+                depends_on_raw = [depends_on_raw]
+            depends_on: List[int] = []
+            if isinstance(depends_on_raw, list):
+                for dep in depends_on_raw:
+                    try:
+                        depends_on.append(int(dep))
+                    except (TypeError, ValueError):
+                        continue
+
+            try:
+                step_id = int(step_data.get("step_id", len(steps) + 1) or (len(steps) + 1))
+            except (TypeError, ValueError):
+                step_id = len(steps) + 1
+
+            input_domains = step_data.get("input_domains", [])
+            if isinstance(input_domains, str):
+                input_domains = [input_domains]
+            if not isinstance(input_domains, list):
+                input_domains = []
+
+            parameters = step_data.get("parameters", {})
+            if not isinstance(parameters, dict):
+                parameters = {}
+
+            try:
+                estimated_tokens = int(step_data.get("estimated_tokens", 0) or 0)
+            except (TypeError, ValueError):
+                estimated_tokens = 0
+
             step = PlanStep(
-                step_id=step_data.get("step_id", len(steps) + 1),
+                step_id=step_id,
                 tool_name=tool_name,
                 description=step_data.get("description", ""),
                 reasoning=step_data.get("reasoning", ""),
-                input_domains=step_data.get("input_domains", []),
-                parameters=step_data.get("parameters", {}),
+                input_domains=input_domains,
+                parameters=parameters,
                 expected_output=step_data.get("expected_output", ""),
-                estimated_tokens=step_data.get("estimated_tokens", 0),
-                depends_on=step_data.get("depends_on", [])
+                estimated_tokens=estimated_tokens,
+                depends_on=depends_on,
             )
             steps.append(step)
         
@@ -341,6 +389,179 @@ Return a JSON object with:
             iteration=iteration,
             previous_feedback=previous_feedback
         )
+
+    def _build_fallback_plan(
+        self,
+        participant_data: ParticipantData,
+        target_condition: str,
+        control_condition: str,
+        iteration: int,
+        previous_feedback: Optional[str],
+    ) -> ExecutionPlan:
+        """Deterministic fallback plan when LLM output is unusable."""
+        present_domains = []
+        try:
+            present_domains = [
+                str(name)
+                for name, cov in (participant_data.data_overview.domain_coverage or {}).items()
+                if getattr(cov, "is_available", False)
+            ]
+        except Exception:
+            present_domains = []
+
+        estimate = 4000
+        try:
+            total = int(getattr(participant_data.data_overview, "total_tokens", 0) or 0)
+            if total > 0:
+                estimate = max(2000, min(12000, int(total * 0.2)))
+        except Exception:
+            pass
+
+        step = PlanStep(
+            step_id=1,
+            tool_name=ToolName.PHENOTYPE_REPRESENTATION,
+            description="Build unified phenotype representation from all available domains.",
+            reasoning=(
+                "Fallback path to maintain pipeline continuity when orchestrator JSON "
+                "schema is invalid."
+            ),
+            input_domains=present_domains,
+            parameters={},
+            expected_output="Comprehensive phenotype summary for downstream predictor context.",
+            estimated_tokens=estimate,
+            depends_on=[],
+        )
+
+        return ExecutionPlan(
+            plan_id=f"fallback_{str(uuid.uuid4())[:8]}",
+            participant_id=participant_data.participant_id,
+            target_condition=target_condition,
+            control_condition=control_condition,
+            created_at=datetime.now(),
+            total_estimated_tokens=estimate,
+            priority_domains=present_domains[:5],
+            fusion_strategy=(
+                "Fallback strategy: prioritize phenotype representation and preserve "
+                "raw context for predictor."
+            ),
+            user_facing_explanation=(
+                "Used a safe fallback plan because the orchestrator output format was invalid."
+            ),
+            reasoning="Deterministic fallback activated after invalid orchestrator output.",
+            steps=[step],
+            iteration=iteration,
+            previous_feedback=previous_feedback,
+        )
+
+    def _normalize_plan_data(self, raw_plan_data: Any, target_condition: str) -> Dict[str, Any]:
+        """
+        Normalize LLM output into an execution-plan dictionary shape.
+
+        Handles common model variants:
+        - top-level list of steps
+        - wrapped object under keys like "plan"/"execution_plan"/"data"
+        - malformed steps as single dict
+        """
+        candidate: Any = raw_plan_data
+
+        if isinstance(candidate, dict):
+            for key in ("plan", "execution_plan", "result", "output", "data"):
+                nested = candidate.get(key)
+                if isinstance(nested, dict) and ("steps" in nested or "plan_id" in nested):
+                    candidate = nested
+                    break
+                if isinstance(nested, list):
+                    candidate = {"steps": nested}
+                    break
+
+        if isinstance(candidate, list):
+            # Some models emit a list of JSON-encoded step strings; decode when possible.
+            if candidate and all(isinstance(item, str) for item in candidate):
+                recovered_steps: List[Dict[str, Any]] = []
+                for item in candidate:
+                    text = str(item or "").strip()
+                    if not text or not text.startswith("{"):
+                        continue
+                    try:
+                        parsed_item = json.loads(text)
+                    except Exception:
+                        continue
+                    if isinstance(parsed_item, dict):
+                        recovered_steps.append(parsed_item)
+                if recovered_steps:
+                    candidate = recovered_steps
+            normalized: Dict[str, Any] = {"steps": candidate}
+        elif isinstance(candidate, dict):
+            normalized = dict(candidate)
+            if "steps" not in normalized and self._looks_like_step_dict(normalized):
+                normalized = {"steps": [normalized]}
+        else:
+            normalized = {"steps": []}
+
+        steps_value = normalized.get("steps", [])
+        if isinstance(steps_value, dict):
+            steps_value = list(steps_value.values())
+        if not isinstance(steps_value, list):
+            steps_value = []
+        normalized["steps"] = steps_value
+
+        if "plan_id" not in normalized or not str(normalized.get("plan_id", "")).strip():
+            normalized["plan_id"] = str(uuid.uuid4())[:8]
+        if "target_condition" not in normalized or not str(normalized.get("target_condition", "")).strip():
+            normalized["target_condition"] = target_condition
+        if "total_estimated_tokens" not in normalized:
+            total_estimated = 0
+            for step in steps_value:
+                if isinstance(step, dict):
+                    try:
+                        total_estimated += int(step.get("estimated_tokens", 0) or 0)
+                    except (TypeError, ValueError):
+                        continue
+            normalized["total_estimated_tokens"] = total_estimated
+
+        return normalized
+
+    @staticmethod
+    def _looks_like_step_dict(data: Dict[str, Any]) -> bool:
+        keys = set(data.keys())
+        step_markers = {"tool_name", "tool", "description", "parameters", "input_domains"}
+        return bool(keys & step_markers)
+
+    def _coerce_tool_name(self, step_data: Dict[str, Any]) -> Optional[ToolName]:
+        alias_map: Dict[str, ToolName] = {}
+        for tool in ToolName:
+            token = re.sub(r"[^a-z0-9]+", "", tool.value.lower())
+            alias_map[token] = tool
+        # Common shorthand variants emitted by smaller or fast models.
+        alias_map.update(
+            {
+                "unimodalcompressor": ToolName.UNIMODAL_COMPRESSOR,
+                "multimodalnarrativecreator": ToolName.MULTIMODAL_NARRATIVE,
+                "multimodalnarrative": ToolName.MULTIMODAL_NARRATIVE,
+                "hypothesisgenerator": ToolName.HYPOTHESIS_GENERATOR,
+                "codeexecutor": ToolName.CODE_EXECUTOR,
+                "featuresynthesizer": ToolName.FEATURE_SYNTHESIZER,
+                "clinicalrelevanceranker": ToolName.CLINICAL_RANKER,
+                "clinicalranker": ToolName.CLINICAL_RANKER,
+                "anomalynarrativebuilder": ToolName.ANOMALY_NARRATIVE,
+                "phenotyperepresentation": ToolName.PHENOTYPE_REPRESENTATION,
+                "differentialdiagnosis": ToolName.DIFFERENTIAL_DIAGNOSIS,
+            }
+        )
+
+        candidates = [
+            step_data.get("tool_name"),
+            step_data.get("tool"),
+            step_data.get("name"),
+        ]
+        for raw in candidates:
+            token = re.sub(r"[^a-z0-9]+", "", str(raw or "").lower())
+            if not token:
+                continue
+            mapped = alias_map.get(token)
+            if mapped is not None:
+                return mapped
+        return None
     
     def _print_plan_summary(self, plan: ExecutionPlan):
         """Print a formatted plan summary."""

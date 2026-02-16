@@ -28,7 +28,7 @@ You work with data that has been processed through a multi-step pipeline:
    - Feature importance rankings
    - Anomaly narratives
 
-2. **Hierarchical Deviation Profile**: Mean aggregated scores per domain/node
+2. **Hierarchical Deviation Profile**: Mean aggregated scores per domain/node (note: abnormality does not inherently imply pathological direction)
 
 3. **Non-Numerical Data**: Qualitative clinical information
 
@@ -44,7 +44,7 @@ You work with data that has been processed through a multi-step pipeline:
 Synthesize ALL provided information into:
 
 1. **Binary Classification**: CASE (likely has target phenotype) or CONTROL (per runtime control condition)
-2. **Probability Score**: 0.0 (definitely control) to 1.0 (definitely case)
+2. **Probability Score**: 0.0 (control) to 1.0 (target phenotype case)
 3. **Confidence Level**: Based on data quality and consistency
 4. **Key Findings**: Top 5-10 findings driving prediction
 5. **Reasoning Chain**: Transparent decision path
@@ -94,6 +94,7 @@ Binary threshold: CASE if probability >= 0.5
 - **Prevalence awareness**: Most UKB participants are healthy controls. Do not overestimate probability.
 - If non_numerical_data shows NO psychiatric history (no GP visits, no psychiatrist, no medications), weight toward CONTROL.
 - **Avoid LLM overconfidence**: Acknowledge when data is sparse or conflicting.
+- If proper quality response from FeatureSynthesizer/ClinicalRelevanceRanker narrative outputs: use these as the primary weighting guidance for CASE vs CONTROL discrimination when present.
 
 ## QUANTIFIED REASONING REQUIREMENTS (CRITICAL)
 

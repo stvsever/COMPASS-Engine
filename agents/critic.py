@@ -338,6 +338,17 @@ class Critic(BaseAgent):
         control_condition: Optional[str],
     ) -> Dict[str, Any]:
         """Parse JSON with LLM repair + compact fallback to avoid UNSAT on fast models."""
+        expected_keys = [
+            "verdict",
+            "confidence_in_verdict",
+            "composite_score",
+            "concise_summary",
+            "score_breakdown",
+            "checklist",
+            "improvement_suggestions",
+            "reasoning",
+        ]
+
         def _attach_fallback(data: Dict[str, Any], reason: str) -> Dict[str, Any]:
             data = dict(data or {})
             data["fallback_used"] = True
@@ -349,7 +360,16 @@ class Critic(BaseAgent):
             return data
 
         try:
-            return parse_json_response(raw_text)
+            parsed = parse_json_response(raw_text, expected_keys=expected_keys)
+            return self._normalize_evaluation_payload(
+                parsed,
+                prediction=prediction,
+                executor_output=executor_output,
+                data_overview=data_overview,
+                hierarchical_deviation=hierarchical_deviation,
+                non_numerical_data=non_numerical_data,
+                control_condition=control_condition,
+            )
         except Exception as first_err:
             logger.warning("Critic JSON parse failed; attempting repair: %s", first_err)
 
@@ -373,7 +393,17 @@ class Critic(BaseAgent):
                 expect_json=True,
                 system_prompt="You are a strict JSON repair utility. Return ONLY valid JSON.",
             )
-            return _attach_fallback(parse_json_response(repaired_raw), "json_repair")
+            repaired = parse_json_response(repaired_raw, expected_keys=expected_keys)
+            normalized = self._normalize_evaluation_payload(
+                repaired,
+                prediction=prediction,
+                executor_output=executor_output,
+                data_overview=data_overview,
+                hierarchical_deviation=hierarchical_deviation,
+                non_numerical_data=non_numerical_data,
+                control_condition=control_condition,
+            )
+            return _attach_fallback(normalized, "json_repair")
         except Exception as repair_err:
             logger.warning("Critic JSON repair failed; attempting compact re-eval: %s", repair_err)
 
@@ -394,7 +424,17 @@ class Critic(BaseAgent):
             expect_json=True,
         )
         try:
-            return _attach_fallback(parse_json_response(compact_raw), "compact_reval")
+            compact = parse_json_response(compact_raw, expected_keys=expected_keys)
+            normalized = self._normalize_evaluation_payload(
+                compact,
+                prediction=prediction,
+                executor_output=executor_output,
+                data_overview=data_overview,
+                hierarchical_deviation=hierarchical_deviation,
+                non_numerical_data=non_numerical_data,
+                control_condition=control_condition,
+            )
+            return _attach_fallback(normalized, "compact_reval")
         except Exception as compact_err:
             logger.warning("Critic compact JSON parse failed; falling back to heuristic evaluation: %s", compact_err)
             return _attach_fallback(self._heuristic_evaluation_data(
@@ -405,6 +445,151 @@ class Critic(BaseAgent):
                 non_numerical_data=non_numerical_data,
                 control_condition=control_condition,
             ), "heuristic")
+
+    def _normalize_evaluation_payload(
+        self,
+        parsed: Dict[str, Any],
+        *,
+        prediction: PredictionResult,
+        executor_output: Dict[str, Any],
+        data_overview: Dict[str, Any],
+        hierarchical_deviation: Dict[str, Any],
+        non_numerical_data: str,
+        control_condition: Optional[str],
+    ) -> Dict[str, Any]:
+        """
+        Make critic payload robust when models return partial JSON.
+        Uses heuristic evaluation as baseline and overlays model-provided fields.
+        """
+        baseline = self._heuristic_evaluation_data(
+            prediction=prediction,
+            executor_output=executor_output,
+            data_overview=data_overview,
+            hierarchical_deviation=hierarchical_deviation,
+            non_numerical_data=non_numerical_data,
+            control_condition=control_condition,
+        )
+
+        if not isinstance(parsed, dict):
+            return baseline
+
+        def _as_bool(value: Any, default: bool) -> bool:
+            if isinstance(value, bool):
+                return value
+            if isinstance(value, (int, float)):
+                return bool(value)
+            if isinstance(value, str):
+                low = value.strip().lower()
+                if low in {"true", "yes", "y", "1", "pass", "passed"}:
+                    return True
+                if low in {"false", "no", "n", "0", "fail", "failed"}:
+                    return False
+            return default
+
+        def _as_float01(value: Any, default: float) -> float:
+            try:
+                v = float(value)
+            except Exception:
+                return float(default)
+            return max(0.0, min(1.0, v))
+
+        out = dict(baseline)
+
+        verdict_raw = str(parsed.get("verdict") or "").strip().upper()
+        if verdict_raw in {"SATISFACTORY", "UNSATISFACTORY"}:
+            out["verdict"] = verdict_raw
+
+        checklist = dict(out.get("checklist") or {})
+        parsed_checklist = parsed.get("checklist")
+        if isinstance(parsed_checklist, dict):
+            for key in (
+                "has_binary_outcome",
+                "valid_probability",
+                "sufficient_coverage",
+                "evidence_based_reasoning",
+                "clinically_relevant",
+                "logically_coherent",
+                "critical_domains_processed",
+            ):
+                checklist[key] = _as_bool(parsed_checklist.get(key), bool(checklist.get(key, False)))
+        out["checklist"] = checklist
+
+        score_breakdown = dict(out.get("score_breakdown") or {})
+        parsed_breakdown = parsed.get("score_breakdown")
+        if isinstance(parsed_breakdown, dict):
+            for key in ("logic", "evidence", "completeness", "relevance"):
+                if key in parsed_breakdown:
+                    score_breakdown[key] = _as_float01(parsed_breakdown.get(key), float(score_breakdown.get(key, 0.0)))
+        out["score_breakdown"] = score_breakdown
+
+        if "composite_score" in parsed:
+            out["composite_score"] = _as_float01(parsed.get("composite_score"), float(out.get("composite_score", 0.0)))
+        else:
+            # Derive composite from score breakdown if model omitted it.
+            logic = _as_float01(score_breakdown.get("logic"), 0.0)
+            evidence = _as_float01(score_breakdown.get("evidence"), 0.0)
+            completeness = _as_float01(score_breakdown.get("completeness"), 0.0)
+            relevance = _as_float01(score_breakdown.get("relevance"), 0.0)
+            out["composite_score"] = round(
+                0.4 * logic + 0.3 * evidence + 0.2 * completeness + 0.1 * relevance,
+                2,
+            )
+
+        out["confidence_in_verdict"] = _as_float01(
+            parsed.get("confidence_in_verdict"),
+            float(out.get("confidence_in_verdict", 0.5)),
+        )
+
+        if isinstance(parsed.get("strengths"), list):
+            out["strengths"] = [str(x).strip() for x in parsed.get("strengths", []) if str(x).strip()][:8]
+        if isinstance(parsed.get("weaknesses"), list):
+            out["weaknesses"] = [str(x).strip() for x in parsed.get("weaknesses", []) if str(x).strip()][:10]
+
+        if isinstance(parsed.get("domains_missed"), list):
+            out["domains_missed"] = [str(x).strip() for x in parsed.get("domains_missed", []) if str(x).strip()][:12]
+
+        if isinstance(parsed.get("improvement_suggestions"), list):
+            cleaned = []
+            for row in parsed.get("improvement_suggestions", []):
+                if not isinstance(row, dict):
+                    continue
+                issue = str(row.get("issue") or "").strip()
+                suggestion = str(row.get("suggestion") or "").strip()
+                priority = str(row.get("priority") or "MEDIUM").upper().strip()
+                if priority not in {"HIGH", "MEDIUM", "LOW"}:
+                    priority = "MEDIUM"
+                if issue or suggestion:
+                    cleaned.append({"issue": issue, "suggestion": suggestion, "priority": priority})
+            if cleaned:
+                out["improvement_suggestions"] = cleaned
+
+        reasoning = str(parsed.get("reasoning") or "").strip()
+        if reasoning:
+            out["reasoning"] = reasoning
+
+        concise = str(parsed.get("concise_summary") or parsed.get("summary") or "").strip()
+        if concise:
+            out["concise_summary"] = concise
+        else:
+            failed = [k for k, v in checklist.items() if not bool(v)]
+            fail_txt = ", ".join(failed[:3]) if failed else "none"
+            verdict_txt = str(out.get("verdict") or "UNSATISFACTORY")
+            comp = float(out.get("composite_score") or 0.0)
+            out["concise_summary"] = f"{verdict_txt}: Composite score {comp:.2f}; failed criteria: {fail_txt}."
+
+        if str(out.get("verdict") or "").upper() not in {"SATISFACTORY", "UNSATISFACTORY"}:
+            out["verdict"] = (
+                "SATISFACTORY"
+                if (
+                    float(out.get("composite_score", 0.0)) >= 0.7
+                    and bool(checklist.get("evidence_based_reasoning"))
+                    and bool(checklist.get("logically_coherent"))
+                )
+                else "UNSATISFACTORY"
+            )
+
+        out["evaluation_id"] = str(parsed.get("evaluation_id") or out.get("evaluation_id") or str(uuid.uuid4())[:8])
+        return out
 
     def _build_compact_prompt(
         self,
@@ -603,6 +788,25 @@ class Critic(BaseAgent):
         prediction_id: str
     ) -> CriticEvaluation:
         """Parse LLM response into CriticEvaluation."""
+        def _as_bool(value: Any, default: bool = False) -> bool:
+            if isinstance(value, bool):
+                return value
+            if isinstance(value, (int, float)):
+                return bool(value)
+            if isinstance(value, str):
+                low = value.strip().lower()
+                if low in {"true", "yes", "y", "1", "pass", "passed"}:
+                    return True
+                if low in {"false", "no", "n", "0", "fail", "failed"}:
+                    return False
+            return default
+
+        def _as_float01(value: Any, default: float) -> float:
+            try:
+                v = float(value)
+            except Exception:
+                return float(default)
+            return max(0.0, min(1.0, v))
         
         # Parse verdict
         verdict_str = evaluation_data.get("verdict", "UNSATISFACTORY")
@@ -614,13 +818,13 @@ class Critic(BaseAgent):
         # Parse checklist
         checklist_data = evaluation_data.get("checklist", {})
         checklist = EvaluationChecklist(
-            has_binary_outcome=checklist_data.get("has_binary_outcome", False),
-            valid_probability=checklist_data.get("valid_probability", False),
-            sufficient_coverage=checklist_data.get("sufficient_coverage", False),
-            evidence_based_reasoning=checklist_data.get("evidence_based_reasoning", False),
-            clinically_relevant=checklist_data.get("clinically_relevant", False),
-            logically_coherent=checklist_data.get("logically_coherent", False),
-            critical_domains_processed=checklist_data.get("critical_domains_processed", False)
+            has_binary_outcome=_as_bool(checklist_data.get("has_binary_outcome", False), False),
+            valid_probability=_as_bool(checklist_data.get("valid_probability", False), False),
+            sufficient_coverage=_as_bool(checklist_data.get("sufficient_coverage", False), False),
+            evidence_based_reasoning=_as_bool(checklist_data.get("evidence_based_reasoning", False), False),
+            clinically_relevant=_as_bool(checklist_data.get("clinically_relevant", False), False),
+            logically_coherent=_as_bool(checklist_data.get("logically_coherent", False), False),
+            critical_domains_processed=_as_bool(checklist_data.get("critical_domains_processed", False), False)
         )
         
         # Parse improvement suggestions
@@ -639,24 +843,34 @@ class Critic(BaseAgent):
                     priority=priority
                 ))
 
-        concise_summary = str(evaluation_data.get("concise_summary", "") or "").strip()
+        concise_summary = str(evaluation_data.get("concise_summary", "") or evaluation_data.get("summary", "") or "").strip()
         if not concise_summary:
             verdict_text = verdict.value
-            composite = float(evaluation_data.get("composite_score", 0.0) or 0.0)
+            composite = _as_float01(evaluation_data.get("composite_score", 0.0), 0.0)
             reasoning = str(evaluation_data.get("reasoning", "") or "").strip()
             if reasoning:
                 concise_summary = reasoning[:220].rstrip()
             else:
                 concise_summary = f"{verdict_text}: Composite score {composite:.2f}; no concise summary provided by model."
+
+        score_breakdown = evaluation_data.get("score_breakdown", {})
+        if isinstance(score_breakdown, dict):
+            score_breakdown = {
+                k: _as_float01(v, 0.0)
+                for k, v in score_breakdown.items()
+                if isinstance(k, str)
+            }
+        else:
+            score_breakdown = {}
         
         return CriticEvaluation(
             evaluation_id=evaluation_data.get("evaluation_id", str(uuid.uuid4())[:8]),
             prediction_id=prediction_id,
             created_at=datetime.now(),
             verdict=verdict,
-            confidence_in_verdict=evaluation_data.get("confidence_in_verdict", 0.5),
-            composite_score=evaluation_data.get("composite_score", 0.0),
-            score_breakdown=evaluation_data.get("score_breakdown", {}),
+            confidence_in_verdict=_as_float01(evaluation_data.get("confidence_in_verdict", 0.5), 0.5),
+            composite_score=_as_float01(evaluation_data.get("composite_score", 0.0), 0.0),
+            score_breakdown=score_breakdown,
             checklist=checklist,
             strengths=evaluation_data.get("strengths", []),
             weaknesses=evaluation_data.get("weaknesses", []),

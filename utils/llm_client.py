@@ -148,11 +148,8 @@ class LLMClient:
             return text.split("/", 1)[1].strip()
         return text
 
-    def _can_fallback_to_openai(self, error: Exception) -> bool:
-        if self.backend != LLMBackend.OPENROUTER:
-            return False
-        if not self.settings.openai_api_key:
-            return False
+    @staticmethod
+    def _is_network_transport_error(error: Exception) -> bool:
         msg = str(error).lower()
         network_markers = (
             "ssl",
@@ -166,20 +163,88 @@ class LLMClient:
         )
         return any(marker in msg for marker in network_markers)
 
+    @staticmethod
+    def _is_openai_model_name(model: str) -> bool:
+        name = str(model or "").strip().lower()
+        if not name:
+            return False
+        return name.startswith(("gpt-", "o1", "o3", "o4", "text-embedding-"))
+
+    def _to_openai_model_name(self, model: str) -> str:
+        text = str(model or "").strip()
+        if not text:
+            return ""
+        if "/" in text:
+            provider, name = text.split("/", 1)
+            if provider.strip().lower() != "openai":
+                return ""
+            candidate = name.strip()
+            return candidate if self._is_openai_model_name(candidate) else ""
+        return text if self._is_openai_model_name(text) else ""
+
+    def _can_fallback_to_openai(self, error: Exception, requested_model: str = "") -> bool:
+        if self.backend != LLMBackend.OPENROUTER:
+            return False
+        if not self.settings.openai_api_key:
+            return False
+        if not self._is_network_transport_error(error):
+            return False
+        candidate = self._to_openai_model_name(requested_model or self.settings.models.public_model_name)
+        return bool(candidate)
+
+    @staticmethod
+    def _is_transient_public_api_error(error: Exception) -> bool:
+        msg = str(error).lower()
+        transient_markers = (
+            "ssl",
+            "certificate",
+            "timed out",
+            "timeout",
+            "name or service not known",
+            "temporary failure",
+            "connection error",
+            "max retries exceeded",
+            "error code: 500",
+            "error code: 502",
+            "error code: 503",
+            "error code: 504",
+            "internal server error",
+            "bad gateway",
+            "service unavailable",
+            "gateway timeout",
+            "failed to authenticate request with clerk",
+            "clerk",
+        )
+        return any(marker in msg for marker in transient_markers)
+
+    def _openrouter_model_fallback_candidate(self, model: str, error: Exception) -> str:
+        if self.backend != LLMBackend.OPENROUTER:
+            return ""
+        if not self._is_transient_public_api_error(error):
+            return ""
+        requested = self._resolve_model_name(model)
+        # If an OpenRouter-routed provider model fails transiently (e.g., x-ai auth proxy),
+        # retry once with a broadly available OpenRouter model.
+        if requested.startswith("openai/"):
+            return ""
+        fallback_model = "openai/gpt-5-nano"
+        if requested == fallback_model:
+            return ""
+        return fallback_model
+
     def _switch_to_openai_fallback(self, reason: str) -> None:
         role_names = ("orchestrator", "critic", "integrator", "predictor", "communicator", "tool")
         self.backend = LLMBackend.OPENAI
         self.settings.models.backend = LLMBackend.OPENAI
-        self.settings.models.public_model_name = (
-            self._strip_provider_prefix(self.settings.models.public_model_name) or "gpt-5-nano"
-        )
+        public_default = self._to_openai_model_name(self.settings.models.public_model_name) or "gpt-5-nano"
+        self.settings.models.public_model_name = public_default
         for role in role_names:
             attr = f"{role}_model"
             current = getattr(self.settings.models, attr, "")
             setattr(
                 self.settings.models,
                 attr,
-                self._strip_provider_prefix(current) or self.settings.models.public_model_name,
+                self._to_openai_model_name(current) or public_default,
             )
         self.client = OpenAI(api_key=self.settings.openai_api_key)
         self.embedding_client = self.client
@@ -349,18 +414,49 @@ class LLMClient:
                 kwargs["response_format"] = response_format
             
             print(f"[LLMClient] Sending request to {model} (max_completion_tokens={max_tokens})...")
+            response = None
             try:
                 response = self.client.chat.completions.create(**kwargs)
             except Exception as first_error:
-                if self._can_fallback_to_openai(first_error):
-                    self._switch_to_openai_fallback(str(first_error))
-                    fallback_model = self._strip_provider_prefix(model) or model
+                last_error = first_error
+                retried = False
+
+                openrouter_fallback_model = self._openrouter_model_fallback_candidate(model, first_error)
+                if openrouter_fallback_model:
+                    retried = True
+                    fallback_kwargs = dict(kwargs)
+                    fallback_kwargs["model"] = openrouter_fallback_model
+                    if str(openrouter_fallback_model).lower().startswith(("gpt-5", "openai/gpt-5")):
+                        fallback_kwargs.pop("temperature", None)
+                    print(
+                        f"[LLMClient] OpenRouter request failed; retrying with fallback model "
+                        f"{openrouter_fallback_model}..."
+                    )
+                    try:
+                        response = self.client.chat.completions.create(**fallback_kwargs)
+                        model = openrouter_fallback_model
+                    except Exception as openrouter_fallback_error:
+                        last_error = openrouter_fallback_error
+
+                if response is None and self._can_fallback_to_openai(last_error, requested_model=model):
+                    retried = True
+                    self._switch_to_openai_fallback(str(last_error))
+                    fallback_model = (
+                        self._to_openai_model_name(model)
+                        or self._to_openai_model_name(self.settings.models.public_model_name)
+                        or "gpt-5-nano"
+                    )
                     fallback_kwargs = dict(kwargs)
                     fallback_kwargs["model"] = fallback_model
+                    if str(fallback_model).lower().startswith("gpt-5"):
+                        fallback_kwargs.pop("temperature", None)
                     print(f"[LLMClient] Retrying on OpenAI fallback using model {fallback_model}...")
                     response = self.client.chat.completions.create(**fallback_kwargs)
                     model = fallback_model
-                else:
+
+                if response is None:
+                    if retried:
+                        raise last_error
                     raise
             
             latency_ms = int((time.time() - start_time) * 1000)

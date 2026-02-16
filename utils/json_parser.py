@@ -157,13 +157,16 @@ def parse_json_response(
         """
         Rank parsed JSON candidates.
         Priority:
-        1) Number of expected keys present (when provided)
-        2) Structural richness (dict/list length)
-        3) Prefer later candidates in the output (often the final answer)
+        1) Prefer dictionary top-level payloads over arrays
+        2) Number of expected keys present (when provided)
+        3) Structural richness (dict/list length)
+        4) Prefer later candidates in the output (often the final answer)
         """
+        object_preference = 0
         expected_hit = 0
         richness = 0
         if isinstance(parsed, dict):
+            object_preference = 1
             richness = len(parsed)
             if expected_keys:
                 expected_hit = sum(1 for k in expected_keys if k in parsed)
@@ -172,7 +175,7 @@ def parse_json_response(
             if expected_keys:
                 # When a dict schema is expected, deprioritize list candidates.
                 expected_hit = -1
-        return (expected_hit, richness, 0)
+        return (object_preference, expected_hit, richness)
 
     for candidate in candidates:
         try:
@@ -192,7 +195,7 @@ def parse_json_response(
 
     if parsed_candidates:
         # Tie-break on candidate order (later is preferred).
-        best = max(parsed_candidates, key=lambda item: (item[0][0], item[0][1], item[1]))
+        best = max(parsed_candidates, key=lambda item: (item[0][0], item[0][1], item[0][2], item[1]))
         parsed = best[2]
         if expected_keys and isinstance(parsed, dict):
             missing_keys = [k for k in expected_keys if k not in parsed]

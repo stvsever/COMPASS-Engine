@@ -311,16 +311,18 @@ class HypothesisOutput(ToolOutput):
 
 class FeatureSynthesisOutput(ToolOutput):
     """Output from FeatureSynthesizer tool."""
-    top_features: List[Dict[str, Any]]
-    domain_importance: List[Dict[str, Any]]
-    predictive_features: Dict[str, List[str]]
+    feature_synthesis_overview: str
+    domain_signal_overview: str
+    hierarchy_signal_overview: str
+    predictor_attention_guidance: str
 
 
 class ClinicalRankingOutput(ToolOutput):
     """Output from ClinicalRelevanceRanker tool."""
-    ranked_features: List[Dict[str, Any]]
-    clinical_summary: str
-    missing_key_features: List[str]
+    clinical_relevance_overview: str
+    case_control_discrimination: str
+    predictor_guidance: str
+    uncertainty_and_gaps: str
 
 
 class AnomalyNarrativeOutput(ToolOutput):

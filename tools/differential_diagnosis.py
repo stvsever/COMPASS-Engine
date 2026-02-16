@@ -21,6 +21,11 @@ class DifferentialDiagnosis(BaseTool):
     
     TOOL_NAME = "DifferentialDiagnosis"
     PROMPT_FILE = "differential_diagnosis.txt"
+    TOOL_EXPECTED_KEYS = [
+        "primary_diagnosis",
+        "differential_list",
+        "clinical_summary",
+    ]
     
     def _validate_input(self, input_data: Dict[str, Any]) -> Optional[str]:
         """Validate that required inputs are present."""
@@ -39,7 +44,7 @@ class DifferentialDiagnosis(BaseTool):
         
         # Collect evidence from dependency outputs
         hypotheses = self._extract_hypotheses(dep_outputs)
-        ranked_features = self._extract_ranked_features(dep_outputs)
+        clinical_relevance_signals = self._extract_clinical_relevance_signals(dep_outputs)
         phenotype = self._extract_phenotype(dep_outputs)
         multimodal_narratives = self._extract_multimodal_narratives(dep_outputs)
         unimodal_summaries = self._extract_unimodal_outputs(dep_outputs)
@@ -61,8 +66,8 @@ class DifferentialDiagnosis(BaseTool):
             f"\n## HYPOTHESES GENERATED",
             f"```json\n{json.dumps(hypotheses, indent=2)}\n```" if hypotheses else "No hypotheses available",
 
-            f"\n## CLINICALLY RANKED FEATURES",
-            f"```json\n{json.dumps(ranked_features[:10], indent=2)}\n```" if ranked_features else "No ranked features",
+            f"\n## CLINICAL RELEVANCE SIGNALS",
+            self._format_clinical_relevance_signals(clinical_relevance_signals),
 
             f"\n## MULTIMODAL NARRATIVES",
             self._format_multimodal_narratives(multimodal_narratives),
@@ -196,20 +201,62 @@ class DifferentialDiagnosis(BaseTool):
                     hypotheses.extend(output["alternative_hypotheses"])
         
         return hypotheses[:5]
-    
-    def _extract_ranked_features(self, dep_outputs: Dict[str, Any]) -> List[Dict[str, Any]]:
-        """Extract ranked features from dependency outputs."""
-        features = []
-        
-        for step_key, output in dep_outputs.items():
-            if isinstance(output, dict):
-                if "ranked_features" in output:
-                    features.extend(output["ranked_features"])
-                if "top_clinical_priorities" in output:
-                    for priority in output["top_clinical_priorities"]:
-                        features.append({"feature": priority, "rank": len(features) + 1})
-        
-        return features[:15]
+
+    def _extract_clinical_relevance_signals(self, dep_outputs: Dict[str, Any]) -> List[str]:
+        """Extract narrative clinical relevance signals from dependency outputs."""
+        signals: List[str] = []
+        seen = set()
+
+        def _push(value: Any) -> None:
+            text = " ".join(str(value or "").split()).strip()
+            if not text:
+                return
+            low = text.lower()
+            if any(
+                marker in low
+                for marker in ("no feature provided", "feature not provided", "not provided", "placeholder")
+            ):
+                return
+            if low in seen:
+                return
+            seen.add(low)
+            signals.append(text)
+
+        for _, output in dep_outputs.items():
+            if not isinstance(output, dict):
+                continue
+
+            for key in (
+                "clinical_relevance_overview",
+                "case_control_discrimination",
+                "predictor_guidance",
+                "feature_synthesis_overview",
+                "domain_signal_overview",
+                "hierarchy_signal_overview",
+                "clinical_summary",
+                "summary",
+            ):
+                if key in output:
+                    _push(output.get(key))
+
+            # Legacy fallback support.
+            for feature in (output.get("ranked_features") or [])[:5]:
+                if isinstance(feature, dict):
+                    label = feature.get("feature") or feature.get("feature_name")
+                    rationale = feature.get("rationale")
+                    if label and rationale:
+                        _push(f"{label}: {rationale}")
+                    elif label:
+                        _push(label)
+            for priority in (output.get("top_clinical_priorities") or [])[:5]:
+                _push(priority)
+
+        return signals[:12]
+
+    def _format_clinical_relevance_signals(self, signals: List[str]) -> str:
+        if not signals:
+            return "No clinical relevance synthesis provided"
+        return "\n".join(f"- {item[:900]}" for item in signals[:8])
     
     def _extract_phenotype(self, dep_outputs: Dict[str, Any]) -> str:
         """Extract phenotype representation from dependency outputs."""

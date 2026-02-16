@@ -12,10 +12,51 @@ import re
 from pathlib import Path
 from dataclasses import dataclass, field
 from typing import Dict, Optional
-from dotenv import load_dotenv
+from dotenv import load_dotenv, dotenv_values
 
 # Load environment variables from .env file
-load_dotenv()
+_ENV_FILE = Path(__file__).parent.parent / ".env"
+load_dotenv(_ENV_FILE)
+
+
+def _clean_secret(value: Optional[str]) -> str:
+    text = str(value or "").strip()
+    if len(text) >= 2 and text[0] == text[-1] and text[0] in {"'", '"'}:
+        text = text[1:-1].strip()
+    return text
+
+
+def _looks_placeholder_secret(value: str) -> bool:
+    text = _clean_secret(value).lower()
+    if not text:
+        return True
+    placeholder_markers = (
+        "newkeyhere",
+        "your_key",
+        "your-api-key",
+        "placeholder",
+        "changeme",
+        "replace_me",
+        "replace-with",
+        "set_me",
+        "dummy",
+        "example",
+        "<",
+    )
+    return any(marker in text for marker in placeholder_markers)
+
+
+_DOTENV_CACHE = dotenv_values(_ENV_FILE) if _ENV_FILE.exists() else {}
+
+
+def _resolve_secret_from_env_or_dotenv(name: str) -> str:
+    env_value = _clean_secret(os.getenv(name, ""))
+    dotenv_value = _clean_secret(_DOTENV_CACHE.get(name, ""))
+    if env_value and not _looks_placeholder_secret(env_value):
+        return env_value
+    if dotenv_value and not _looks_placeholder_secret(dotenv_value):
+        return dotenv_value
+    return env_value or dotenv_value or ""
 
 # Suppress warnings for cleaner logs
 import warnings
@@ -186,8 +227,8 @@ class Settings:
     paths: PathConfig = field(default_factory=PathConfig)
     
     # API Configuration
-    openai_api_key: str = field(default_factory=lambda: os.getenv("OPENAI_API_KEY", ""))
-    openrouter_api_key: str = field(default_factory=lambda: os.getenv("OPENROUTER_API_KEY", ""))
+    openai_api_key: str = field(default_factory=lambda: _resolve_secret_from_env_or_dotenv("OPENAI_API_KEY"))
+    openrouter_api_key: str = field(default_factory=lambda: _resolve_secret_from_env_or_dotenv("OPENROUTER_API_KEY"))
     openrouter_base_url: str = field(default_factory=lambda: os.getenv("OPENROUTER_BASE_URL", "https://openrouter.ai/api/v1"))
     openrouter_site_url: str = field(default_factory=lambda: os.getenv("OPENROUTER_SITE_URL", ""))
     openrouter_app_name: str = field(default_factory=lambda: os.getenv("OPENROUTER_APP_NAME", "COMPASS"))
