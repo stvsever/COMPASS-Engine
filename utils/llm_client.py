@@ -217,6 +217,24 @@ class LLMClient:
         )
         return any(marker in msg for marker in transient_markers)
 
+    @staticmethod
+    def _is_json_thinking_incompatible(error: Exception) -> bool:
+        """Detect provider errors where JSON mode + thinking/reasoning is unsupported.
+
+        Some providers (e.g. Alibaba/Qwen via OpenRouter) reject requests that
+        combine ``response_format={"type": "json_object"}`` with thinking mode.
+        When detected we can retry without ``response_format`` and rely on
+        prompt-based JSON extraction instead.
+        """
+        msg = str(error).lower()
+        markers = (
+            "json mode response is not supported when enable_thinking is true",
+            "json_mode.*enable_thinking",
+            "json mode.*thinking",
+            "enable_thinking.*json",
+        )
+        return any(m in msg for m in markers)
+
     def _openrouter_model_fallback_candidate(self, model: str, error: Exception) -> str:
         if self.backend != LLMBackend.OPENROUTER:
             return ""
@@ -421,8 +439,25 @@ class LLMClient:
                 last_error = first_error
                 retried = False
 
+                # ── JSON + thinking incompatibility fallback ──
+                # Some providers (Alibaba/Qwen) reject json_object + thinking.
+                # Retry the SAME model without response_format; prompts already
+                # instruct JSON output, so parse_json_response handles it.
+                if response is None and self._is_json_thinking_incompatible(first_error):
+                    retried = True
+                    no_json_kwargs = dict(kwargs)
+                    no_json_kwargs.pop("response_format", None)
+                    print(
+                        f"[LLMClient] JSON mode + thinking incompatible for {model}; "
+                        f"retrying without response_format (prompt-based JSON)..."
+                    )
+                    try:
+                        response = self.client.chat.completions.create(**no_json_kwargs)
+                    except Exception as json_fallback_error:
+                        last_error = json_fallback_error
+
                 openrouter_fallback_model = self._openrouter_model_fallback_candidate(model, first_error)
-                if openrouter_fallback_model:
+                if response is None and openrouter_fallback_model:
                     retried = True
                     fallback_kwargs = dict(kwargs)
                     fallback_kwargs["model"] = openrouter_fallback_model

@@ -45,7 +45,7 @@ You are the quality gatekeeper that evaluates prediction outputs and determines 
 - [ ] Missing binary classification
 - [ ] Probability outside valid range
 - [ ] Less than 50% of available domains processed
-- [ ] Reasoning is vague or generic
+- [ ] Reasoning is vague, generic or/and wrong
 - [ ] Critical domains were skipped
 - [ ] Major logical inconsistencies
 - [ ] Evidence doesn't support conclusion

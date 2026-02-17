@@ -130,8 +130,29 @@ This includes step-by-step setup, single-participant validation, sequential batc
 
 > [!NOTE]
 > **Batch Configuration**
-> The participant list and specific target conditions are defined within `utils/batch_run.py`.
-> Results, including confusion matrices and detailed logs, are saved to the `results/` directory.
+> Step 05 supports multi-disorder balanced cohorts via `DISORDER_GROUPS` and `PER_GROUP_SIZE` environment variables.
+> Results, including confusion matrices and detailed analysis, are saved to the `results/` directory.
+
+### Clinical Validation with Annotated Datasets
+
+If your cohort includes ground-truth annotations (e.g., UK Biobank case-control labels), COMPASS provides automated validation tools that compute binary confusion matrices and deep statistical analyses across neuropsychiatric disorder groups.
+
+```bash
+# Run analysis manually after a batch completes:
+python utils/validation/with_annotated_dataset/compute_confusion_matrix.py \
+    --results_dir ../results/participant_runs \
+    --targets_file ../data/__TARGETS__/cases_controls_with_specific_subtypes.txt \
+    --output_dir ../results/analysis/binary_confusion_matrix \
+    --disorder_groups "MAJOR_DEPRESSIVE_DISORDER,ANXIETY_DISORDERS"
+
+python utils/validation/with_annotated_dataset/detailed_analysis.py \
+    --results_dir ../results/participant_runs \
+    --targets_file ../data/__TARGETS__/cases_controls_with_specific_subtypes.txt \
+    --output_dir ../results/analysis/details \
+    --disorder_groups "MAJOR_DEPRESSIVE_DISORDER,ANXIETY_DISORDERS"
+```
+
+For a detailed walkthrough, see `utils/validation/with_annotated_dataset/validation_guide.ipynb`.
 
 For a hands-on walkthrough, run the included Jupyter Notebook:
 

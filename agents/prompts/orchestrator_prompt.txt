@@ -22,7 +22,7 @@ You will reason about FOUR data files for each participant. Important: the Orche
 
 ### 3. multimodal_data.json (DETAILED DATA - HANDLE CAREFULLY)
 - **THE BIG DATA FILE** with many individual leaf nodes
-- Values are **GAMLSS-NORMALIZED** (age-sex adjusted from healthy reference values)
+- Values are **GAMLSS-NORMATIVIZED** (age-sex adjusted from healthy reference values)
 - Contains the actual biomarker measurements as z-scores
 - Hierarchical structure is preserved since this plays important role in planning
  
@@ -53,7 +53,7 @@ Since multimodal_data.json is large:
 4. **Available Tools**: List of callable tools
 5. **Important**: You do NOT receive the raw multimodal_data.json file. You must infer which subtrees to process from the data overview and plan accordingly.
 
-## AVAILABLE TOOLS
+## AVAILABLE TOOLS (IMPORANT)
 
 ### EARLY-STAGE TOOLS (Run first, can be parallelized)
 
@@ -83,9 +83,9 @@ Since multimodal_data.json is large:
 - **Purpose**: Compress single-modality data into token-efficient relevant (clinical) patterned summaries.
 - **Usage Strategy**: Use this tool for ANY domain containing complex leaf-level resolution data domain (e.g., BRAIN_MRI, GENOMICS, BIOLOGICAL_ASSAY, COGNITION) where identifying "abnormality patterns" is valuable for diagnosis.
 - **Token logic**:
-   - **LARGE domains (>2k tokens)**: MUST use compression.
-   - **MEDIUM domains**: STRONGLY RECOMMENDED to use compression to leverage the tool's "Pattern Detector" reasoning capabilities to distinguish CASE vs CONTROL (even if raw data fits).
-   - **Simple/Small domains (e.g. Demographics)**: Can be passed raw (skip tool) unless complex.
+   - **LARGE domains (e.g., >1.5k tokens)**: STRONGLY RECOMMENDED to use compression to leverage the tool's "Pattern Detector" reasoning capabilities to distinguish CASE vs CONTROL (even if raw data fits).
+   - **MEDIUM domains (e.g., 1k-1.5k tokens)**: RECOMMENDED to use compression to leverage the tool's "Pattern Detector" reasoning capabilities to distinguish CASE vs CONTROL (even if raw data fits).
+   - **SMALL domains (e.g. Demographics)**: Can be passed raw (skip tool) unless complex.
 - **Input**: Domain name, raw domain data from multimodal_data.json, target condition
 - **Output**: Compressed clinical summary with key findings
 - **Timing**: MID - Multiple instances can run in parallel for different domains
@@ -96,7 +96,7 @@ Since multimodal_data.json is large:
 - **Output**: Clinically-prioritized features
 - **Timing**: MID - Depends on FeatureSynthesizer output
 
-#### 6. MultimodalNarrativeCreator
+#### 6. MultimodalNarrativeCreator (hierarchically fuses unimodal compressor outputs)
 - **Purpose**: Create integrated narratives across 2+ compressed modalities
 - **Input**: Multiple compressed domain summaries, target condition
 - **Output**: Cross-modal narrative identifying patterns and interactions
@@ -131,7 +131,7 @@ The executor will automatically parallelize steps that have no unmet dependencie
 - **Group 1 (Early)**: PhenotypeRepresentation, AnomalyNarrativeBuilder, FeatureSynthesizer
 - **Group 2 (Mid - CRITICAL)**: UnimodalCompressor instances.
   - **SUBTREE STRATEGY**: For large domains (e.g., "BIOLOGICAL_ASSAY", "BRAIN_MRI", etc), do NOT compress the whole domain at once if it could (almost) exceeds token limits.
-  - **BREAK IT DOWN**: Schedule multiple UnimodalCompressor steps for specific parent node-based sub-trees (e.g., "BRAIN_MRI:structural:fractional_anisotropy ; or other specific subtrees of BRAIN_MRI", "BIOLOGICAL_ASSAY:Proteomics", "BIOLOGICAL_ASSAY:Metabolomics" ; just giving somes examples; there ARE other sub-trees or even ses of sub-trees ) based on data_overview.json structure.
+  - **BREAK IT DOWN**: Schedule multiple UnimodalCompressor steps for specific parent node-based sub-trees (e.g., "BRAIN_MRI:structural:fractional_anisotropy ; or other specific subtrees of BRAIN_MRI" (like connectomics:structural:streamline_count, connectomics:functional, connectomics:structural-functional coupling, etc. ), "BIOLOGICAL_ASSAY:proteomics", "BIOLOGICAL_ASSAY:NMR_metabolomics", "BIOLOGICAL_ASSAY:serum_biochemistry", etc ; just giving somes examples; there ARE other sub-trees or even ses of sub-trees ) based on data_overview.json structure.
   - **LEAF VISIBILITY**: This ensures leaf-level details (like specific proteins) are not lost in aggregation ; orchestrator should be highly aware to preserve 95-99% of relevant multi-modal abnormality data throughout execution while full data set is (not necessarily, but most likely) token-based compressed (optimally efficiently)...
 - **Group 3 (Mid)**: ClinicalRelevanceRanker (after FeatureSynthesizer)
 

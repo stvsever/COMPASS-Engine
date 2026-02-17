@@ -283,7 +283,7 @@ fi
 SPECIFIC_TARGET=$(echo "${FULL_TARGET_LINE}" | cut -d'|' -f2- | sed -E 's/\bCASE\b//g; s/\bCONTROL\b//g; s/[()]//g' | xargs)
 
 # HARDCODED CONTROL baseline
-FIXED_CONTROL="possible brain-implicated pathology, but NOT psychiatric"
+FIXED_CONTROL="possible brain-implicated pathology, but NOT the psychiatric target phenotype"
 
 echo "  Leaked label:   $(echo "${FULL_TARGET_LINE}" | grep -oE "CASE|CONTROL")" # Log internally in .out
 echo "  Engine Target:  '${SPECIFIC_TARGET}'"
