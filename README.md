@@ -199,6 +199,12 @@ COMPASS is currently being tested on a large neuropsychiatric cohort from the **
 
 **Research Lab**: [Computational Neuroimaging Lab](https://compneurobilbao.eus)
 
+## 📝 Internship Blogpost
+
+As part of the internship dissemination, a Dutch blogpost was created and is available on GitHub Pages:
+
+**Blogpost**: https://stvsever.github.io/COMPASS-Engine/
+
 ## 🛡️ License
 
 This project is licensed under the GNU General Public License v3.0 ; see the [LICENSE](LICENSE) file for details.
