@@ -1,0 +1,260 @@
+<!DOCTYPE html>
+<html lang="nl">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>COMPASS-engine: een multi-agentische ondersteuner voor neuropsychiatrische besluitvorming</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;600;700&family=IBM+Plex+Mono:wght@400;500&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="styles.css">
+    <script src="script.js" defer></script>
+</head>
+<body>
+    <div class="network-bg" aria-hidden="true">
+        <canvas id="networkCanvas" class="network-canvas"></canvas>
+        <div class="network-glow network-glow--one"></div>
+        <div class="network-glow network-glow--two"></div>
+    </div>
+
+    <nav class="network-hubs" aria-label="Snelnavigatie">
+        <button class="network-hub" type="button" data-target="#inleiding" data-hub="intro" style="--x: 5.8%; --y: 21%;">
+            <span>Inleiding</span>
+        </button>
+        <button class="network-hub" type="button" data-target="#werkwijze" data-hub="method" style="--x: 5.8%; --y: 37%;">
+            <span>Werkwijze</span>
+        </button>
+        <button class="network-hub" type="button" data-target="#resultaten" data-hub="results" style="--x: 5.8%; --y: 53%;">
+            <span>Resultaten</span>
+        </button>
+        <button class="network-hub" type="button" data-target="#context-info" data-hub="context" style="--x: 5.8%; --y: 69%;">
+            <span>Context</span>
+        </button>
+    </nav>
+
+    <div class="scroll-bar" aria-hidden="true">
+        <div class="scroll-bar-inner" id="scrollBarInner"></div>
+    </div>
+
+    <div class="page">
+        <header class="hero reveal" data-reveal>
+            <div class="badge-row">
+                <div class="badge">
+                    <span class="badge-dot"></span>
+                    WETENSCHAPSBLOG
+                </div>
+            </div>
+
+            <h1 class="title">
+                COMPASS-engine: een <span class="title-accent">multi-agentische ondersteuner</span> voor neuropsychiatrische besluitvorming
+            </h1>
+
+            <p class="subtitle">
+                COMPASS vertrekt van één centrale vraag: kan een multi-agent systeem die gebaseerd is op grote taalmodellen gezondheidsexperts helpen om neuropsychiatrische casussen (minstens) even betrouwbaar te beoordelen als klassieke voorspellende methoden?
+            </p>
+
+            <div class="meta-row">
+                <div class="meta-pill">
+                    <span class="meta-dot"></span>
+                    Onderzoeksstage in computationeel neuroimaginglab (IIS BioBizkaia, Bilbao)
+                </div>
+            </div>
+        </header>
+
+        <div class="layout">
+            <main>
+                <section class="article-card reveal" data-reveal>
+                    <article class="article-inner">
+                        <h2 id="inleiding">Waarom deze vraag belangrijk is</h2>
+                        <p>
+                            Neuropsychiatrische besluitvorming vraagt tegelijk inzicht in hersenbeelden, cognitieve testen,
+                            klinische informatie en vrije tekst uit dossiers. In de praktijk is dat vaak te veel om telkens
+                            op eenzelfde, consistente manier te combineren zonder hulp.
+                        </p>
+                        <p>
+                            COMPASS probeert dat op te lossen als onderzoeksprototype: niet door één zwart-doosmodel,
+                            maar door meerdere gespecialiseerde AI-agenten te laten samenwerken. Elke stap blijft zichtbaar,
+                            zodat je kan volgen <em>waarom</em> een CASE/CONTROL-beslissing tot stand komt.
+                        </p>
+
+                        <div class="callout">
+                            <strong>Kernboodschap</strong>
+                            <p>
+                                COMPASS brengt hersengegevens en klinische tekst samen om een beredeneerde inschatting te maken van een neuropsychiatrisch profiel,
+                                met een extra controlelaag die fouten en gaten in de redenering opvangt.
+                            </p>
+                        </div>
+
+                        <h2 id="werkwijze">Het onderoek met de COMPASS-engine in vijf stappen</h2>
+                        <p>
+                            Onderstaande structuur vat de pipeline samen in duidelijke blokken. Elk blok heeft een eigen rol,
+                            maar de onderdelen zijn onderling verbonden.
+                        </p>
+
+                        <ol class="flow-list" aria-label="COMPASS stappenplan">
+                            <li class="flow-step reveal" data-reveal>
+                                <div class="flow-content">
+                                    <h3>Data uit verschillende bronnen</h3>
+                                    <p>
+                                        Medische data uit de UK Biobank wordt in één vaste structuur gezet. Zowel getallen als
+                                        tekstvelden worden meegenomen.
+                                    </p>
+                                    <details class="step-toggle">
+                                        <summary>Wat gebeurt hier concreet?</summary>
+                                        <p>
+                                            De input wordt omgezet naar een uniforme, machine-leesbare structuur zodat
+                                            elke agent op dezelfde informatiebasis vertrekt (i.e., een ontologie).
+                                        </p>
+                                    </details>
+                                </div>
+                            </li>
+
+                            <li class="flow-step reveal" data-reveal>
+                                <div class="flow-content">
+                                    <h3>Referentie voor gezonde patronen</h3>
+                                    <p>
+                                        Met brain charts bepalen we eerst wat binnen de gezonde referentie valt.
+                                        Daarna wordt per deelnemer zichtbaar waar afwijkingen zitten.
+                                    </p>
+                                    <details class="step-toggle">
+                                        <summary>Waarom is dit belangrijk?</summary>
+                                        <p>
+                                            Het systeem kijkt niet alleen naar groepsgemiddelden, maar naar individuele
+                                            afwijkingspatronen over het volledige brein.
+                                        </p>
+                                    </details>
+                                </div>
+                            </li>
+
+                            <li class="flow-step reveal" data-reveal>
+                                <div class="flow-content">
+                                    <h3>Groepsprofielen voor hersenstoornissen</h3>
+                                    <p>
+                                        Neuropsychiatrische en neurologische profielen worden naast elkaar gelegd,
+                                        inclusief koppeling met cognitieve kenmerken.
+                                    </p>
+                                    <details class="step-toggle">
+                                        <summary>Wat levert dit op?</summary>
+                                        <p>
+                                            Een referentiekader waarmee het systeem beter onderscheid kan maken tussen
+                                            patronen die op CASE of CONTROL wijzen.
+                                        </p>
+                                    </details>
+                                </div>
+                            </li>
+
+                            <li class="flow-step reveal" data-reveal>
+                                <div class="flow-content">
+                                    <h3>Taalmodel als redeneerlaag</h3>
+                                    <p>
+                                        Grote taalmodellen helpen om patronen uit de brain charts samen te vatten
+                                        en te koppelen in een multi-agent redeneringsproces.
+                                    </p>
+                                    <details class="step-toggle">
+                                        <summary>Hoe blijft dit controleerbaar?</summary>
+                                        <p>
+                                            De agenten werken met expliciete rollen (planning, analyse, voorspelling,
+                                            kritiek), zodat redeneringen controleerbaar blijven.
+                                        </p>
+                                    </details>
+                                </div>
+                            </li>
+
+                            <li class="flow-step reveal" data-reveal>
+                                <div class="flow-content">
+                                    <h3>Resultaten en vervolgstappen</h3>
+                                    <p>
+                                        De experimentele resultaten met een prototype van de COMPASS engine tonen een accuraatheid van 82,3%.
+                                    </p>
+                                    <details class="step-toggle">
+                                        <summary>Wat is de volgende stap?</summary>
+                                        <p>
+                                            Verdere externe validatie, strengere foutanalyse en betere calibratie voor
+                                            uiteenlopende klinische subgroepen.
+                                        </p>
+                                    </details>
+                                </div>
+                            </li>
+                        </ol>
+
+                        <figure class="figure reveal" data-reveal>
+                            <img src="../overview/agent_critic_loop.png" alt="Flowchart van de COMPASS-engine">
+                            <figcaption>Overzicht van de agentische workflow binnen de COMPASS engine. </figcaption>
+                        </figure>
+
+                        <h2>Conclusie</h2>
+                        <p>
+                            De COMPASS-engine laat toe om te onderzoeken ofdat een multi-agentisch systeem, bestaande uit grote taalmodellen, een competitief voordeel kan opleveren t.o.v. klassieke
+                            voorspellende numerieke methoden. De voorlopige resultaten zijn niet sterk genoeg om reeds als definitief besluit te gelden, maar tonen wel duidelijk hun potentieel aan.
+                        </p>
+
+                        <section class="sources">
+                            <h3>Bronnen</h3>
+                            <p>Van Severen, S., Diez P, I., &amp; Cortes, J. M. (2026). <em>Clinical Ontology-driven Multi-modal Predictive Agentic Support System (COMPASS)</em>.</p>
+                        </section>
+                    </article>
+                </section>
+            </main>
+
+            <aside id="context-info">
+                <details class="side-card reveal" data-reveal data-accordion="sidebar" open>
+                    <summary class="side-summary">Auteur <span class="side-summary-indicator" aria-hidden="true">▾</span></summary>
+                    <div class="side-content">
+                        <div class="profile">
+                            <div class="avatar" aria-hidden="true">SV</div>
+                            <div class="profile-main">
+                                <p class="profile-name">Stijn Van Severen</p>
+                                <p class="profile-role">Onderzoeksstagiair theoretische en experimentele psychologie (UGent)</p>
+                            </div>
+                        </div>
+                    </div>
+                </details>
+
+                <details class="side-card reveal" data-reveal data-accordion="sidebar">
+                    <summary class="side-summary">Context en begrippen <span class="side-summary-indicator" aria-hidden="true">▾</span></summary>
+                    <div class="side-content">
+                        <details class="mini-toggle">
+                            <summary>Wat is de UK Biobank?</summary>
+                            <p>Een grootschalige, langlopende cohortstudie in het Verenigd Koninkrijk met genetische data, beeldvorming, klinische informatie en gedrag.</p>
+                        </details>
+                        <details class="mini-toggle">
+                            <summary>Wat zijn normatieve modellen?</summary>
+                            <p>Ze schatten per deelnemer de afstand tot een gezonde referentiegroep in plaats van enkel gemiddelde groepsverschillen te tonen.</p>
+                        </details>
+                        <details class="mini-toggle">
+                            <summary>Wat betekent CASE vs CONTROL?</summary>
+                            <p>CASE verwijst naar de doelconditie, CONTROL naar de vergelijkingsgroep waarmee de patronen worden afgezet.</p>
+                        </details>
+                        <details class="mini-toggle">
+                            <summary>Wat is een multi-agent systeem?</summary>
+                            <p>Geen enkel model alleen, maar meerdere agenten met eigen rollen die elkaar aanvullen en controleren.</p>
+                        </details>
+                        <details class="mini-toggle">
+                            <summary>Wat is een ontologie?</summary>
+                            <p>Een vaste woordenlijst en structuur waarmee data op dezelfde manier benoemd worden, zodat mens en model dezelfde betekenis gebruiken.</p>
+                        </details>
+                    </div>
+                </details>
+
+                <details class="side-card reveal" data-reveal data-accordion="sidebar">
+                    <summary class="side-summary">Verder lezen en uitproberen <span class="side-summary-indicator" aria-hidden="true">▾</span></summary>
+                    <div class="side-content">
+                        <details class="mini-toggle" open>
+                            <summary>GitHub repository</summary>
+                            <p><a href="https://github.com/stvsever/COMPASS-Engine" target="_blank" rel="noreferrer">https://github.com/stvsever/COMPASS-Engine</a></p>
+                        </details>
+                        <details class="mini-toggle">
+                            <summary>Zelf aan de slag in de codebase</summary>
+                            <p>Gebruik <code>COMPASS_demo.ipynb</code> voor een eerste walkthrough van de pipeline.</p>
+                        </details>
+                        <details class="mini-toggle">
+                            <summary>Dashboard verkennen</summary>
+                            <p>De interactieve frontend toont live welke agent actief is en welke redeneringsstappen gebeuren.</p>
+                        </details>
+                    </div>
+                </details>
+            </aside>
+        </div>
+    </div>
+</body>
+</html>
