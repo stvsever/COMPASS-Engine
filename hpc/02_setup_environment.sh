@@ -33,7 +33,7 @@ LOG_DIR="${PROJECT_DIR}/logs"
 PIN_NUMPY="1.26.4"
 PIN_PANDAS="2.2.2"
 PIN_SCIPY="1.13.1"
-# Qwen3 AWQ requires newer stacks (Qwen docs recommend vllm>=0.8.5 and transformers>=4.51.0).
+# Qwen3 AWQ requires newer stacks (Qwen blogpost recommend vllm>=0.8.5 and transformers>=4.51.0).
 PIN_VLLM="0.8.5"
 PIN_TRANSFORMERS="4.51.3"
 
