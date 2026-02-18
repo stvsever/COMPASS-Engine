@@ -17,6 +17,7 @@
     --radius-pill: 999px;
     --shadow-soft: 0 22px 72px rgba(1, 5, 14, 0.62);
     --scroll-ratio: 0;
+    --hub-gutter: clamp(108px, 10.5vw, 148px);
 }
 
 * {
@@ -241,7 +242,7 @@ body.hub-jump::after {
     z-index: 2;
     max-width: 1140px;
     margin: 0 auto;
-    padding-left: clamp(58px, 6.4vw, 82px);
+    padding-left: max(clamp(58px, 6.4vw, 82px), var(--hub-gutter));
 }
 
 .hero {
@@ -789,7 +790,7 @@ aside {
     }
 
     .page {
-        padding-left: 66px;
+        padding-left: 112px;
     }
 
     .network-hub {
@@ -803,7 +804,7 @@ aside {
     }
 
     .page {
-        padding-left: 56px;
+        padding-left: 96px;
     }
 
     .network-hub {
@@ -813,25 +814,25 @@ aside {
     }
 
     .network-hub[data-hub="intro"] {
-        left: 8% !important;
+        left: 6.5% !important;
         top: 22% !important;
         bottom: auto;
     }
 
-    .network-hub[data-hub="method"] {
-        left: 8% !important;
+    .network-hub[data-hub="research"] {
+        left: 6.5% !important;
         top: 38% !important;
         bottom: auto;
     }
 
-    .network-hub[data-hub="results"] {
-        left: 8% !important;
+    .network-hub[data-hub="conclusion"] {
+        left: 6.5% !important;
         top: 54% !important;
         bottom: auto;
     }
 
     .network-hub[data-hub="context"] {
-        left: 8% !important;
+        left: 6.5% !important;
         top: 70% !important;
         bottom: auto;
     }
