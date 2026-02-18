@@ -34,7 +34,7 @@ EMBEDDING_MODEL_NAME="${MODELS_DIR}/Qwen_Qwen3-Embedding-8B"
 # Data Config
 DATA_DIR="${PROJECT_DIR}/../data/__FEATURES__/HPC_data"
 # EXPLICIT SHARED PATH
-TARGETS_FILE="/shared/home/itellaetxe01/compass_pipeline/data/__TARGETS__/cases_controls_with_specific_subtypes.txt"
+TARGETS_FILE="${PROJECT_DIR}/../data/__TARGETS__/cases_controls_with_specific_subtypes.txt"
 
 #
 # Example participant ID (placeholder).
