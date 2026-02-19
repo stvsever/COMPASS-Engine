@@ -507,6 +507,12 @@ body.hub-jump::after {
     object-fit: cover;
 }
 
+.figure-architecture img {
+    max-height: none;
+    height: auto;
+    object-fit: contain;
+}
+
 .figure figcaption {
     padding: 0.62rem 0.86rem;
     font-size: 0.78rem;

@@ -1,4 +1,4 @@
-# Docker Setup (CPU/UI First)
+# Docker Setup (UI with public API)
 
 This folder provides a production-style Docker workflow for running the COMPASS UI with public API backends.
 
@@ -46,7 +46,7 @@ On Windows, run them in WSL or Git Bash (recommended) so the `tar | docker build
 
 1. Build image (choose platform):
 
-Apple Silicon Mac (M1/M2/M3):
+Apple Silicon Mac (M-series):
 ```bash
 tar --exclude-from=docker/.dockerignore -cf - . | docker buildx build \
   --platform linux/arm64 \

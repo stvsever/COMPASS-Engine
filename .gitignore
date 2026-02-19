@@ -49,7 +49,7 @@ overview/*
 !overview/logo/
 !overview/logo/COMPASS_logo_2.png
 !overview/main.tex
-!overview/uml_diagram.py
+!overview/utils/uml_diagram.py
 !overview/compass_flowchart.mmd
 !overview/compass_flowchart.png
 !overview/user_interface/
