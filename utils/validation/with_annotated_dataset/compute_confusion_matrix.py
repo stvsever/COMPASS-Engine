@@ -1,9 +1,12 @@
 #!/usr/bin/env python3
 """
-COMPASS Clinical Validation — Binary Confusion Matrix Generator.
+COMPASS Annotated Validation Metrics Generator.
 
 Computes and plots binary confusion matrices (CASE vs CONTROL) from COMPASS
 participant run results, using annotated ground-truth labels.
+
+For non-binary tasks (multiclass, regression, hierarchical), this script
+computes generalized metrics and writes JSON summaries.
 
 Outputs:
   - integrated_confusion_matrix.png  (all disorders combined)
@@ -30,6 +33,7 @@ import re
 import sys
 from pathlib import Path
 from typing import Dict, List, Optional, Tuple
+from collections import defaultdict
 
 import numpy as np
 
@@ -47,6 +51,289 @@ except ImportError:
 # ═══════════════════════════════════════════════════════════════════════════
 # Data extraction helpers
 # ═══════════════════════════════════════════════════════════════════════════
+
+SUPPORTED_PREDICTION_TYPES = {
+    "binary",
+    "multiclass",
+    "regression_univariate",
+    "regression_multivariate",
+    "hierarchical",
+}
+
+
+def _safe_float(value):
+    try:
+        out = float(value)
+    except (TypeError, ValueError):
+        return None
+    if not np.isfinite(out):
+        return None
+    return out
+
+
+def load_generalized_annotations(path: str) -> Dict[str, dict]:
+    """
+    Load generalized annotation file for multiclass/regression/hierarchical metrics.
+
+    Accepted formats:
+      - Dict keyed by eid: {"123": {...}, "124": {...}}
+      - List of dicts with eid/id field: [{"eid":"123", ...}, ...]
+    """
+    with open(path, "r") as f:
+        raw = json.load(f)
+
+    if isinstance(raw, dict):
+        if "annotations" in raw and isinstance(raw["annotations"], list):
+            raw = raw["annotations"]
+        else:
+            out = {}
+            for eid, payload in raw.items():
+                out[str(eid)] = payload if isinstance(payload, dict) else {"value": payload}
+            return out
+
+    if isinstance(raw, list):
+        out = {}
+        for row in raw:
+            if not isinstance(row, dict):
+                continue
+            eid = row.get("eid") or row.get("participant_id") or row.get("id")
+            if eid is None:
+                continue
+            payload = dict(row)
+            payload.pop("eid", None)
+            payload.pop("participant_id", None)
+            payload.pop("id", None)
+            out[str(eid)] = payload
+        return out
+
+    raise ValueError("Unsupported annotation JSON structure")
+
+
+def extract_generalized_prediction(result_dir: Path) -> Optional[dict]:
+    """Extract generalized prediction payload from report JSON."""
+    report_files = list(result_dir.glob("report_*.json"))
+    if not report_files:
+        return None
+    try:
+        with open(report_files[0], "r") as f:
+            report = json.load(f)
+    except (json.JSONDecodeError, IOError):
+        return None
+
+    pred_block = report.get("prediction", {}) if isinstance(report, dict) else {}
+    if not isinstance(pred_block, dict):
+        pred_block = {}
+    if not pred_block:
+        exec_summary = report.get("execution_summary", {}) if isinstance(report, dict) else {}
+        if isinstance(exec_summary, dict):
+            final_pred = exec_summary.get("final_prediction", {})
+            if isinstance(final_pred, dict):
+                pred_block = final_pred
+
+    if not pred_block:
+        return None
+
+    root = pred_block.get("root_prediction")
+    flat = pred_block.get("flat_predictions")
+    if not isinstance(flat, list):
+        flat = []
+    if isinstance(root, dict) and not flat:
+        flat = [root]
+
+    root_mode = None
+    predicted_label = None
+    probabilities = {}
+    regression_values = {}
+    if isinstance(root, dict):
+        root_mode = root.get("mode")
+        cls = root.get("classification") if isinstance(root.get("classification"), dict) else {}
+        reg = root.get("regression") if isinstance(root.get("regression"), dict) else {}
+        predicted_label = cls.get("predicted_label")
+        probs = cls.get("probabilities")
+        if isinstance(probs, dict):
+            probabilities = {str(k): float(v) for k, v in probs.items() if _safe_float(v) is not None}
+        values = reg.get("values")
+        if isinstance(values, dict):
+            regression_values = {str(k): float(v) for k, v in values.items() if _safe_float(v) is not None}
+
+    node_map = {}
+    for node in flat:
+        if not isinstance(node, dict):
+            continue
+        node_id = str(node.get("node_id") or "").strip()
+        if not node_id:
+            continue
+        node_mode = str(node.get("mode") or "").strip()
+        cls = node.get("classification") if isinstance(node.get("classification"), dict) else {}
+        reg = node.get("regression") if isinstance(node.get("regression"), dict) else {}
+        node_map[node_id] = {
+            "mode": node_mode,
+            "predicted_label": cls.get("predicted_label"),
+            "probabilities": cls.get("probabilities") if isinstance(cls.get("probabilities"), dict) else {},
+            "values": reg.get("values") if isinstance(reg.get("values"), dict) else {},
+        }
+
+    return {
+        "root_mode": root_mode,
+        "predicted_label": predicted_label,
+        "probabilities": probabilities,
+        "regression_values": regression_values,
+        "nodes": node_map,
+        "raw": pred_block,
+    }
+
+
+def _compute_multiclass_metrics(rows: List[dict]) -> dict:
+    valid = [r for r in rows if r.get("actual") is not None and r.get("predicted") is not None]
+    labels = sorted(set([str(r["actual"]) for r in valid] + [str(r["predicted"]) for r in valid]))
+    if not labels:
+        return {"n_valid": 0, "n_failed": len(rows), "labels": [], "matrix": [], "accuracy": 0.0, "macro_f1": 0.0}
+
+    idx = {label: i for i, label in enumerate(labels)}
+    mat = np.zeros((len(labels), len(labels)), dtype=int)
+    for r in valid:
+        mat[idx[str(r["actual"])], idx[str(r["predicted"])]] += 1
+
+    n = int(mat.sum())
+    acc = float(np.trace(mat) / n) if n > 0 else 0.0
+    f1s = []
+    for i in range(len(labels)):
+        tp = float(mat[i, i])
+        fp = float(mat[:, i].sum() - tp)
+        fn = float(mat[i, :].sum() - tp)
+        precision = tp / (tp + fp) if (tp + fp) > 0 else 0.0
+        recall = tp / (tp + fn) if (tp + fn) > 0 else 0.0
+        f1 = 2 * precision * recall / (precision + recall) if (precision + recall) > 0 else 0.0
+        f1s.append(f1)
+
+    return {
+        "n_valid": n,
+        "n_failed": len(rows) - n,
+        "labels": labels,
+        "matrix": mat.tolist(),
+        "accuracy": acc,
+        "macro_f1": float(np.mean(f1s)) if f1s else 0.0,
+    }
+
+
+def _compute_regression_metrics(rows: List[dict], expected_outputs: Optional[List[str]] = None) -> dict:
+    by_output_true: Dict[str, List[float]] = defaultdict(list)
+    by_output_pred: Dict[str, List[float]] = defaultdict(list)
+
+    for r in rows:
+        true_vals = r.get("actual_values") or {}
+        pred_vals = r.get("predicted_values") or {}
+        for key, true_val in true_vals.items():
+            t = _safe_float(true_val)
+            p = _safe_float(pred_vals.get(key))
+            if t is None or p is None:
+                continue
+            by_output_true[str(key)].append(t)
+            by_output_pred[str(key)].append(p)
+
+    if expected_outputs:
+        for key in expected_outputs:
+            by_output_true.setdefault(str(key), [])
+            by_output_pred.setdefault(str(key), [])
+
+    per_output = {}
+    maes = []
+    rmses = []
+    r2s = []
+    for key in sorted(by_output_true.keys()):
+        y_true = np.array(by_output_true[key], dtype=float)
+        y_pred = np.array(by_output_pred[key], dtype=float)
+        if len(y_true) == 0:
+            per_output[key] = {"n": 0, "mae": None, "rmse": None, "r2": None}
+            continue
+        err = y_pred - y_true
+        mae = float(np.mean(np.abs(err)))
+        rmse = float(np.sqrt(np.mean(err ** 2)))
+        ss_res = float(np.sum((y_true - y_pred) ** 2))
+        ss_tot = float(np.sum((y_true - float(np.mean(y_true))) ** 2))
+        r2 = float(1.0 - ss_res / ss_tot) if ss_tot > 0 else 0.0
+        per_output[key] = {"n": int(len(y_true)), "mae": mae, "rmse": rmse, "r2": r2}
+        maes.append(mae)
+        rmses.append(rmse)
+        r2s.append(r2)
+
+    return {
+        "per_output": per_output,
+        "macro_mae": float(np.mean(maes)) if maes else None,
+        "macro_rmse": float(np.mean(rmses)) if rmses else None,
+        "macro_r2": float(np.mean(r2s)) if r2s else None,
+    }
+
+
+def _compute_hierarchical_metrics(rows: List[dict]) -> dict:
+    node_acc = defaultdict(lambda: {"correct": 0, "total": 0})
+    node_reg_true: Dict[str, Dict[str, List[float]]] = defaultdict(lambda: defaultdict(list))
+    node_reg_pred: Dict[str, Dict[str, List[float]]] = defaultdict(lambda: defaultdict(list))
+
+    for row in rows:
+        truth_nodes = row.get("truth_nodes") or {}
+        pred_nodes = row.get("pred_nodes") or {}
+        for node_id, truth in truth_nodes.items():
+            pred = pred_nodes.get(node_id) or {}
+            mode = str((truth or {}).get("mode") or "").strip()
+            if mode.endswith("classification"):
+                t_label = (truth or {}).get("predicted_label") or (truth or {}).get("label")
+                p_label = (pred or {}).get("predicted_label")
+                if t_label is None or p_label is None:
+                    continue
+                node_acc[node_id]["total"] += 1
+                if str(t_label) == str(p_label):
+                    node_acc[node_id]["correct"] += 1
+            elif mode.endswith("regression"):
+                t_vals = (truth or {}).get("values") or {}
+                p_vals = (pred or {}).get("values") or {}
+                for key, tv in t_vals.items():
+                    t = _safe_float(tv)
+                    p = _safe_float(p_vals.get(key))
+                    if t is None or p is None:
+                        continue
+                    node_reg_true[node_id][key].append(t)
+                    node_reg_pred[node_id][key].append(p)
+
+    node_metrics = {}
+    macro_scores = []
+
+    for node_id, counts in node_acc.items():
+        total = counts["total"]
+        acc = counts["correct"] / total if total > 0 else None
+        node_metrics[node_id] = {"mode": "classification", "n": total, "accuracy": acc}
+        if acc is not None:
+            macro_scores.append(acc)
+
+    for node_id in sorted(node_reg_true.keys()):
+        per_output = {}
+        scores = []
+        for key in sorted(node_reg_true[node_id].keys()):
+            y_true = np.array(node_reg_true[node_id][key], dtype=float)
+            y_pred = np.array(node_reg_pred[node_id][key], dtype=float)
+            if len(y_true) == 0:
+                continue
+            err = y_pred - y_true
+            mae = float(np.mean(np.abs(err)))
+            rmse = float(np.sqrt(np.mean(err ** 2)))
+            ss_res = float(np.sum((y_true - y_pred) ** 2))
+            ss_tot = float(np.sum((y_true - float(np.mean(y_true))) ** 2))
+            r2 = float(1.0 - ss_res / ss_tot) if ss_tot > 0 else 0.0
+            per_output[key] = {"n": int(len(y_true)), "mae": mae, "rmse": rmse, "r2": r2}
+            scores.append(max(0.0, min(1.0, r2)))
+        if per_output:
+            node_metrics[node_id] = {
+                "mode": "regression",
+                "outputs": per_output,
+                "macro_r2": float(np.mean(scores)) if scores else None,
+            }
+            if scores:
+                macro_scores.append(float(np.mean(scores)))
+
+    return {
+        "per_node": node_metrics,
+        "macro_score": float(np.mean(macro_scores)) if macro_scores else None,
+    }
 
 def load_ground_truth(targets_file: str) -> Dict[str, dict]:
     """Parse the annotated targets file into {eid: {label, disorder}}."""
@@ -409,19 +696,117 @@ def plot_confusion_matrix(
 
 def main():
     parser = argparse.ArgumentParser(
-        description="COMPASS Validation: Binary Confusion Matrix Generator",
+        description="COMPASS Validation: Binary Confusion Matrix + Generalized Metrics",
     )
     parser.add_argument("--results_dir", required=True,
                         help="Path to participant_runs directory")
-    parser.add_argument("--targets_file", required=True,
-                        help="Path to ground-truth annotations file")
+    parser.add_argument("--targets_file", required=False, default="",
+                        help="Path to ground-truth annotations file (binary workflow)")
     parser.add_argument("--output_dir", required=True,
                         help="Output directory for .png files")
     parser.add_argument("--disorder_groups", default="",
                         help="Comma-separated disorder groups for per-group matrices")
+    parser.add_argument(
+        "--prediction_type",
+        default="binary",
+        choices=sorted(SUPPORTED_PREDICTION_TYPES),
+        help="Task type for metric computation",
+    )
+    parser.add_argument(
+        "--annotations_json",
+        default="",
+        help="Generalized annotation JSON (required for non-binary modes)",
+    )
     args = parser.parse_args()
 
     os.makedirs(args.output_dir, exist_ok=True)
+    prediction_type = str(args.prediction_type or "binary").strip().lower()
+
+    if prediction_type != "binary":
+        if not args.annotations_json:
+            print("ERROR: --annotations_json is required for non-binary prediction types.")
+            sys.exit(1)
+        annotations = load_generalized_annotations(args.annotations_json)
+        if not annotations:
+            print("ERROR: No annotations loaded from --annotations_json.")
+            sys.exit(1)
+
+        rows = []
+        results_path = Path(args.results_dir)
+        for participant_dir in sorted(results_path.iterdir()):
+            if not participant_dir.is_dir():
+                continue
+            eid_match = re.search(r"ID(\d+)", participant_dir.name)
+            if not eid_match:
+                continue
+            eid = eid_match.group(1)
+            truth = annotations.get(eid)
+            if truth is None:
+                continue
+            pred = extract_generalized_prediction(participant_dir)
+            if pred is None:
+                continue
+            rows.append({"eid": eid, "truth": truth, "pred": pred})
+
+        if not rows:
+            print("ERROR: No overlapping prediction/annotation rows found.")
+            sys.exit(1)
+
+        metrics_payload = {
+            "prediction_type": prediction_type,
+            "n_rows": len(rows),
+        }
+
+        if prediction_type == "multiclass":
+            eval_rows = []
+            for row in rows:
+                truth = row["truth"]
+                actual = truth.get("label") or truth.get("classification")
+                predicted = row["pred"].get("predicted_label")
+                eval_rows.append({"actual": actual, "predicted": predicted})
+            metrics_payload["classification_metrics"] = _compute_multiclass_metrics(eval_rows)
+        elif prediction_type in {"regression_univariate", "regression_multivariate"}:
+            eval_rows = []
+            expected_outputs = None
+            for row in rows:
+                truth = row["truth"]
+                actual_values = truth.get("regression") if isinstance(truth.get("regression"), dict) else {}
+                if not actual_values and "value" in truth:
+                    key = str(truth.get("output_name") or "value")
+                    actual_values = {key: truth.get("value")}
+                predicted_values = row["pred"].get("regression_values") or {}
+                if expected_outputs is None:
+                    expected_outputs = sorted(actual_values.keys())
+                eval_rows.append({
+                    "actual_values": actual_values,
+                    "predicted_values": predicted_values,
+                })
+            metrics_payload["regression_metrics"] = _compute_regression_metrics(eval_rows, expected_outputs=expected_outputs)
+        elif prediction_type == "hierarchical":
+            eval_rows = []
+            for row in rows:
+                truth = row["truth"]
+                truth_nodes = truth.get("nodes") if isinstance(truth.get("nodes"), dict) else {}
+                pred_nodes = row["pred"].get("nodes") if isinstance(row["pred"].get("nodes"), dict) else {}
+                eval_rows.append({"truth_nodes": truth_nodes, "pred_nodes": pred_nodes})
+            metrics_payload["hierarchical_metrics"] = _compute_hierarchical_metrics(eval_rows)
+        else:
+            print(f"ERROR: Unsupported non-binary prediction_type: {prediction_type}")
+            sys.exit(1)
+
+        out_json = os.path.join(args.output_dir, f"{prediction_type}_metrics.json")
+        with open(out_json, "w") as f:
+            json.dump(metrics_payload, f, indent=2)
+        print(f"✓ Saved generalized metrics: {out_json}")
+        print(
+            "NOTE: XAI currently supports binary classification only; "
+            "non-binary validation here excludes XAI metrics."
+        )
+        return
+
+    if not args.targets_file:
+        print("ERROR: --targets_file is required for binary confusion matrix workflow.")
+        sys.exit(1)
 
     # ── Integrated (all disorders) ──
     print("\n═══ Computing Integrated Confusion Matrix ═══")

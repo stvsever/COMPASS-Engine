@@ -47,18 +47,30 @@ class PatientReportGenerator:
             "generated_at": datetime.now().isoformat(),
             
             "prediction": {
-                "classification": prediction.binary_classification.value,
+                "prediction_type": self._prediction_type_from_prediction(prediction),
+                "classification": self._classification_label_from_prediction(prediction),
+                "primary_output": self._primary_output_from_prediction(prediction),
                 "probability": prediction.probability_score,
                 "confidence": prediction.confidence_level.value,
                 "target_condition": prediction.target_condition,
-                "control_condition": prediction.control_condition
+                "control_condition": prediction.control_condition,
+                "prediction_task_spec": (
+                    prediction.prediction_task_spec.model_dump()
+                    if prediction.prediction_task_spec is not None and hasattr(prediction.prediction_task_spec, "model_dump")
+                    else (prediction.prediction_task_spec.dict() if prediction.prediction_task_spec is not None else None)
+                ),
+                "root_prediction": (
+                    prediction.root_prediction.model_dump()
+                    if prediction.root_prediction is not None and hasattr(prediction.root_prediction, "model_dump")
+                    else (prediction.root_prediction.dict() if prediction.root_prediction is not None else None)
+                ),
             },
             
             "evaluation": {
                 "verdict": evaluation.verdict.value,
                 "confidence_in_verdict": evaluation.confidence_in_verdict,
                 "checklist_passed": evaluation.checklist.pass_count,
-                "checklist_total": 7
+                "checklist_total": evaluation.checklist.total_count
             },
             
             "key_findings": [
@@ -117,36 +129,44 @@ class PatientReportGenerator:
         eval_data = report.get("evaluation", {})
         
         classification = pred.get('classification', 'N/A')
+        prediction_type = pred.get('prediction_type', 'unknown')
         target = pred.get('target_condition', 'N/A')
         control = pred.get('control_condition', 'N/A')
+        primary_output = pred.get("primary_output", "N/A")
+        is_classification_mode = str(prediction_type).endswith("classification")
         
-        display_classification = classification
-        # Re-inject target/control for readability
-        if "CASE" in classification:
-            display_classification = f"CASE (Phenotype match found for: {target})"
-        elif "CONTROL" in classification:
-            display_classification = f"CONTROL (Closer to: {control})"
+        display_prediction = primary_output
+        if is_classification_mode:
+            display_prediction = classification
 
         lines = [
             f"# Patient Report: {report.get('participant_id', 'Unknown')}",
             f"\n**Generated**: {report.get('generated_at', '')}",
             f"\n## Prediction",
-            f"- **Classification**: {display_classification}",
-            f"- **Probability**: {pred.get('probability', 0):.1%}",
+            f"- **Prediction Type**: {prediction_type}",
+            f"- **Primary Output**: {display_prediction}",
+            (
+                f"- **Probability / Root Confidence**: {pred.get('probability', 0):.1%}"
+                if isinstance(pred.get("probability"), (int, float))
+                else "- **Probability / Root Confidence**: N/A"
+            ),
             f"- **Confidence**: {pred.get('confidence', 'N/A')}",
-            f"- **Target Condition**: {target}",
-            f"- **Control Condition**: {control}",
-            
-            f"\n## Evaluation",
-            f"- **Verdict**: {eval_data.get('verdict', 'N/A')}",
-            f"- **Checklist**: {eval_data.get('checklist_passed', 0)}/{eval_data.get('checklist_total', 7)} passed",
-            
-            f"\n## Key Findings"
+            f"- **Target Label Context**: {target}",
         ]
+        if is_classification_mode and str(control or "").strip():
+            lines.append(f"- **Comparator Label Context**: {control}")
+        lines.extend(
+            [
+                f"\n## Evaluation",
+                f"- **Verdict**: {eval_data.get('verdict', 'N/A')}",
+                f"- **Checklist**: {eval_data.get('checklist_passed', 0)}/{eval_data.get('checklist_total', 7)} passed",
+                f"\n## Key Findings",
+            ]
+        )
         
         for i, finding in enumerate(report.get("key_findings", [])[:5], 1):
             lines.append(f"{i}. **[{finding.get('domain', '')}]** {finding.get('finding', '')}")
-        
+
         lines.extend([
             f"\n## Clinical Summary",
             report.get("clinical_summary", "No summary available"),
@@ -191,3 +211,49 @@ class PatientReportGenerator:
         
         print(f"[Report] Markdown saved to: {output_path}")
         return output_path
+
+    def _primary_output_from_prediction(self, prediction: PredictionResult) -> str:
+        root = prediction.root_prediction
+        if root is not None:
+            if root.classification is not None:
+                return str(root.classification.predicted_label or root.node_id)
+            if root.regression is not None and root.regression.values:
+                values = list(root.regression.values.items())
+                if len(values) == 1:
+                    key, value = values[0]
+                    try:
+                        return f"{key}: {float(value):.3f}"
+                    except Exception:
+                        return f"{key}: {value}"
+                shown = []
+                for key, value in values[:4]:
+                    try:
+                        shown.append(f"{key}: {float(value):.3f}")
+                    except Exception:
+                        shown.append(f"{key}: {value}")
+                extra = f" (+{len(values) - 4} more)" if len(values) > 4 else ""
+                return f"{', '.join(shown)}{extra}"
+            return str(root.node_id)
+        if prediction.binary_classification is not None:
+            return prediction.binary_classification.value
+        return "NON_BINARY"
+
+    def _prediction_type_from_prediction(self, prediction: PredictionResult) -> str:
+        root = prediction.root_prediction
+        if root is not None and getattr(root, "mode", None) is not None:
+            return str(root.mode.value)
+        if prediction.binary_classification is not None:
+            return "binary_classification"
+        return "unknown"
+
+    def _classification_label_from_prediction(self, prediction: PredictionResult) -> Optional[str]:
+        root = prediction.root_prediction
+        if root is not None and getattr(root, "mode", None) is not None:
+            mode_value = str(root.mode.value)
+            if mode_value.endswith("classification"):
+                cls = getattr(root, "classification", None)
+                if cls is not None:
+                    return str(getattr(cls, "predicted_label", "") or "").strip() or None
+        if prediction.binary_classification is not None:
+            return prediction.binary_classification.value
+        return None

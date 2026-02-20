@@ -11,7 +11,7 @@ from .base_tool import BaseTool
 
 class ChunkEvidenceExtractor(BaseTool):
     """
-    Extracts chunk-level evidence for CASE/CONTROL reasoning.
+    Extracts chunk-level evidence for generalized phenotype reasoning.
     """
 
     TOOL_NAME = "ChunkEvidenceExtractor"
@@ -25,13 +25,15 @@ class ChunkEvidenceExtractor(BaseTool):
         "summary",
         "for_case",
         "for_control",
+        "evidence_for_targets",
+        "evidence_against_targets",
         "uncertainty_factors",
         "key_findings",
         "cited_feature_keys",
     ]
 
     def _validate_input(self, input_data: Dict[str, Any]) -> Optional[str]:
-        required = ["chunk_text", "target_condition", "control_condition", "chunk_index", "chunk_total"]
+        required = ["chunk_text", "target_condition", "chunk_index", "chunk_total"]
         for key in required:
             if key not in input_data:
                 return f"Missing required input: {key}"
@@ -41,6 +43,7 @@ class ChunkEvidenceExtractor(BaseTool):
         chunk_text = input_data.get("chunk_text", "")
         target = input_data.get("target_condition", "")
         control = input_data.get("control_condition", "")
+        prediction_task_spec = input_data.get("prediction_task_spec") or {}
         chunk_index = input_data.get("chunk_index", 0)
         chunk_total = input_data.get("chunk_total", 0)
         hinted_keys = input_data.get("hinted_feature_keys") or []
@@ -49,6 +52,8 @@ class ChunkEvidenceExtractor(BaseTool):
             f"Target condition: {target}",
             f"Control condition: {control}",
             f"Chunk: {chunk_index}/{chunk_total}",
+            "Prediction task specification:",
+            str(prediction_task_spec),
             "",
             "Chunk feature key hints (may be partial):",
             str(hinted_keys),
@@ -60,7 +65,8 @@ class ChunkEvidenceExtractor(BaseTool):
             "- Return only one JSON object matching the schema.",
             "- Do not output analysis or <think> blocks.",
             "- Keep key_findings concise (max 8 items).",
-            "- Keep for_case and for_control concise (max 6 items each).",
+            "- Keep evidence_for_targets and evidence_against_targets concise (max 6 items per node).",
+            "- Keep for_case and for_control concise when binary aliases are needed.",
         ])
 
     def _process_output(
@@ -122,10 +128,23 @@ class ChunkEvidenceExtractor(BaseTool):
         else:
             cited = hinted_keys
 
+        ev_for = output_data.get("evidence_for_targets")
+        ev_against = output_data.get("evidence_against_targets")
+        if not isinstance(ev_for, dict):
+            ev_for = {}
+        if not isinstance(ev_against, dict):
+            ev_against = {}
+        if not ev_for and output_data.get("for_case"):
+            ev_for = {"root": _as_str_list(output_data.get("for_case"), 6)}
+        if not ev_against and output_data.get("for_control"):
+            ev_against = {"root": _as_str_list(output_data.get("for_control"), 6)}
+
         return {
             "summary": summary,
             "for_case": _as_str_list(output_data.get("for_case"), 6),
             "for_control": _as_str_list(output_data.get("for_control"), 6),
+            "evidence_for_targets": {str(k): _as_str_list(v, 6) for k, v in ev_for.items()},
+            "evidence_against_targets": {str(k): _as_str_list(v, 6) for k, v in ev_against.items()},
             "uncertainty_factors": _as_str_list(output_data.get("uncertainty_factors"), 8),
             "key_findings": _normalize_findings(output_data.get("key_findings"), 8),
             "cited_feature_keys": cited,

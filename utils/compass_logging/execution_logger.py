@@ -71,12 +71,20 @@ class ExecutionLogger:
         # Log entries for structured access
         self.entries = []
     
-    def log_pipeline_start(self, target_condition: str, control_condition: str):
+    def log_pipeline_start(
+        self,
+        target_condition: str,
+        control_condition: str,
+        prediction_task_mode: Optional[str] = None,
+    ):
         """Log pipeline start."""
+        mode = str(prediction_task_mode or "").strip()
+        is_classification_mode = mode.endswith("_classification")
         self._log_entry("PIPELINE_START", {
             "participant_id": self.participant_id,
             "target_condition": target_condition,
             "control_condition": control_condition,
+            "prediction_task_mode": mode,
             "timestamp": datetime.now().isoformat()
         })
         
@@ -84,7 +92,10 @@ class ExecutionLogger:
         self.logger.info(f"COMPASS Pipeline Started")
         self.logger.info(f"Participant: {self.participant_id}")
         self.logger.info(f"Target: {target_condition}")
-        self.logger.info(f"Control: {control_condition}")
+        if mode:
+            self.logger.info(f"Prediction Mode: {mode}")
+        if is_classification_mode and str(control_condition or "").strip():
+            self.logger.info(f"Control: {control_condition}")
         self.logger.info("=" * 60)
     
     def log_pipeline_end(self, success: bool, summary: dict):
@@ -98,7 +109,11 @@ class ExecutionLogger:
         self.logger.info("=" * 60)
         self.logger.info(f"COMPASS Pipeline {'Completed' if success else 'Failed'}")
         self.logger.info(f"Result: {summary.get('prediction', 'N/A')}")
-        self.logger.info(f"Probability: {summary.get('probability', 'N/A')}")
+        prob = summary.get("probability", None)
+        if isinstance(prob, (int, float)):
+            self.logger.info(f"Probability / Root Confidence: {float(prob):.3f}")
+        else:
+            self.logger.info("Probability / Root Confidence: N/A")
         self.logger.info(f"Iterations: {summary.get('iterations', 1)}")
         self.logger.info("=" * 60)
     
@@ -136,9 +151,19 @@ class ExecutionLogger:
     def log_predictor(self, prediction: dict):
         """Log predictor output."""
         self._log_entry("PREDICTOR", prediction)
-        
-        self.logger.info(f"Predictor: {prediction.get('classification', 'N/A')} "
-                        f"(p={prediction.get('probability', 0):.3f})")
+
+        prob = prediction.get("probability", None)
+        mode = str(prediction.get("prediction_task_mode") or "").strip()
+        label = prediction.get('classification', 'N/A')
+        if isinstance(prob, (int, float)):
+            prob_text = f"{float(prob):.3f}"
+            self.logger.info(
+                f"Predictor: {label} [{mode or 'unknown_mode'}] (confidence={prob_text})"
+            )
+        else:
+            self.logger.info(
+                f"Predictor: {label} [{mode or 'unknown_mode'}]"
+            )
     
     def log_critic(self, evaluation: dict):
         """Log critic evaluation."""

@@ -606,7 +606,10 @@ class PlanExecutor:
             "non_numerical_data": context.get("non_numerical_data"),
             "target_condition": context.get("target_condition"),
             "control_condition": context.get("control_condition"),
+            "prediction_task_spec": context.get("prediction_task_spec") or {},
             "participant_id": context.get("participant_id"),
+            "tool_runtime_instruction": context.get("tool_runtime_instruction") or "",
+            "executor_runtime_instruction": context.get("executor_runtime_instruction") or "",
         }
         consumed_feature_keys: set[str] = set()
         

@@ -49,6 +49,7 @@ class BaseAgent(ABC):
         self.settings = get_settings()
         self.llm_client = llm_client or get_llm_client()
         self.token_manager = token_manager
+        self.runtime_instruction: str = ""
         
         # Load system prompt
         self.system_prompt = self._load_prompt()
@@ -95,6 +96,22 @@ class BaseAgent(ABC):
         """Log error in agent operation."""
         print(f"[{self.AGENT_NAME}] ✗ Error: {error}")
         logger.error(f"{self.AGENT_NAME} error: {error}")
+
+    def set_runtime_instruction(self, instruction: Optional[str]) -> None:
+        """Attach optional user-provided runtime instruction for this agent."""
+        self.runtime_instruction = str(instruction or "").strip()
+
+    def _append_runtime_instruction(self, prompt: str, *, label: str = "Agent Runtime Instruction") -> str:
+        """Append optional runtime instruction to a prompt payload."""
+        base = str(prompt or "")
+        instruction = str(getattr(self, "runtime_instruction", "") or "").strip()
+        if not instruction:
+            return base
+        return (
+            f"{base}\n\n## {label}\n"
+            f"{instruction}\n"
+            "Apply this instruction while preserving schema validity and no-hallucination constraints."
+        )
     
     @abstractmethod
     def execute(self, **kwargs) -> Any:

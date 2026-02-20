@@ -114,7 +114,9 @@ class FusionLayer:
         multimodal_data: Dict[str, Any],
         target_condition: str,
         control_condition: str,
-        system_prompt: str = ""
+        prediction_task_spec: Optional[Dict[str, Any]] = None,
+        system_prompt: str = "",
+        runtime_instruction: str = "",
     ) -> FusionResult:
         """
         Intelligently decide whether to fuse via LLM or pass raw data based on token usage.
@@ -128,6 +130,8 @@ class FusionLayer:
         """
 
         print(f"\n[FusionLayer] Smart Fusion initiated. Threshold: {self.threshold:,} tokens")
+        if str(runtime_instruction or "").strip():
+            print("[FusionLayer] Runtime instruction applied for integration behavior.")
         
         # 1. Identify processed domains/subtrees (subtree-aware, purely lexical).
         processed_whole_domains: Set[str] = set()
@@ -267,7 +271,12 @@ class FusionLayer:
             domain_summaries=domain_data,
             key_findings=findings,
             cross_modal_patterns=[],
-            evidence_summary={"for_case": [], "for_control": []},
+            evidence_summary={
+                "for_case": [],
+                "for_control": [],
+                "evidence_for_targets": {},
+                "evidence_against_targets": {},
+            },
             tokens_used=0,
             source_outputs=[str(k) for k in (step_outputs or {}).keys()],
             skipped_fusion=True,
@@ -296,7 +305,12 @@ class FusionLayer:
                 domain_summaries=domain_data,
                 key_findings=findings,
                 cross_modal_patterns=[],
-                evidence_summary={"for_case": [], "for_control": []},
+                evidence_summary={
+                    "for_case": [],
+                    "for_control": [],
+                    "evidence_for_targets": {},
+                    "evidence_against_targets": {},
+                },
                 tokens_used=0,
                 source_outputs=[str(k) for k in (step_outputs or {}).keys()],
                 skipped_fusion=True,
@@ -355,7 +369,12 @@ class FusionLayer:
                 domain_summaries=domain_data,
                 key_findings=findings,
                 cross_modal_patterns=[],
-                evidence_summary={"for_case": [], "for_control": []},
+                evidence_summary={
+                    "for_case": [],
+                    "for_control": [],
+                    "evidence_for_targets": {},
+                    "evidence_against_targets": {},
+                },
                 tokens_used=0,
                 source_outputs=[str(k) for k in (step_outputs or {}).keys()],
                 skipped_fusion=True,
@@ -376,6 +395,7 @@ class FusionLayer:
             "threshold": self.threshold,
             "chunked_two_pass_required": final_payload_tokens > self.threshold,
             "strategy": "threshold_driven_no_loss_pass_through",
+            "runtime_instruction_applied": bool(str(runtime_instruction or "").strip()),
         }
         fill_report["coverage"] = {
             "processed_whole_domains": sorted(list(processed_whole_domains)),
@@ -403,7 +423,12 @@ class FusionLayer:
             domain_summaries=domain_data,
             key_findings=findings,
             cross_modal_patterns=[], # No cross-modal analysis done without LLM
-            evidence_summary={"for_case": [], "for_control": []},
+            evidence_summary={
+                "for_case": [],
+                "for_control": [],
+                "evidence_for_targets": {},
+                "evidence_against_targets": {},
+            },
             tokens_used=0,
             source_outputs=[str(k) for k in (step_outputs or {}).keys()],
             skipped_fusion=True,
@@ -420,8 +445,10 @@ class FusionLayer:
         hierarchical_deviation: Dict[str, Any],
         non_numerical_data: str,
         target_condition: str,
+        control_condition: str = "",
         system_prompt: str = "",
-        multimodal_data: Optional[Dict[str, Any]] = None
+        multimodal_data: Optional[Dict[str, Any]] = None,
+        runtime_instruction: str = "",
     ) -> FusionResult:
         """
         Fuse all step outputs into unified representation.
@@ -431,6 +458,7 @@ class FusionLayer:
             hierarchical_deviation: Deviation map (always passed through)
             non_numerical_data: Non-numerical data (always passed through)
             target_condition: Prediction target
+            control_condition: Legacy comparator context (mainly classification tasks)
         
         Returns:
             FusionResult with integrated outputs
@@ -485,7 +513,33 @@ class FusionLayer:
              logger.warning("No system_prompt provided to FusionLayer.fuse - using minimal fallback.")
              system_prompt = "You are the Fusion Layer.Fuse these outputs."
              
-        prompt = system_prompt.format(tool_outputs_description=outputs_description)
+        class _SafeFormatDict(dict):
+            def __missing__(self, key: str) -> str:
+                return "{" + str(key) + "}"
+
+        prompt = system_prompt.format_map(
+            _SafeFormatDict(
+                tool_outputs_description=outputs_description,
+                target_condition=target_condition,
+                control_condition=control_condition,
+            )
+        )
+
+        task_mode = ""
+        if isinstance(prediction_task_spec, dict):
+            root = prediction_task_spec.get("root")
+            if isinstance(root, dict):
+                task_mode = str(root.get("mode") or "").strip()
+        is_classification_mode = task_mode.endswith("_classification")
+        prediction_context_lines = [
+            "## PREDICTION TASK CONTEXT",
+            f"Target label context: {target_condition}",
+        ]
+        if task_mode:
+            prediction_context_lines.append(f"Task mode: {task_mode}")
+        if is_classification_mode and str(control_condition or "").strip():
+            prediction_context_lines.append(f"Comparator label context: {control_condition}")
+        prediction_context_block = "\n".join(prediction_context_lines)
         
         user_prompt = f"""## TOOL OUTPUTS TO FUSE
 
@@ -497,13 +551,16 @@ class FusionLayer:
 ## NON-NUMERICAL DATA (NON-TABULAR DATA)
 {non_numerical_data}
 
-## TARGET CONDITION
-{target_condition}
-
-## CONTROL CONDITION
-{control_condition}
+{prediction_context_block}
 
 Please fuse these outputs into a unified representation. PRESERVE all clinical notes and deviation data."""
+        runtime_instruction = str(runtime_instruction or "").strip()
+        if runtime_instruction:
+            user_prompt = (
+                f"{user_prompt}\n\n## Integrator Runtime Instruction\n"
+                f"{runtime_instruction}\n"
+                "Apply this instruction while preserving strict schema and no-hallucination behavior."
+            )
         
         # Call LLM for intelligent fusion with auto-repair retry
         max_retries = 2

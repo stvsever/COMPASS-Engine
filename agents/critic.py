@@ -7,7 +7,7 @@ Evaluates prediction quality and determines if re-orchestration is needed.
 import json
 import uuid
 import logging
-from typing import Dict, Any, Optional
+from typing import Dict, Any, Optional, List
 from datetime import datetime
 
 from .base_agent import BaseAgent
@@ -21,6 +21,7 @@ from ..data.models.prediction_result import (
     ImprovementPriority,
 )
 from ..data.models.execution_plan import PlanExecutionResult
+from ..data.models.prediction_task import PredictionTaskSpec, PredictionMode
 from ..utils.json_parser import parse_json_response
 from ..utils.token_packer import truncate_text_by_tokens
 from ..utils.toon import json_to_toon
@@ -62,6 +63,7 @@ class Critic(BaseAgent):
         hierarchical_deviation: Dict[str, Any] = None,
         non_numerical_data: str = None,
         control_condition: Optional[str] = None,
+        prediction_task_spec: Optional[PredictionTaskSpec] = None,
     ) -> CriticEvaluation:
         """
         Evaluate a prediction result.
@@ -77,10 +79,36 @@ class Critic(BaseAgent):
             CriticEvaluation with verdict and feedback
         """
         self._log_start(f"evaluating prediction {prediction.prediction_id}")
-        
+
         print(f"[Critic] Evaluating prediction: {prediction.prediction_id}")
-        print(f"[Critic] Classification: {prediction.binary_classification.value}")
-        print(f"[Critic] Probability: {prediction.probability_score:.3f}")
+        active_task_spec = prediction_task_spec or prediction.prediction_task_spec
+        root_mode = (
+            active_task_spec.root.mode.value
+            if active_task_spec is not None
+            else (
+                prediction.prediction_task_spec.root.mode.value
+                if prediction.prediction_task_spec is not None
+                else "unknown"
+            )
+        )
+        print(f"[Critic] Task mode: {root_mode}")
+        root = prediction.root_prediction
+        if root is not None and root.classification is not None:
+            label = str(root.classification.predicted_label or "").strip() or "UNKNOWN"
+            print(f"[Critic] Predicted label: {label}")
+        if prediction.probability_score is not None:
+            print(f"[Critic] Target probability: {prediction.probability_score:.3f}")
+
+        if active_task_spec is not None:
+            evaluation = self._evaluate_generalized_prediction(
+                prediction=prediction,
+                executor_output=executor_output,
+                data_overview=data_overview,
+                prediction_task_spec=active_task_spec,
+            )
+            self._log_complete(f"{evaluation.verdict.value} (confidence: {evaluation.confidence_in_verdict:.2f})")
+            self._print_evaluation_summary(evaluation)
+            return evaluation
         
         # Build user prompt
         user_prompt = self._build_prompt(
@@ -109,6 +137,38 @@ class Critic(BaseAgent):
                 control_condition=control_condition,
             )
             evaluation = self._parse_evaluation(evaluation_data, prediction.prediction_id)
+            if active_task_spec is not None:
+                spec_nodes = active_task_spec.node_index()
+                required_node_ids = [
+                    nid for nid, node in spec_nodes.items() if bool(getattr(node, "required", True))
+                ]
+                flat_nodes = prediction.flat_predictions or (
+                    prediction.root_prediction.walk() if prediction.root_prediction is not None else []
+                )
+                pred_node_ids = {str(node.node_id) for node in flat_nodes}
+                missing_required_nodes = [nid for nid in required_node_ids if nid not in pred_node_ids]
+                concise_summary = self._build_generalized_concise_summary(
+                    prediction_task_spec=active_task_spec,
+                    verdict=evaluation.verdict,
+                    composite_score=float(evaluation.composite_score),
+                    checklist=evaluation.checklist,
+                    primary_output_summary=self._summarize_primary_output(prediction),
+                    required_node_count=len(required_node_ids),
+                    missing_required_nodes=missing_required_nodes,
+                    fallback_used=bool(getattr(evaluation, "fallback_used", False)),
+                )
+                if not active_task_spec.is_pure_binary_root():
+                    concise_summary = self._polish_generalized_concise_summary(
+                        base_summary=concise_summary,
+                        prediction_task_spec=active_task_spec,
+                        verdict=evaluation.verdict,
+                        composite_score=float(evaluation.composite_score),
+                        checklist=evaluation.checklist,
+                        primary_output_summary=self._summarize_primary_output(prediction),
+                        missing_required_nodes=missing_required_nodes,
+                        fallback_used=bool(getattr(evaluation, "fallback_used", False)),
+                    )
+                evaluation.concise_summary = concise_summary
         except Exception as e:
             logger.exception("Critic evaluation failed; returning deterministic UNSAT fallback.")
             self._log_error(f"LLM/JSON failure, using fallback evaluation: {e}")
@@ -124,6 +184,501 @@ class Critic(BaseAgent):
         self._print_evaluation_summary(evaluation)
         
         return evaluation
+
+    def _evaluate_generalized_prediction(
+        self,
+        *,
+        prediction: PredictionResult,
+        executor_output: Dict[str, Any],
+        data_overview: Dict[str, Any],
+        prediction_task_spec: PredictionTaskSpec,
+    ) -> CriticEvaluation:
+        """Deterministic generalized evaluator for non-binary task modes."""
+        flat_nodes = prediction.flat_predictions or (
+            prediction.root_prediction.walk() if prediction.root_prediction is not None else []
+        )
+        pred_nodes = {str(n.node_id): n for n in flat_nodes}
+        spec_nodes = prediction_task_spec.node_index()
+
+        has_classification_nodes = any(
+            node.mode in (PredictionMode.BINARY_CLASSIFICATION, PredictionMode.MULTICLASS_CLASSIFICATION)
+            for node in spec_nodes.values()
+        )
+        has_regression_nodes = any(
+            node.mode in (PredictionMode.UNIVARIATE_REGRESSION, PredictionMode.MULTIVARIATE_REGRESSION)
+            for node in spec_nodes.values()
+        )
+        has_hierarchy = len(spec_nodes) > 1 or any(bool(node.children) for node in spec_nodes.values())
+
+        required_node_ids = [nid for nid, node in spec_nodes.items() if bool(getattr(node, "required", True))]
+        missing_required_nodes = [nid for nid in required_node_ids if nid not in pred_nodes]
+        has_required_outputs = len(missing_required_nodes) == 0
+        unexpected_nodes = [nid for nid in pred_nodes.keys() if nid not in spec_nodes]
+        hierarchy_relevant = has_hierarchy or bool(unexpected_nodes)
+
+        classification_probabilities_valid = True
+        regression_values_valid = True
+        regression_default_suspect_nodes: List[str] = []
+        hierarchy_consistent = True
+
+        for node_id, node_spec in spec_nodes.items():
+            pred_node = pred_nodes.get(node_id)
+            if pred_node is None:
+                if bool(getattr(node_spec, "required", True)):
+                    hierarchy_consistent = False
+                continue
+
+            if node_spec.mode in (PredictionMode.BINARY_CLASSIFICATION, PredictionMode.MULTICLASS_CLASSIFICATION):
+                cls_pred = pred_node.classification
+                if cls_pred is None:
+                    classification_probabilities_valid = False
+                    continue
+                probs = cls_pred.probabilities or {}
+                if not probs:
+                    classification_probabilities_valid = False
+                    continue
+                total = sum(float(v) for v in probs.values())
+                if abs(total - 1.0) > 0.05:
+                    classification_probabilities_valid = False
+                if cls_pred.predicted_label not in list(node_spec.class_labels):
+                    classification_probabilities_valid = False
+            else:
+                reg_pred = pred_node.regression
+                if reg_pred is None:
+                    regression_values_valid = False
+                    continue
+                values = reg_pred.values or {}
+                node_values: List[float] = []
+                for output_name in node_spec.regression_outputs:
+                    if output_name not in values:
+                        regression_values_valid = False
+                        continue
+                    try:
+                        numeric_value = float(values[output_name])
+                        node_values.append(numeric_value)
+                        if not (numeric_value == numeric_value and abs(numeric_value) != float("inf")):
+                            regression_values_valid = False
+                    except Exception:
+                        regression_values_valid = False
+                if node_values and all(abs(v) <= 1e-12 for v in node_values):
+                    regression_default_suspect_nodes.append(node_id)
+
+        zero_default_unjustified = False
+        if regression_default_suspect_nodes:
+            narrative_blob = " ".join(
+                [str(prediction.clinical_summary or "")]
+                + [str(step or "") for step in list(prediction.reasoning_chain or [])]
+            ).lower()
+            zero_markers = (
+                "near zero",
+                "approximately zero",
+                "around zero",
+                "close to zero",
+                "no deviation",
+                "at mean",
+                "neutral baseline",
+                "minimal effect",
+            )
+            zero_default_unjustified = not any(marker in narrative_blob for marker in zero_markers)
+            if zero_default_unjustified:
+                regression_values_valid = False
+
+        if unexpected_nodes:
+            hierarchy_consistent = False
+
+        mode_checks_valid = True
+        if has_classification_nodes:
+            mode_checks_valid = mode_checks_valid and classification_probabilities_valid
+        if has_regression_nodes:
+            mode_checks_valid = mode_checks_valid and regression_values_valid
+        if hierarchy_relevant:
+            mode_checks_valid = mode_checks_valid and hierarchy_consistent
+        output_schema_valid = has_required_outputs and mode_checks_valid
+
+        domains_processed = list(executor_output.get("domains_processed") or [])
+        domain_coverage = data_overview.get("domain_coverage") if isinstance(data_overview, dict) else {}
+        available_domains = []
+        if isinstance(domain_coverage, dict):
+            for domain, cov in domain_coverage.items():
+                if isinstance(cov, dict) and int(cov.get("present_leaves", 0) or 0) > 0:
+                    available_domains.append(str(domain))
+        available_count = len(available_domains)
+        if available_count > 0:
+            processed_count = len(set(domains_processed) & set(available_domains))
+            coverage_ratio = processed_count / float(available_count)
+        else:
+            coverage_ratio = 1.0
+        sufficient_coverage = coverage_ratio >= 0.6
+
+        uncertainty_flags = [str(x or "") for x in list(getattr(prediction, "uncertainty_factors", []) or [])]
+        fallback_used = (
+            str(getattr(prediction, "prediction_id", "") or "").startswith("fallback_")
+            or any("fallback" in flag.lower() for flag in uncertainty_flags)
+            or "deterministic fallback" in str(prediction.clinical_summary or "").lower()
+        )
+        evidence_based_reasoning = bool(prediction.key_findings) and bool(prediction.reasoning_chain)
+        clinically_relevant = bool(str(prediction.clinical_summary or "").strip())
+        logically_coherent = bool(prediction.reasoning_chain or prediction.clinical_summary)
+        critical_domains_processed = len(domains_processed) > 0
+        if fallback_used:
+            # Fallback outputs are schema-preserving safety outputs, not final trustworthy inferences.
+            evidence_based_reasoning = False
+            clinically_relevant = False
+            logically_coherent = False
+        has_binary_outcome = prediction.binary_classification is not None
+        valid_probability = (
+            prediction.probability_score is not None
+            and 0.0 <= float(prediction.probability_score) <= 1.0
+        )
+
+        active_checks: List[str] = [
+            "has_required_outputs",
+            "output_schema_valid",
+        ]
+        if has_classification_nodes:
+            active_checks.append("classification_probabilities_valid")
+        if has_regression_nodes:
+            active_checks.append("regression_values_valid")
+        if hierarchy_relevant:
+            active_checks.append("hierarchy_consistent")
+        active_checks.extend(
+            [
+                "sufficient_coverage",
+                "evidence_based_reasoning",
+                "clinically_relevant",
+                "logically_coherent",
+                "critical_domains_processed",
+            ]
+        )
+
+        checklist = EvaluationChecklist(
+            has_required_outputs=has_required_outputs,
+            output_schema_valid=output_schema_valid,
+            classification_probabilities_valid=classification_probabilities_valid,
+            regression_values_valid=regression_values_valid,
+            hierarchy_consistent=hierarchy_consistent,
+            has_binary_outcome=has_binary_outcome,
+            valid_probability=valid_probability,
+            sufficient_coverage=sufficient_coverage,
+            evidence_based_reasoning=evidence_based_reasoning,
+            clinically_relevant=clinically_relevant,
+            logically_coherent=logically_coherent,
+            critical_domains_processed=critical_domains_processed,
+            active_checks=active_checks,
+        )
+
+        hierarchy_term = float(hierarchy_consistent) if hierarchy_relevant else 1.0
+        logic_score = (float(logically_coherent) + float(output_schema_valid) + hierarchy_term) / 3.0
+        evidence_score = (
+            float(evidence_based_reasoning)
+            + float(mode_checks_valid)
+        ) / 2.0
+        completeness_score = (
+            float(has_required_outputs)
+            + float(sufficient_coverage)
+            + float(critical_domains_processed)
+        ) / 3.0
+        relevance_score = float(clinically_relevant)
+
+        score_breakdown = {
+            "logic": round(logic_score, 4),
+            "evidence": round(evidence_score, 4),
+            "completeness": round(completeness_score, 4),
+            "relevance": round(relevance_score, 4),
+        }
+        composite_score = (
+            score_breakdown["logic"] * 0.40
+            + score_breakdown["evidence"] * 0.30
+            + score_breakdown["completeness"] * 0.20
+            + score_breakdown["relevance"] * 0.10
+        )
+        verdict = Verdict.SATISFACTORY if (
+            composite_score >= 0.70
+            and output_schema_valid
+            and has_required_outputs
+            and not fallback_used
+        ) else Verdict.UNSATISFACTORY
+        confidence_in_verdict = min(0.95, max(0.4, checklist.pass_count / float(max(1, checklist.total_count))))
+
+        strengths: List[str] = []
+        weaknesses: List[str] = []
+        domains_missed: List[str] = []
+        improvements: List[ImprovementSuggestion] = []
+
+        if output_schema_valid:
+            strengths.append("Prediction output structure matches requested task modes.")
+        else:
+            weaknesses.append("Prediction output schema is incomplete or inconsistent with task specification.")
+            improvements.append(
+                ImprovementSuggestion(
+                    issue="Output schema mismatch",
+                    suggestion="Ensure each required task node includes mode-consistent prediction fields.",
+                    priority=ImprovementPriority.HIGH,
+                )
+            )
+
+        if sufficient_coverage:
+            strengths.append("Available data domains were sufficiently processed.")
+        else:
+            weaknesses.append("Coverage of available data domains is below threshold.")
+            improvements.append(
+                ImprovementSuggestion(
+                    issue="Insufficient domain coverage",
+                    suggestion="Process additional high-value domains before final synthesis.",
+                    priority=ImprovementPriority.HIGH,
+                )
+            )
+            domains_missed = [d for d in available_domains if d not in set(domains_processed)]
+
+        if missing_required_nodes:
+            weaknesses.append(f"Missing required prediction nodes: {', '.join(missing_required_nodes)}")
+            improvements.append(
+                ImprovementSuggestion(
+                    issue="Missing required task nodes",
+                    suggestion="Generate outputs for every required node in the hierarchy.",
+                    priority=ImprovementPriority.HIGH,
+                )
+            )
+
+        if unexpected_nodes:
+            weaknesses.append(f"Prediction included undefined task nodes: {', '.join(unexpected_nodes)}")
+            improvements.append(
+                ImprovementSuggestion(
+                    issue="Unexpected task nodes",
+                    suggestion="Emit predictions only for node_ids defined in the task specification.",
+                    priority=ImprovementPriority.MEDIUM,
+                )
+            )
+
+        if evidence_based_reasoning:
+            strengths.append("Reasoning includes evidence-backed findings.")
+        else:
+            weaknesses.append("Reasoning lacks sufficient evidence grounding.")
+            improvements.append(
+                ImprovementSuggestion(
+                    issue="Weak evidence grounding",
+                    suggestion="Reference explicit findings for each major conclusion.",
+                    priority=ImprovementPriority.MEDIUM,
+                )
+            )
+        if zero_default_unjustified:
+            weaknesses.append(
+                "Regression outputs appear to be template defaults (all zeros) without explicit justification."
+            )
+            improvements.append(
+                ImprovementSuggestion(
+                    issue="Template-like regression defaults",
+                    suggestion=(
+                        "Provide concrete non-default numeric estimates or explicitly justify near-zero outputs in the reasoning."
+                    ),
+                    priority=ImprovementPriority.HIGH,
+                )
+            )
+        if fallback_used:
+            weaknesses.append("Predictor fallback response detected; final outputs are not reliable for sign-off.")
+            improvements.append(
+                ImprovementSuggestion(
+                    issue="Predictor fallback used",
+                    suggestion="Rerun with stricter prompt compliance or a higher-capability predictor model.",
+                    priority=ImprovementPriority.HIGH,
+                )
+            )
+
+        primary_output_summary = self._summarize_primary_output(prediction)
+        concise_summary = self._build_generalized_concise_summary(
+            prediction_task_spec=prediction_task_spec,
+            verdict=verdict,
+            composite_score=composite_score,
+            checklist=checklist,
+            primary_output_summary=primary_output_summary,
+            required_node_count=len(required_node_ids),
+            missing_required_nodes=missing_required_nodes,
+            fallback_used=fallback_used,
+        )
+        concise_summary = self._polish_generalized_concise_summary(
+            base_summary=concise_summary,
+            prediction_task_spec=prediction_task_spec,
+            verdict=verdict,
+            composite_score=composite_score,
+            checklist=checklist,
+            primary_output_summary=primary_output_summary,
+            missing_required_nodes=missing_required_nodes,
+            fallback_used=fallback_used,
+        )
+        reasoning = (
+            f"Required nodes present={has_required_outputs}; output schema valid={output_schema_valid}; "
+            f"classification probabilities valid={classification_probabilities_valid if has_classification_nodes else 'n/a'}; "
+            f"regression values valid={regression_values_valid if has_regression_nodes else 'n/a'}; "
+            f"hierarchy consistent={hierarchy_consistent if hierarchy_relevant else 'n/a'}; "
+            f"coverage ratio={coverage_ratio:.2f}; fallback_used={fallback_used}."
+        )
+
+        return CriticEvaluation(
+            evaluation_id=str(uuid.uuid4())[:8],
+            prediction_id=prediction.prediction_id,
+            created_at=datetime.now(),
+            verdict=verdict,
+            confidence_in_verdict=float(confidence_in_verdict),
+            composite_score=float(round(composite_score, 4)),
+            score_breakdown=score_breakdown,
+            checklist=checklist,
+            strengths=strengths,
+            weaknesses=weaknesses,
+            improvement_suggestions=improvements,
+            domains_missed=domains_missed,
+            reasoning=reasoning,
+            concise_summary=concise_summary,
+        )
+
+    def _summarize_primary_output(self, prediction: PredictionResult) -> str:
+        root = prediction.root_prediction
+        if root is None:
+            return "not available"
+        if root.mode in (PredictionMode.BINARY_CLASSIFICATION, PredictionMode.MULTICLASS_CLASSIFICATION):
+            cls = root.classification
+            if cls is None:
+                return "classification unavailable"
+            label = str(cls.predicted_label or "UNKNOWN")
+            score = None
+            if isinstance(cls.probabilities, dict):
+                score = cls.probabilities.get(label)
+                if score is None and cls.probabilities:
+                    try:
+                        score = max(float(v) for v in cls.probabilities.values())
+                    except Exception:
+                        score = None
+            if isinstance(score, (int, float)):
+                return f"{label} ({float(score):.2f})"
+            return label
+        reg = root.regression
+        if reg is None or not isinstance(reg.values, dict) or not reg.values:
+            return "regression unavailable"
+        entries: List[str] = []
+        for key, value in list(reg.values.items())[:4]:
+            try:
+                entries.append(f"{key}={float(value):.3f}")
+            except Exception:
+                entries.append(f"{key}={value}")
+        if len(reg.values) > 4:
+            entries.append(f"+{len(reg.values) - 4} more")
+        return "; ".join(entries)
+
+    def _build_generalized_concise_summary(
+        self,
+        *,
+        prediction_task_spec: PredictionTaskSpec,
+        verdict: Verdict,
+        composite_score: float,
+        checklist: EvaluationChecklist,
+        primary_output_summary: str,
+        required_node_count: int,
+        missing_required_nodes: List[str],
+        fallback_used: bool,
+    ) -> str:
+        mode = prediction_task_spec.root.mode
+        is_hierarchical = len(prediction_task_spec.node_index()) > 1
+        mode_name = {
+            PredictionMode.BINARY_CLASSIFICATION: "Binary classification",
+            PredictionMode.MULTICLASS_CLASSIFICATION: "Multi-class classification",
+            PredictionMode.UNIVARIATE_REGRESSION: "Univariate regression",
+            PredictionMode.MULTIVARIATE_REGRESSION: "Multivariate regression",
+        }.get(mode, str(mode.value).replace("_", " ").title())
+        passed = verdict == Verdict.SATISFACTORY
+        checklist_text = f"{checklist.pass_count}/{checklist.total_count}"
+        state_text = "passed quality checks" if passed else "needs revision"
+        rationale_text = (
+            "Required output, schema, evidence, and coverage checks were satisfied."
+            if passed
+            else "One or more required schema, evidence, or coverage checks failed."
+        )
+        fallback_text = " Predictor fallback was detected; rerun is recommended." if fallback_used else ""
+
+        if is_hierarchical:
+            mode_title = f"Hierarchical task ({mode_name} root)"
+            if missing_required_nodes:
+                node_text = (
+                    f"Required node coverage incomplete ({required_node_count - len(missing_required_nodes)}/"
+                    f"{required_node_count}); missing: {', '.join(missing_required_nodes[:3])}."
+                )
+            else:
+                node_text = f"Required node coverage complete ({required_node_count}/{required_node_count})."
+            return (
+                f"{mode_title} {state_text} ({checklist_text} checks, score {composite_score:.2f}). "
+                f"{node_text} Root output: {primary_output_summary}. {rationale_text}{fallback_text}"
+            )
+
+        if mode in (PredictionMode.BINARY_CLASSIFICATION, PredictionMode.MULTICLASS_CLASSIFICATION):
+            output_label = "Predicted label"
+        elif mode == PredictionMode.UNIVARIATE_REGRESSION:
+            output_label = "Estimated value"
+        else:
+            output_label = "Estimated profile"
+        return (
+            f"{mode_name} {state_text} ({checklist_text} checks, score {composite_score:.2f}). "
+            f"{output_label}: {primary_output_summary}. {rationale_text}{fallback_text}"
+        )
+
+    def _polish_generalized_concise_summary(
+        self,
+        *,
+        base_summary: str,
+        prediction_task_spec: PredictionTaskSpec,
+        verdict: Verdict,
+        composite_score: float,
+        checklist: EvaluationChecklist,
+        primary_output_summary: str,
+        missing_required_nodes: List[str],
+        fallback_used: bool,
+    ) -> str:
+        """Use Critic LLM style generation for clearer run-summary text, with safe deterministic fallback."""
+        if not hasattr(self.llm_client, "call"):
+            return base_summary
+        try:
+            payload = {
+                "mode": prediction_task_spec.root.mode.value,
+                "hierarchical": len(prediction_task_spec.node_index()) > 1,
+                "verdict": verdict.value,
+                "composite_score": round(float(composite_score), 3),
+                "checks_passed": int(checklist.pass_count),
+                "checks_total": int(checklist.total_count),
+                "primary_output": primary_output_summary,
+                "missing_required_nodes": list(missing_required_nodes),
+                "fallback_used": bool(fallback_used),
+            }
+            prompt = "\n".join(
+                [
+                    "Rewrite this evaluator snapshot into a clear user-facing run summary.",
+                    "Requirements:",
+                    "- English only.",
+                    "- 1 to 2 sentences.",
+                    "- Mention task mode, primary output, and why verdict was reached.",
+                    "- If fallback_used=true, explicitly recommend rerun.",
+                    "- Avoid jargon and avoid placeholder wording.",
+                    "",
+                    "Snapshot JSON:",
+                    json.dumps(payload, ensure_ascii=False),
+                    "",
+                    'Return strict JSON: {"concise_summary":"..."}',
+                ]
+            )
+            raw = self._call_llm_raw(
+                prompt,
+                model=self.LLM_MODEL or self.settings.models.critic_model,
+                max_tokens=220,
+                temperature=0.1,
+                expect_json=True,
+                system_prompt="You are a precise evaluator summary writer. Return only JSON.",
+            )
+            parsed = parse_json_response(raw, expected_keys=["concise_summary"])
+            text = str(parsed.get("concise_summary") or "").strip()
+            if not text:
+                return base_summary
+            text = " ".join(text.split())
+            if len(text) > 320:
+                text = text[:317].rstrip() + "..."
+            return text
+        except Exception:
+            return base_summary
     
     def _build_prompt(
         self,
@@ -142,9 +697,19 @@ class Critic(BaseAgent):
         notes_budget = int(max_in * 0.22)
         dataflow_budget = int(max_in * 0.15)
         
+        root = prediction.root_prediction
+        root_label = ""
+        if root is not None and root.classification is not None:
+            root_label = str(root.classification.predicted_label or "").strip()
+        classification_text = (
+            prediction.binary_classification.value
+            if prediction.binary_classification is not None
+            else (root_label or "NON_BINARY")
+        )
+
         # Format prediction summary
         prediction_summary = {
-            "classification": prediction.binary_classification.value,
+            "classification": classification_text,
             "probability": prediction.probability_score,
             "confidence": prediction.confidence_level.value,
             "key_findings": [
@@ -275,7 +840,7 @@ class Critic(BaseAgent):
             "- verdict: 'SATISFACTORY' or 'UNSATISFACTORY'",
             "- confidence_in_verdict: float (0-1)",
             "- composite_score: float (0.00-1.00)",
-            "- concise_summary: string (1-2 sentences explaining WHY this verdict was reached)",
+            "- concise_summary: string (1-2 sentences in professional English explaining WHY this verdict was reached)",
             "- score_breakdown: { 'logic': float, 'evidence': float, 'completeness': float, 'relevance': float }",
             "- checklist: {",
             "    'has_binary_outcome': bool,",
@@ -292,7 +857,10 @@ class Critic(BaseAgent):
             "Ensure feedback is comprehensive and actionable."
         ])
         
-        return "\n".join(prompt_parts)
+        return self._append_runtime_instruction(
+            "\n".join(prompt_parts),
+            label="Critic Runtime Instruction",
+        )
 
     def _critic_max_output_tokens(self) -> int:
         max_agent_out = int(getattr(self.settings.token_budget, "max_agent_output_tokens", 16000) or 16000)
@@ -503,6 +1071,11 @@ class Critic(BaseAgent):
         parsed_checklist = parsed.get("checklist")
         if isinstance(parsed_checklist, dict):
             for key in (
+                "has_required_outputs",
+                "output_schema_valid",
+                "classification_probabilities_valid",
+                "regression_values_valid",
+                "hierarchy_consistent",
                 "has_binary_outcome",
                 "valid_probability",
                 "sufficient_coverage",
@@ -511,7 +1084,16 @@ class Critic(BaseAgent):
                 "logically_coherent",
                 "critical_domains_processed",
             ):
-                checklist[key] = _as_bool(parsed_checklist.get(key), bool(checklist.get(key, False)))
+                if key in parsed_checklist:
+                    checklist[key] = _as_bool(parsed_checklist.get(key), bool(checklist.get(key, False)))
+            parsed_active_checks = parsed_checklist.get("active_checks")
+            if isinstance(parsed_active_checks, list):
+                cleaned_active = []
+                for key in parsed_active_checks:
+                    text = str(key or "").strip()
+                    if text and text not in cleaned_active:
+                        cleaned_active.append(text)
+                checklist["active_checks"] = cleaned_active
         out["checklist"] = checklist
 
         score_breakdown = dict(out.get("score_breakdown") or {})
@@ -571,7 +1153,7 @@ class Critic(BaseAgent):
         if concise:
             out["concise_summary"] = concise
         else:
-            failed = [k for k, v in checklist.items() if not bool(v)]
+            failed = [k for k, v in checklist.items() if isinstance(v, bool) and not bool(v)]
             fail_txt = ", ".join(failed[:3]) if failed else "none"
             verdict_txt = str(out.get("verdict") or "UNSATISFACTORY")
             comp = float(out.get("composite_score") or 0.0)
@@ -601,8 +1183,18 @@ class Critic(BaseAgent):
         control_condition: Optional[str] = None,
     ) -> str:
         """Smaller critic prompt for fast/unstable JSON models."""
+        root = prediction.root_prediction
+        root_label = ""
+        if root is not None and root.classification is not None:
+            root_label = str(root.classification.predicted_label or "").strip()
+        classification_text = (
+            prediction.binary_classification.value
+            if prediction.binary_classification is not None
+            else (root_label or "NON_BINARY")
+        )
+
         prediction_summary = {
-            "classification": prediction.binary_classification.value,
+            "classification": classification_text,
             "probability": prediction.probability_score,
             "confidence": prediction.confidence_level.value,
             "key_findings": [
@@ -632,12 +1224,13 @@ class Critic(BaseAgent):
             800,
             model_hint="gpt-5",
         )
-        return "\n".join([
+        prompt = "\n".join([
             "You are a strict JSON-only evaluator. Output ONLY valid JSON.",
             "Return a minimal evaluation object with keys:",
             "verdict, confidence_in_verdict, composite_score, concise_summary,",
             "score_breakdown {logic,evidence,completeness,relevance},",
             "checklist {has_binary_outcome,valid_probability,sufficient_coverage,evidence_based_reasoning,clinically_relevant,logically_coherent,critical_domains_processed},",
+            "Use professional English for concise_summary and reasoning.",
             "improvement_suggestions (optional list), reasoning (short).",
             "",
             "## PREDICTION",
@@ -659,6 +1252,7 @@ class Critic(BaseAgent):
             "## CONTROL",
             ctrl,
         ])
+        return self._append_runtime_instruction(prompt, label="Critic Runtime Instruction")
 
     def _heuristic_evaluation_data(
         self,
@@ -692,9 +1286,10 @@ class Critic(BaseAgent):
 
         has_binary_outcome = bool(getattr(prediction, "binary_classification", None))
         valid_probability = 0.0 <= float(prediction.probability_score or 0.0) <= 1.0
-        if prediction.binary_classification.value == "CASE":
+        cls_value = str(getattr(getattr(prediction, "binary_classification", None), "value", "") or "").upper()
+        if cls_value == "CASE":
             valid_probability = valid_probability and float(prediction.probability_score or 0.0) >= 0.5
-        if prediction.binary_classification.value == "CONTROL":
+        if cls_value == "CONTROL":
             valid_probability = valid_probability and float(prediction.probability_score or 0.0) < 0.5
 
         key_domains = [str(f.domain) for f in (prediction.key_findings or []) if getattr(f, "domain", None)]
@@ -714,7 +1309,24 @@ class Critic(BaseAgent):
             + 0.1 * relevance_score
         )
 
+        has_required_outputs = has_binary_outcome
+        classification_probabilities_valid = valid_probability
+        output_schema_valid = has_required_outputs and classification_probabilities_valid
+        active_checks = [
+            "has_required_outputs",
+            "output_schema_valid",
+            "classification_probabilities_valid",
+            "sufficient_coverage",
+            "evidence_based_reasoning",
+            "clinically_relevant",
+            "logically_coherent",
+            "critical_domains_processed",
+        ]
+
         checklist = {
+            "has_required_outputs": has_required_outputs,
+            "output_schema_valid": output_schema_valid,
+            "classification_probabilities_valid": classification_probabilities_valid,
             "has_binary_outcome": has_binary_outcome,
             "valid_probability": valid_probability,
             "sufficient_coverage": sufficient_coverage,
@@ -722,6 +1334,7 @@ class Critic(BaseAgent):
             "clinically_relevant": clinically_relevant,
             "logically_coherent": logically_coherent,
             "critical_domains_processed": critical_domains_processed,
+            "active_checks": active_checks,
         }
 
         improvement_suggestions = []
@@ -817,14 +1430,86 @@ class Critic(BaseAgent):
         
         # Parse checklist
         checklist_data = evaluation_data.get("checklist", {})
+        if not isinstance(checklist_data, dict):
+            checklist_data = {}
+        active_checks_raw = checklist_data.get("active_checks")
+        if not isinstance(active_checks_raw, list):
+            active_checks_raw = evaluation_data.get("active_checks")
+        active_checks = [str(k).strip() for k in list(active_checks_raw or []) if str(k).strip()]
+
+        has_binary_fields = ("has_binary_outcome" in checklist_data) or ("valid_probability" in checklist_data)
+        has_generalized_fields = any(
+            key in checklist_data
+            for key in (
+                "has_required_outputs",
+                "output_schema_valid",
+                "classification_probabilities_valid",
+                "regression_values_valid",
+                "hierarchy_consistent",
+            )
+        )
+        inferred_binary_mode = has_binary_fields and not has_generalized_fields
+
+        has_required_outputs = _as_bool(
+            checklist_data.get("has_required_outputs"),
+            _as_bool(checklist_data.get("has_binary_outcome"), False),
+        )
+        classification_probabilities_valid = _as_bool(
+            checklist_data.get("classification_probabilities_valid"),
+            _as_bool(checklist_data.get("valid_probability"), False),
+        )
+        output_schema_valid = _as_bool(
+            checklist_data.get("output_schema_valid"),
+            has_required_outputs and classification_probabilities_valid,
+        )
+        regression_values_valid = _as_bool(checklist_data.get("regression_values_valid"), False)
+        hierarchy_consistent = _as_bool(checklist_data.get("hierarchy_consistent"), False)
+
+        if not active_checks and inferred_binary_mode:
+            active_checks = [
+                "has_required_outputs",
+                "output_schema_valid",
+                "classification_probabilities_valid",
+                "sufficient_coverage",
+                "evidence_based_reasoning",
+                "clinically_relevant",
+                "logically_coherent",
+                "critical_domains_processed",
+            ]
+        elif not active_checks and has_generalized_fields:
+            active_checks = [
+                "has_required_outputs",
+                "output_schema_valid",
+            ]
+            if "classification_probabilities_valid" in checklist_data:
+                active_checks.append("classification_probabilities_valid")
+            if "regression_values_valid" in checklist_data:
+                active_checks.append("regression_values_valid")
+            if "hierarchy_consistent" in checklist_data:
+                active_checks.append("hierarchy_consistent")
+            active_checks.extend(
+                [
+                    "sufficient_coverage",
+                    "evidence_based_reasoning",
+                    "clinically_relevant",
+                    "logically_coherent",
+                    "critical_domains_processed",
+                ]
+            )
         checklist = EvaluationChecklist(
+            has_required_outputs=has_required_outputs,
+            output_schema_valid=output_schema_valid,
+            classification_probabilities_valid=classification_probabilities_valid,
+            regression_values_valid=regression_values_valid,
+            hierarchy_consistent=hierarchy_consistent,
             has_binary_outcome=_as_bool(checklist_data.get("has_binary_outcome", False), False),
             valid_probability=_as_bool(checklist_data.get("valid_probability", False), False),
             sufficient_coverage=_as_bool(checklist_data.get("sufficient_coverage", False), False),
             evidence_based_reasoning=_as_bool(checklist_data.get("evidence_based_reasoning", False), False),
             clinically_relevant=_as_bool(checklist_data.get("clinically_relevant", False), False),
             logically_coherent=_as_bool(checklist_data.get("logically_coherent", False), False),
-            critical_domains_processed=_as_bool(checklist_data.get("critical_domains_processed", False), False)
+            critical_domains_processed=_as_bool(checklist_data.get("critical_domains_processed", False), False),
+            active_checks=active_checks,
         )
         
         # Parse improvement suggestions
@@ -885,7 +1570,20 @@ class Critic(BaseAgent):
 
     def _build_fallback_evaluation(self, prediction_id: str, error: str) -> CriticEvaluation:
         """Create deterministic fail-safe evaluation when critic LLM output is invalid."""
+        active_checks = [
+            "has_required_outputs",
+            "output_schema_valid",
+            "classification_probabilities_valid",
+            "sufficient_coverage",
+            "evidence_based_reasoning",
+            "clinically_relevant",
+            "logically_coherent",
+            "critical_domains_processed",
+        ]
         checklist = EvaluationChecklist(
+            has_required_outputs=True,
+            output_schema_valid=True,
+            classification_probabilities_valid=True,
             has_binary_outcome=True,
             valid_probability=True,
             sufficient_coverage=False,
@@ -893,6 +1591,7 @@ class Critic(BaseAgent):
             clinically_relevant=False,
             logically_coherent=False,
             critical_domains_processed=False,
+            active_checks=active_checks,
         )
         suggestion = ImprovementSuggestion(
             issue="Critic output was not machine-parseable JSON",
@@ -957,16 +1656,25 @@ class Critic(BaseAgent):
             for category, score in evaluation.score_breakdown.items():
                 print(f"  - {category.title()}: {score:.2f}")
         
-        print(f"\nChecklist ({evaluation.checklist.pass_count}/7):")
+        print(f"\nChecklist ({evaluation.checklist.pass_count}/{evaluation.checklist.total_count}):")
         checklist = evaluation.checklist
         status = lambda x: "✓" if x else "✗"
-        print(f"  {status(checklist.has_binary_outcome)} Binary outcome")
-        print(f"  {status(checklist.valid_probability)} Valid probability")
-        print(f"  {status(checklist.sufficient_coverage)} Sufficient coverage")
-        print(f"  {status(checklist.evidence_based_reasoning)} Evidence-based reasoning")
-        print(f"  {status(checklist.clinically_relevant)} Clinically relevant")
-        print(f"  {status(checklist.logically_coherent)} Logically coherent")
-        print(f"  {status(checklist.critical_domains_processed)} Critical domains processed")
+        ordered_checks = [
+            ("has_required_outputs", "Required outputs present"),
+            ("output_schema_valid", "Output schema valid"),
+            ("classification_probabilities_valid", "Classification probabilities valid"),
+            ("regression_values_valid", "Regression values valid"),
+            ("hierarchy_consistent", "Hierarchy consistent"),
+            ("sufficient_coverage", "Sufficient coverage"),
+            ("evidence_based_reasoning", "Evidence-based reasoning"),
+            ("clinically_relevant", "Clinically relevant"),
+            ("logically_coherent", "Logically coherent"),
+            ("critical_domains_processed", "Critical domains processed"),
+        ]
+        active = set(checklist.active_checks or [key for key, _ in ordered_checks])
+        for key, label in ordered_checks:
+            if key in active:
+                print(f"  {status(bool(getattr(checklist, key, False)))} {label}")
         
         if evaluation.strengths:
             print(f"\nStrengths:")

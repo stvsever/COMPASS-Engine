@@ -44,6 +44,7 @@ class EventStore:
             "participant_dir": None,
             "target": "None",
             "control": None,
+            "prediction_spec": None,
             "status": "Ready to Launch",
             "start_time": None,
             "total_tokens": 0,
@@ -91,6 +92,7 @@ class EventStore:
                 self.state["participant_id"] = data["participant_id"]
                 self.state["target"] = data["target"]
                 self.state["control"] = data.get("control")
+                self.state["prediction_spec"] = data.get("prediction_spec")
                 self.state["max_iterations"] = data.get("max_iterations", 1)
                 self.state["config"] = data.get("config", {}) # Store token config
                 self.state["start_time"] = timestamp
@@ -210,17 +212,19 @@ class EventStore:
                 # Add or update virtual step for Predictor
                 pred_id = 910 + self.state.get("iteration", 1)
                 existing = next((s for s in self.state["steps"] if s["id"] == pred_id), None)
+                prob_val = data.get("prob")
+                prob_text = f"{float(prob_val):.1%}" if isinstance(prob_val, (int, float)) else "N/A"
                 if existing:
                     existing["status"] = "complete"
                     existing["tokens"] = 0
-                    existing["desc"] = f"Generated prediction: {data.get('result', 'Unknown')} ({data.get('prob', 0):.1%})"
+                    existing["desc"] = f"Generated prediction: {data.get('result', 'Unknown')} ({prob_text})"
                     if "startTime" in existing:
                         existing["duration"] = round(time.time() - existing["startTime"], 2)
                 else:
                     self.state["steps"].append({
                         "id": pred_id,
                         "tool": "Predictor Agent",
-                        "desc": f"Generated prediction: {data.get('result', 'Unknown')} ({data.get('prob', 0):.1%})",
+                        "desc": f"Generated prediction: {data.get('result', 'Unknown')} ({prob_text})",
                         "status": "complete",
                         "tokens": 0,
                         "startTime": time.time(),
@@ -380,8 +384,18 @@ def launch():
     # Extract new config args
     config = {
         "id": data.get('id'),
-        "target": data.get('target', 'neuropsychiatric'),
+        "target": data.get('target') or data.get('target_label') or "",
         "control": data.get('control'),
+        "target_label": data.get('target_label'),
+        "control_label": data.get('control_label'),
+        "prediction_type": data.get('prediction_type'),
+        "class_labels": data.get('class_labels'),
+        "regression_outputs": data.get('regression_outputs'),
+        "regression_output": data.get('regression_output'),
+        "prediction_spec": data.get('prediction_spec'),
+        "task_spec_json": data.get('task_spec_json'),
+        "task_spec_file": data.get('task_spec_file'),
+        "agent_instructions": data.get('agent_instructions') or {},
         "backend": data.get('backend'),
         "public_model": data.get('public_model'),
         "public_max_context_tokens": data.get('public_max_context_tokens'),
@@ -935,11 +949,12 @@ class FlaskUI:
         if iteration is not None: data["iteration"] = iteration
         _event_store.add_event("STATUS", data)
 
-    def on_pipeline_start(self, participant_id, target, control=None, participant_dir=None, max_iterations=3, token_config=None):
+    def on_pipeline_start(self, participant_id, target, control=None, prediction_spec=None, participant_dir=None, max_iterations=3, token_config=None):
         _event_store.add_event("INIT", {
             "participant_id": participant_id, 
             "target": target,
             "control": control,
+            "prediction_spec": prediction_spec,
             "max_iterations": max_iterations,
             "config": token_config or {}
         })
@@ -981,22 +996,21 @@ class FlaskUI:
     def on_fusion_complete(self, fusion_data):
         _event_store.add_event("FUSION", fusion_data)
 
-    def on_prediction(self, classification, probability, confidence):
-        # Normalize label for UI (CASE/CONTROL)
-        label = "UNKNOWN"
-        if isinstance(classification, str):
-            upper = classification.upper()
-            if "CONTROL" in upper:
-                label = "CONTROL"
-            elif "CASE" in upper:
-                label = "CASE"
+    def on_prediction(self, classification, probability, confidence, prediction_payload=None):
+        result_text = str(classification or "").strip() or "PREDICTION_READY"
+        label = result_text
         _event_store.add_event("PREDICTION", {
-            "result": classification,
+            "result": result_text,
             "label": label,
             "prob": probability,
-            "confidence": confidence
+            "confidence": confidence,
+            "payload": prediction_payload,
         })
-        self.set_status(f"Predictor Assessment: {label} ({probability:.1%})", stage=4)
+        prob_text = f"{float(probability):.1%}" if isinstance(probability, (int, float)) else "N/A"
+        if isinstance(probability, (int, float)):
+            self.set_status(f"Predictor Assessment: {result_text} ({prob_text})", stage=4)
+        else:
+            self.set_status(f"Predictor Assessment: {result_text}", stage=4)
         
     def on_critic_verdict(
         self,
@@ -1035,13 +1049,14 @@ class FlaskUI:
         })
         self.set_status(f"Critic Evaluation: {verdict}", stage=5)
         
-    def on_pipeline_complete(self, result, probability, iterations, total_duration_secs, total_tokens):
+    def on_pipeline_complete(self, result, probability, iterations, total_duration_secs, total_tokens, prediction_payload=None):
         _event_store.add_event("COMPLETE", {
             "result": result,
             "probability": probability,
             "iterations": iterations,
             "duration": total_duration_secs,
-            "tokens": total_tokens
+            "tokens": total_tokens,
+            "prediction_payload": prediction_payload,
         })
 
 def get_ui(enabled=True):

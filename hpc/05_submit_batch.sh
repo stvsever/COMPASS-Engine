@@ -1,9 +1,9 @@
 #!/bin/bash
 # =============================================================================
-# COMPASS HPC — Step 5: Multi-Disorder Clinical Validation Batch
+# COMPASS HPC — Step 5: Multi-Group Phenotype Validation Batch
 # =============================================================================
 #
-# PURPOSE: Runs balanced cohorts across multiple neuropsychiatric disorder
+# PURPOSE: Runs balanced cohorts across multiple annotated phenotype
 #          groups through the COMPASS pipeline, with crash-safe per-participant
 #          result persistence and optional post-hoc analysis.
 #
@@ -78,8 +78,28 @@ EMBEDDING_MODEL_NAME="${MODELS_DIR}/Qwen_Qwen3-Embedding-8B"
 # Set to "ALL" to use every available participant for each group.
 : "${PER_GROUP_SIZE:=40}"
 
-# Control condition string used for ALL disorders.
-FIXED_CONTROL="possible brain-implicated pathology, but NOT the psychiatric target phenotype"
+# Comparator label used for binary runs (can be overridden via CONTROL_LABEL).
+FIXED_CONTROL="${CONTROL_LABEL:-non-target comparator phenotype profile}"
+
+# Prediction task mode for main.py. This script defaults to binary validation.
+# Supported values mirror main.py: binary, multiclass, regression_univariate,
+# regression_multivariate, hierarchical.
+: "${PREDICTION_TYPE:=binary}"
+# Optional mode-specific extras:
+: "${CLASS_LABELS:=}"
+: "${REGRESSION_OUTPUT:=}"
+: "${REGRESSION_OUTPUTS:=}"
+: "${TASK_SPEC_FILE:=}"
+: "${TASK_SPEC_JSON:=}"
+# Optional runtime guidance passed to COMPASS agents/tools
+: "${GLOBAL_INSTRUCTION:=}"
+: "${ORCHESTRATOR_INSTRUCTION:=}"
+: "${EXECUTOR_INSTRUCTION:=}"
+: "${TOOLS_INSTRUCTION:=}"
+: "${INTEGRATOR_INSTRUCTION:=}"
+: "${PREDICTOR_INSTRUCTION:=}"
+: "${CRITIC_INSTRUCTION:=}"
+: "${COMMUNICATOR_INSTRUCTION:=}"
 
 # Post-hoc analysis toggle
 : "${RUN_ANALYSIS:=1}"
@@ -235,6 +255,9 @@ echo "Date:           $(date)"
 echo "Target File:    ${TARGETS_FILE}"
 echo "Disorder Groups:${DISORDER_GROUPS}"
 echo "Per-Group Size: ${PER_GROUP_SIZE}"
+echo "Prediction Type:${PREDICTION_TYPE}"
+echo "Regression output: ${REGRESSION_OUTPUT:-<none>}"
+echo "Regression outputs: ${REGRESSION_OUTPUTS:-<none>}"
 echo "Requested ctx:  ${MAX_TOKENS} tokens"
 echo "Budget request: agent(in=${MAX_AGENT_INPUT}, out=${MAX_AGENT_OUTPUT}) tool(in=${MAX_TOOL_INPUT}, out=${MAX_TOOL_OUTPUT})"
 echo "Results Dir:    ${RESULTS_DIR}"
@@ -533,8 +556,22 @@ PY
             echo '--- Dataflow preflight audit ---'
             python3 main.py \
                 '${PARTICIPANT_DIR}' \
-                --target '${SPECIFIC_TARGET}' \
-                --control '${FIXED_CONTROL}' \
+                --prediction_type '${PREDICTION_TYPE}' \
+                --target_label '${SPECIFIC_TARGET}' \
+                --control_label '${FIXED_CONTROL}' \
+                ${CLASS_LABELS:+--class_labels '${CLASS_LABELS}'} \
+                ${REGRESSION_OUTPUT:+--regression_output '${REGRESSION_OUTPUT}'} \
+                ${REGRESSION_OUTPUTS:+--regression_outputs '${REGRESSION_OUTPUTS}'} \
+                ${TASK_SPEC_FILE:+--task_spec_file '${TASK_SPEC_FILE}'} \
+                ${TASK_SPEC_JSON:+--task_spec_json '${TASK_SPEC_JSON}'} \
+                ${GLOBAL_INSTRUCTION:+--global_instruction '${GLOBAL_INSTRUCTION}'} \
+                ${ORCHESTRATOR_INSTRUCTION:+--orchestrator_instruction '${ORCHESTRATOR_INSTRUCTION}'} \
+                ${EXECUTOR_INSTRUCTION:+--executor_instruction '${EXECUTOR_INSTRUCTION}'} \
+                ${TOOLS_INSTRUCTION:+--tools_instruction '${TOOLS_INSTRUCTION}'} \
+                ${INTEGRATOR_INSTRUCTION:+--integrator_instruction '${INTEGRATOR_INSTRUCTION}'} \
+                ${PREDICTOR_INSTRUCTION:+--predictor_instruction '${PREDICTOR_INSTRUCTION}'} \
+                ${CRITIC_INSTRUCTION:+--critic_instruction '${CRITIC_INSTRUCTION}'} \
+                ${COMMUNICATOR_INSTRUCTION:+--communicator_instruction '${COMMUNICATOR_INSTRUCTION}'} \
                 --backend local \
                 --model '${MODEL_NAME}' \
                 --max_tokens ${MAX_TOKENS} \
@@ -560,8 +597,22 @@ PY
 
         python3 main.py \
             '${PARTICIPANT_DIR}' \
-            --target '${SPECIFIC_TARGET}' \
-            --control '${FIXED_CONTROL}' \
+            --prediction_type '${PREDICTION_TYPE}' \
+            --target_label '${SPECIFIC_TARGET}' \
+            --control_label '${FIXED_CONTROL}' \
+            ${CLASS_LABELS:+--class_labels '${CLASS_LABELS}'} \
+            ${REGRESSION_OUTPUT:+--regression_output '${REGRESSION_OUTPUT}'} \
+            ${REGRESSION_OUTPUTS:+--regression_outputs '${REGRESSION_OUTPUTS}'} \
+            ${TASK_SPEC_FILE:+--task_spec_file '${TASK_SPEC_FILE}'} \
+            ${TASK_SPEC_JSON:+--task_spec_json '${TASK_SPEC_JSON}'} \
+            ${GLOBAL_INSTRUCTION:+--global_instruction '${GLOBAL_INSTRUCTION}'} \
+            ${ORCHESTRATOR_INSTRUCTION:+--orchestrator_instruction '${ORCHESTRATOR_INSTRUCTION}'} \
+            ${EXECUTOR_INSTRUCTION:+--executor_instruction '${EXECUTOR_INSTRUCTION}'} \
+            ${TOOLS_INSTRUCTION:+--tools_instruction '${TOOLS_INSTRUCTION}'} \
+            ${INTEGRATOR_INSTRUCTION:+--integrator_instruction '${INTEGRATOR_INSTRUCTION}'} \
+            ${PREDICTOR_INSTRUCTION:+--predictor_instruction '${PREDICTOR_INSTRUCTION}'} \
+            ${CRITIC_INSTRUCTION:+--critic_instruction '${CRITIC_INSTRUCTION}'} \
+            ${COMMUNICATOR_INSTRUCTION:+--communicator_instruction '${COMMUNICATOR_INSTRUCTION}'} \
             --backend local \
             --model '${MODEL_NAME}' \
             --max_tokens ${MAX_TOKENS} \

@@ -5,6 +5,7 @@ COMPASS Clinical Validation — Detailed Performance Analysis.
 Generates comprehensive statistical analysis of COMPASS predictions against
 annotated ground-truth labels, including:
   - Binary classification metrics (per-disorder + integrated)
+  - Generalized analyses for multiclass, regression, and hierarchical tasks
   - Failure analysis
   - Critic composite score vs. prediction accuracy correlation
   - Probability calibration analysis
@@ -71,6 +72,11 @@ from compute_confusion_matrix import (
     extract_prediction,
     collect_results,
     compute_metrics,
+    load_generalized_annotations,
+    extract_generalized_prediction,
+    _compute_multiclass_metrics,
+    _compute_regression_metrics,
+    _compute_hierarchical_metrics,
 )
 
 
@@ -857,21 +863,132 @@ def run_analysis(results_dir: str, targets_file: str, output_dir: str,
     )
 
 
+def run_generalized_analysis(
+    results_dir: str,
+    annotations_json: str,
+    output_dir: str,
+    prediction_type: str,
+):
+    """Run generalized non-binary analysis and emit JSON/TXT summaries."""
+    annotations = load_generalized_annotations(annotations_json)
+    rows = []
+    for participant_dir in sorted(Path(results_dir).iterdir()):
+        if not participant_dir.is_dir():
+            continue
+        eid_match = re.search(r"ID(\d+)", participant_dir.name)
+        if not eid_match:
+            continue
+        eid = eid_match.group(1)
+        truth = annotations.get(eid)
+        if truth is None:
+            continue
+        pred = extract_generalized_prediction(participant_dir)
+        if pred is None:
+            continue
+        rows.append({"eid": eid, "truth": truth, "pred": pred})
+
+    if not rows:
+        print("  ⚠ No overlapping prediction/annotation rows found for generalized analysis.")
+        return
+
+    payload = {"prediction_type": prediction_type, "n_rows": len(rows)}
+    if prediction_type == "multiclass":
+        eval_rows = []
+        for row in rows:
+            truth = row["truth"]
+            eval_rows.append({
+                "actual": truth.get("label") or truth.get("classification"),
+                "predicted": row["pred"].get("predicted_label"),
+            })
+        payload["classification_metrics"] = _compute_multiclass_metrics(eval_rows)
+    elif prediction_type in {"regression_univariate", "regression_multivariate"}:
+        eval_rows = []
+        expected_outputs = None
+        for row in rows:
+            truth = row["truth"]
+            actual_values = truth.get("regression") if isinstance(truth.get("regression"), dict) else {}
+            if not actual_values and "value" in truth:
+                key = str(truth.get("output_name") or "value")
+                actual_values = {key: truth.get("value")}
+            if expected_outputs is None:
+                expected_outputs = sorted(actual_values.keys())
+            eval_rows.append({
+                "actual_values": actual_values,
+                "predicted_values": row["pred"].get("regression_values") or {},
+            })
+        payload["regression_metrics"] = _compute_regression_metrics(eval_rows, expected_outputs=expected_outputs)
+    else:
+        eval_rows = []
+        for row in rows:
+            truth_nodes = row["truth"].get("nodes") if isinstance(row["truth"].get("nodes"), dict) else {}
+            pred_nodes = row["pred"].get("nodes") if isinstance(row["pred"].get("nodes"), dict) else {}
+            eval_rows.append({"truth_nodes": truth_nodes, "pred_nodes": pred_nodes})
+        payload["hierarchical_metrics"] = _compute_hierarchical_metrics(eval_rows)
+
+    json_path = os.path.join(output_dir, f"detailed_analysis_{prediction_type}.json")
+    with open(json_path, "w") as f:
+        json.dump(payload, f, indent=2)
+
+    txt_path = os.path.join(output_dir, f"detailed_analysis_{prediction_type}.txt")
+    with open(txt_path, "w") as f:
+        f.write(f"Prediction type: {prediction_type}\n")
+        f.write(f"Rows evaluated: {len(rows)}\n\n")
+        f.write(json.dumps(payload, indent=2))
+        f.write("\n\n")
+        f.write("Note: XAI metrics are excluded for non-binary task modes.\n")
+
+    print(f"  ✓ Saved generalized analysis: {json_path}")
+    print(f"  ✓ Saved generalized summary: {txt_path}")
+
+
 def main():
     parser = argparse.ArgumentParser(
         description="COMPASS Validation: Detailed Performance Analysis",
     )
     parser.add_argument("--results_dir", required=True,
                         help="Path to participant_runs directory")
-    parser.add_argument("--targets_file", required=True,
-                        help="Path to ground-truth annotations file")
+    parser.add_argument("--targets_file", required=False, default="",
+                        help="Path to ground-truth annotations file (binary mode)")
     parser.add_argument("--output_dir", required=True,
                         help="Output directory for analysis files")
     parser.add_argument("--disorder_groups", default="",
                         help="Comma-separated disorder groups for per-group analysis")
+    parser.add_argument(
+        "--prediction_type",
+        default="binary",
+        choices=["binary", "multiclass", "regression_univariate", "regression_multivariate", "hierarchical"],
+        help="Task type for analysis",
+    )
+    parser.add_argument(
+        "--annotations_json",
+        default="",
+        help="Generalized annotation JSON (required for non-binary modes)",
+    )
     args = parser.parse_args()
 
     os.makedirs(args.output_dir, exist_ok=True)
+    prediction_type = str(args.prediction_type or "binary").strip().lower()
+
+    if prediction_type != "binary":
+        if not args.annotations_json:
+            print("ERROR: --annotations_json is required for non-binary analysis.")
+            sys.exit(1)
+        print(f"\n═══ Running Generalized Analysis ({prediction_type}) ═══")
+        run_generalized_analysis(
+            results_dir=args.results_dir,
+            annotations_json=args.annotations_json,
+            output_dir=args.output_dir,
+            prediction_type=prediction_type,
+        )
+        print(
+            "\n✓ Generalized detailed analysis complete.\n"
+            "Note: XAI metrics are not included for non-binary prediction types."
+        )
+        return
+
+    if not args.targets_file:
+        print("ERROR: --targets_file is required for binary detailed analysis.")
+        sys.exit(1)
 
     # ── Integrated analysis ──
     print("\n═══ Running Integrated Analysis ═══")

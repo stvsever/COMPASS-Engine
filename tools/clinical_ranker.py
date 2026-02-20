@@ -16,7 +16,7 @@ class ClinicalRelevanceRanker(BaseTool):
     Ranks features by clinical relevance for prediction.
     
     Uses medical knowledge to prioritize features that are
-    most informative for neuropsychiatric/neurologic disorders.
+    most informative for target phenotype/phenotype comparator disorders.
     """
     
     TOOL_NAME = "ClinicalRelevanceRanker"
@@ -36,7 +36,7 @@ class ClinicalRelevanceRanker(BaseTool):
     
     def _build_prompt(self, input_data: Dict[str, Any]) -> str:
         """Build the clinical ranking prompt."""
-        target = input_data.get("target_condition", "neuropsychiatric")
+        target = input_data.get("target_condition", "target phenotype")
         control = input_data.get("control_condition", "")
         
         # Get features from dependency outputs or hierarchical deviation
@@ -65,7 +65,7 @@ class ClinicalRelevanceRanker(BaseTool):
             "\n## TASK",
             f"Assess clinical relevance signal for {target} prediction.",
             "Consider established biomarkers and clinical evidence.",
-            "Focus on case-vs-control discrimination quality, uncertainty, and practical predictor guidance.",
+            "Focus on task-output discrimination quality (binary: case-vs-control), uncertainty, and practical predictor guidance.",
             "Return detailed free-text synthesis only; do not return per-feature ranked lists."
         ]
         
@@ -234,16 +234,16 @@ class ClinicalRelevanceRanker(BaseTool):
     
     def _get_clinical_guidelines(self, target: str) -> str:
         """Get condition-specific clinical guidelines."""
-        if target == "neuropsychiatric":
+        if target == "target phenotype":
             return """
-For neuropsychiatric conditions, prioritize:
+For target phenotype conditions, prioritize:
 - HIGH: Limbic volumes, prefrontal cortex, stress markers, cognitive tests
 - MEDIUM: Global brain measures, inflammatory markers
 - LOWER: Motor cortex, non-specific markers
 """
         else:
             return """
-For neurologic conditions, prioritize:
+For phenotype comparator conditions, prioritize:
 - HIGH: Global atrophy, white matter lesions, genetic variants, CSF markers
 - MEDIUM: Cognitive performance, metabolic factors
 - LOWER: Mood measures, social factors
@@ -341,11 +341,11 @@ For neurologic conditions, prioritize:
         if not case_control_discrimination:
             if relevance_summary:
                 case_control_discrimination = (
-                    f"Evidence strength profile ({relevance_summary}) supports weighting convergent clinically plausible signals over isolated biomarker outliers when separating CASE from CONTROL."
+                    f"Evidence strength profile ({relevance_summary}) supports weighting convergent clinically plausible signals over isolated biomarker outliers when separating plausible task outputs."
                 )
             else:
                 case_control_discrimination = (
-                    "Differentiate CASE vs CONTROL by requiring coherent target-aligned evidence across clinical narrative, deviations, and non-numerical context; favor CONTROL under sparse or contradictory evidence."
+                    "Differentiate plausible outputs by requiring coherent target-aligned evidence across clinical narrative, deviations, and non-numerical context; in binary mode, favor CONTROL under sparse or contradictory evidence."
                 )
 
         predictor_guidance = _first_valid(

@@ -35,7 +35,7 @@ class DifferentialDiagnosis(BaseTool):
     
     def _build_prompt(self, input_data: Dict[str, Any]) -> str:
         """Build the differential diagnosis prompt."""
-        target = input_data.get("target_condition", "neuropsychiatric")
+        target = input_data.get("target_condition", "target phenotype")
         control = input_data.get("control_condition", "")
         hierarchical_deviation = input_data.get("hierarchical_deviation", {})
         data_overview = input_data.get("data_overview", {})

@@ -1,0 +1,114 @@
+{
+  "participant_id": "SUBJ_005_PSEUDO",
+  "target_condition": "Personality",
+  "control_condition": "",
+  "prediction_task_root_mode": "multivariate_regression",
+  "prediction_task_node_count": 3,
+  "coverage_summary": {
+    "all_count": 39,
+    "processed_count": 0,
+    "unprocessed_count": 39,
+    "covered_count": 39,
+    "missing_count": 0,
+    "forced_raw_count": 0
+  },
+  "predictor_payload_tokens": 11858,
+  "chunk_budget_tokens": 60000,
+  "chunk_count": 1,
+  "section_stats": [
+    {
+      "name": "non_numerical_data_raw",
+      "tokens": 493,
+      "feature_key_count": 0
+    },
+    {
+      "name": "hierarchical_deviation_raw",
+      "tokens": 2051,
+      "feature_key_count": 0
+    },
+    {
+      "name": "data_overview",
+      "tokens": 304,
+      "feature_key_count": 0
+    },
+    {
+      "name": "phenotype_representation",
+      "tokens": 2,
+      "feature_key_count": 0
+    },
+    {
+      "name": "feature_synthesizer",
+      "tokens": 2,
+      "feature_key_count": 0
+    },
+    {
+      "name": "differential_diagnosis",
+      "tokens": 2,
+      "feature_key_count": 0
+    },
+    {
+      "name": "clinical_relevance_ranker",
+      "tokens": 2,
+      "feature_key_count": 0
+    },
+    {
+      "name": "unprocessed_multimodal_raw",
+      "tokens": 3087,
+      "feature_key_count": 39
+    },
+    {
+      "name": "multimodal_narrative",
+      "tokens": 2,
+      "feature_key_count": 0
+    },
+    {
+      "name": "unimodal_outputs",
+      "tokens": 2,
+      "feature_key_count": 0
+    },
+    {
+      "name": "remaining_tool_outputs",
+      "tokens": 2,
+      "feature_key_count": 0
+    },
+    {
+      "name": "auxiliary",
+      "tokens": 145,
+      "feature_key_count": 0
+    },
+    {
+      "name": "processed_multimodal_raw_low_priority",
+      "tokens": 1,
+      "feature_key_count": 0
+    },
+    {
+      "name": "rag_fill",
+      "tokens": 1,
+      "feature_key_count": 0
+    }
+  ],
+  "chunk_stats": [
+    {
+      "chunk_index": 1,
+      "sections": [
+        "clinical_relevance_ranker",
+        "unprocessed_multimodal_raw",
+        "multimodal_narrative",
+        "unimodal_outputs",
+        "remaining_tool_outputs",
+        "auxiliary",
+        "processed_multimodal_raw_low_priority",
+        "rag_fill"
+      ],
+      "tokens": 3930
+    }
+  ],
+  "predictor_input_mode": "RAW_PASS_THROUGH",
+  "assertions": {
+    "predictor_input_mode_present": true,
+    "chunk_count_non_negative": true,
+    "coverage_summary_present": true,
+    "task_mode_present": true
+  },
+  "assertions_ok": true
+}

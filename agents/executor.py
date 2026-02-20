@@ -12,6 +12,7 @@ from .integrator import Integrator
 from ..utils.core.plan_executor import PlanExecutor
 from ..utils.core.data_loader import ParticipantData
 from ..data.models.execution_plan import ExecutionPlan, PlanExecutionResult
+from ..data.models.prediction_task import PredictionTaskSpec
 from ..utils.core.multimodal_coverage import (
     feature_key_set,
     feature_map_by_key,
@@ -45,7 +46,9 @@ class Executor(BaseAgent):
         plan: ExecutionPlan,
         participant_data: ParticipantData,
         target_condition: str,
-        control_condition: str
+        control_condition: str,
+        prediction_task_spec: Optional[PredictionTaskSpec] = None,
+        agent_instructions: Optional[Dict[str, str]] = None,
     ) -> Dict[str, Any]:
         """
         Execute the plan and return fused outputs.
@@ -62,7 +65,13 @@ class Executor(BaseAgent):
         self._log_start(f"executing plan {plan.plan_id}")
         
         # Build execution context
-        context = self._build_context(participant_data, target_condition, control_condition)
+        context = self._build_context(
+            participant_data,
+            target_condition,
+            control_condition,
+            prediction_task_spec=prediction_task_spec,
+            agent_instructions=agent_instructions,
+        )
         context["iteration"] = getattr(plan, "iteration", 1)
         
         print(f"[Executor] Plan ID: {plan.plan_id}")
@@ -81,6 +90,11 @@ class Executor(BaseAgent):
         
         # Fuse outputs via Integrator Agent
         print(f"\n[Executor] Handing step outputs to Integrator Agent...")
+        prediction_task_payload = (
+            prediction_task_spec.model_dump()
+            if prediction_task_spec is not None and hasattr(prediction_task_spec, "model_dump")
+            else (prediction_task_spec.dict() if prediction_task_spec is not None and hasattr(prediction_task_spec, "dict") else None)
+        )
         
         from ..frontend.compass_ui import get_ui
         ui = get_ui()
@@ -102,6 +116,13 @@ class Executor(BaseAgent):
                 context=context,
                 target_condition=target_condition,
                 control_condition=control_condition,
+                prediction_task_spec=prediction_task_payload,
+                runtime_instruction="\n\n".join(
+                    [s for s in [
+                        str((agent_instructions or {}).get("global") or "").strip(),
+                        str((agent_instructions or {}).get("integrator") or "").strip(),
+                    ] if s]
+                ),
             )
         except Exception as e:
             if ui:
@@ -129,7 +150,10 @@ class Executor(BaseAgent):
             non_numerical_data=context.get("non_numerical_data") or "",
             target_condition=target_condition,
             control_condition=control_condition,
+            prediction_task_spec=prediction_task_payload,
             iteration=int(context.get("iteration") or 1),
+            tool_runtime_instruction=str(context.get("tool_runtime_instruction") or ""),
+            executor_runtime_instruction=str(context.get("executor_runtime_instruction") or ""),
         )
 
         if ui:
@@ -151,7 +175,7 @@ class Executor(BaseAgent):
 
         # Generate prediction status
         if ui:
-            ui.set_status("Predictor evaluating CASE vs CONTROL...", stage=4)
+            ui.set_status("Predictor generating final phenotype outputs...", stage=4)
         
         # Build output
         output = {
@@ -177,6 +201,11 @@ class Executor(BaseAgent):
             "participant_id": participant_data.participant_id,
             "target_condition": target_condition,
             "control_condition": control_condition,
+            "prediction_task_spec": (
+                prediction_task_spec.model_dump()
+                if prediction_task_spec is not None and hasattr(prediction_task_spec, "model_dump")
+                else (prediction_task_spec.dict() if prediction_task_spec is not None else None)
+            ),
             "domains_processed": plan.priority_domains,
             "total_tokens_used": execution_result.total_tokens_used,
             "coverage_ledger": coverage_ledger,
@@ -299,7 +328,9 @@ class Executor(BaseAgent):
         self,
         participant_data: ParticipantData,
         target_condition: str,
-        control_condition: str
+        control_condition: str,
+        prediction_task_spec: Optional[PredictionTaskSpec] = None,
+        agent_instructions: Optional[Dict[str, str]] = None,
     ) -> Dict[str, Any]:
         """Build execution context with all required data."""
         # Convert hierarchical deviation to dict for serialization
@@ -345,10 +376,35 @@ class Executor(BaseAgent):
             "participant_id": participant_data.participant_id,
             "target_condition": target_condition,
             "control_condition": control_condition,
+            "prediction_task_spec": (
+                prediction_task_spec.model_dump()
+                if prediction_task_spec is not None and hasattr(prediction_task_spec, "model_dump")
+                else (prediction_task_spec.dict() if prediction_task_spec is not None else None)
+            ),
             "data_overview": self._serialize_data_overview(participant_data.data_overview),
             "hierarchical_deviation": hierarchical_deviation_dict,
             "non_numerical_data": non_numerical_str,
             "multimodal_data": multimodal_dict,
+            "tool_runtime_instruction": "\n\n".join(
+                [
+                    s
+                    for s in [
+                        str((agent_instructions or {}).get("global") or "").strip(),
+                        str((agent_instructions or {}).get("tools") or "").strip(),
+                    ]
+                    if s
+                ]
+            ),
+            "executor_runtime_instruction": "\n\n".join(
+                [
+                    s
+                    for s in [
+                        str((agent_instructions or {}).get("global") or "").strip(),
+                        str((agent_instructions or {}).get("executor") or "").strip(),
+                    ]
+                    if s
+                ]
+            ),
         }
         
         return context

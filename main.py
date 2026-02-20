@@ -19,8 +19,18 @@ import logging
 
 logger = logging.getLogger(__name__)
 
-# Default control condition (non-case comparator)
-DEFAULT_CONTROL_CONDITION = "brain-implicated pathology, but NOT psychiatric"
+# Default control condition (non-target comparator)
+DEFAULT_CONTROL_CONDITION = "non-target comparator phenotype profile"
+AGENT_INSTRUCTION_KEYS = (
+    "global",
+    "orchestrator",
+    "executor",
+    "tools",
+    "integrator",
+    "predictor",
+    "critic",
+    "communicator",
+)
 
 # Add parent to path for imports
 sys.path.insert(0, str(Path(__file__).parent.parent))
@@ -43,6 +53,13 @@ from multi_agent_system.utils.compass_logging.execution_logger import ExecutionL
 from multi_agent_system.utils.compass_logging.decision_trace import DecisionTrace
 from multi_agent_system.utils.compass_logging.patient_report import PatientReportGenerator
 from multi_agent_system.data.models.prediction_result import Verdict
+from multi_agent_system.data.models.prediction_task import (
+    PredictionTaskSpec,
+    PredictionMode,
+    build_binary_task_spec,
+    build_task_spec_from_flat_args,
+    parse_csv_list,
+)
 from multi_agent_system.frontend.compass_ui import get_ui, reset_ui, start_ui_loop
 from multi_agent_system.utils.participant_resolver import resolve_participant_dir
 
@@ -317,6 +334,199 @@ def _apply_explainability_overrides(settings, args: argparse.Namespace) -> None:
         settings.explainability.hybrid_temperature = float(args.xai_hybrid_temperature)
 
 
+def _parse_task_spec_payload(raw_payload: Any) -> PredictionTaskSpec:
+    if isinstance(raw_payload, PredictionTaskSpec):
+        return raw_payload
+    if isinstance(raw_payload, dict):
+        return PredictionTaskSpec(**raw_payload)
+    if isinstance(raw_payload, str):
+        text = raw_payload.strip()
+        if not text:
+            raise ValueError("prediction task spec payload is empty")
+        return PredictionTaskSpec(**json.loads(text))
+    raise ValueError(f"Unsupported prediction task spec payload type: {type(raw_payload).__name__}")
+
+
+def _resolve_prediction_task_spec(
+    *,
+    prediction_type: Optional[str],
+    target_label: str,
+    control_label: str,
+    class_labels: Optional[List[str]] = None,
+    regression_outputs: Optional[List[str]] = None,
+    task_spec_json: Optional[str] = None,
+    task_spec_file: Optional[str] = None,
+    task_spec_payload: Optional[Dict[str, Any]] = None,
+) -> PredictionTaskSpec:
+    if task_spec_payload is not None:
+        return _parse_task_spec_payload(task_spec_payload)
+
+    if task_spec_json and str(task_spec_json).strip():
+        return _parse_task_spec_payload(task_spec_json)
+
+    if task_spec_file and str(task_spec_file).strip():
+        path = Path(str(task_spec_file)).expanduser().resolve()
+        if not path.exists():
+            raise FileNotFoundError(f"Task spec file not found: {path}")
+        with open(path, "r") as f:
+            payload = json.load(f)
+        return PredictionTaskSpec(**payload)
+
+    mode = str(prediction_type or "binary").strip().lower()
+    if mode == "hierarchical":
+        raise ValueError("prediction_type=hierarchical requires --task_spec_json or --task_spec_file")
+
+    return build_task_spec_from_flat_args(
+        prediction_type=mode,
+        target_label=target_label,
+        control_label=control_label,
+        class_labels=list(class_labels or []),
+        regression_outputs=list(regression_outputs or []),
+    )
+
+
+def _task_spec_to_legacy_labels(task_spec: PredictionTaskSpec) -> Tuple[str, str]:
+    target_label, control_label = task_spec.legacy_target_control()
+    target = str(target_label or "Target Phenotype").strip() or "Target Phenotype"
+    root_mode = task_spec.root.mode
+    if root_mode == PredictionMode.BINARY_CLASSIFICATION:
+        control = str(control_label or DEFAULT_CONTROL_CONDITION).strip() or DEFAULT_CONTROL_CONDITION
+    else:
+        control = str(control_label or "").strip()
+    return target, control
+
+
+def _align_binary_task_spec_labels(
+    task_spec: PredictionTaskSpec,
+    *,
+    target_label: str,
+    control_label: str,
+) -> PredictionTaskSpec:
+    """
+    Keep binary class labels aligned with explicit runtime labels.
+
+    This prevents stale UI payload defaults (e.g., CASE/CONTROL from cached JS)
+    from overriding user-entered binary labels.
+    """
+    if task_spec.root.mode != PredictionMode.BINARY_CLASSIFICATION:
+        return task_spec
+    target = str(target_label or "").strip()
+    control = str(control_label or "").strip()
+    if not target or not control:
+        return task_spec
+    current = list(task_spec.root.class_labels or [])
+    if len(current) == 2 and current[0] == target and current[1] == control:
+        return task_spec
+    payload = task_spec.model_dump() if hasattr(task_spec, "model_dump") else task_spec.dict()
+    payload.setdefault("root", {})
+    payload["root"]["display_name"] = target
+    payload["root"]["class_labels"] = [target, control]
+    return PredictionTaskSpec(**payload)
+
+
+def _normalize_agent_instructions(raw: Optional[Dict[str, Any]]) -> Dict[str, str]:
+    out = {key: "" for key in AGENT_INSTRUCTION_KEYS}
+    if not isinstance(raw, dict):
+        return out
+    for key in AGENT_INSTRUCTION_KEYS:
+        out[key] = str(raw.get(key) or "").strip()
+    return out
+
+
+def _combine_instruction(global_instruction: str, scoped_instruction: str) -> str:
+    global_text = str(global_instruction or "").strip()
+    scoped_text = str(scoped_instruction or "").strip()
+    if global_text and scoped_text:
+        return f"{global_text}\n\n{scoped_text}"
+    return scoped_text or global_text
+
+
+def _describe_task_spec_for_launch(task_spec: PredictionTaskSpec) -> str:
+    root = task_spec.root
+    mode = root.mode
+    if mode == PredictionMode.BINARY_CLASSIFICATION:
+        labels = list(root.class_labels or [])
+        if len(labels) == 2:
+            return f"{labels[0]} vs {labels[1]}"
+        return str(root.display_name or root.node_id)
+    if mode == PredictionMode.MULTICLASS_CLASSIFICATION:
+        labels = ", ".join(list(root.class_labels or [])[:6])
+        return f"{root.display_name}: classes=[{labels}]"
+    outputs = list(root.regression_outputs or [])
+    if not outputs:
+        return str(root.display_name or root.node_id)
+    if len(outputs) == 1:
+        return f"{root.display_name}: {outputs[0]}"
+    preview = ", ".join(outputs[:4])
+    if len(outputs) > 4:
+        preview = f"{preview}, +{len(outputs) - 4} more"
+    return f"{root.display_name}: {preview}"
+
+
+def _prediction_primary_label(prediction: Any) -> str:
+    root = getattr(prediction, "root_prediction", None)
+    if root is not None:
+        mode = getattr(root, "mode", None)
+        if mode in (PredictionMode.BINARY_CLASSIFICATION, PredictionMode.MULTICLASS_CLASSIFICATION):
+            cls = getattr(root, "classification", None)
+            label = str(getattr(cls, "predicted_label", "") or "").strip()
+            if label:
+                return label
+            return str(getattr(root, "node_id", "classification_output"))
+        reg = getattr(root, "regression", None)
+        values = getattr(reg, "values", {}) if reg is not None else {}
+        if isinstance(values, dict) and values:
+            if len(values) == 1:
+                key, value = next(iter(values.items()))
+                try:
+                    return f"{key}: {float(value):.3f}"
+                except Exception:
+                    return f"{key}: {value}"
+            rows = []
+            for key, value in list(values.items())[:3]:
+                try:
+                    rows.append(f"{key}: {float(value):.3f}")
+                except Exception:
+                    rows.append(f"{key}: {value}")
+            if len(values) > 3:
+                rows.append(f"+{len(values) - 3} more")
+            return "; ".join(rows)
+        return str(getattr(root, "node_id", "regression_output"))
+    if getattr(prediction, "binary_classification", None) is not None:
+        return str(prediction.binary_classification.value)
+    return "NON_BINARY"
+
+
+def _prediction_display_probability(prediction: Any) -> Optional[float]:
+    root = getattr(prediction, "root_prediction", None)
+    if root is not None:
+        mode = getattr(root, "mode", None)
+        if mode in (PredictionMode.BINARY_CLASSIFICATION, PredictionMode.MULTICLASS_CLASSIFICATION):
+            cls = getattr(root, "classification", None)
+            probs = getattr(cls, "probabilities", {}) if cls is not None else {}
+            predicted_label = str(getattr(cls, "predicted_label", "") or "").strip()
+            if isinstance(probs, dict) and probs:
+                if predicted_label in probs:
+                    try:
+                        return max(0.0, min(1.0, float(probs[predicted_label])))
+                    except Exception:
+                        pass
+                try:
+                    top_prob = max(float(v) for v in probs.values())
+                    return max(0.0, min(1.0, top_prob))
+                except Exception:
+                    pass
+    score = getattr(prediction, "probability_score", None)
+    if isinstance(score, (int, float)):
+        return float(score)
+    if root is None:
+        return None
+    confidence_score = getattr(root, "confidence_score", None)
+    if isinstance(confidence_score, (int, float)):
+        return max(0.0, min(1.0, float(confidence_score)))
+    return None
+
+
 def _generate_deep_phenotype_report(
     *,
     communicator: Communicator,
@@ -541,6 +751,8 @@ def run_compass_pipeline(
     participant_dir: Path,
     target_condition: str,
     control_condition: str = DEFAULT_CONTROL_CONDITION,
+    prediction_task_spec: Optional[PredictionTaskSpec] = None,
+    agent_instructions: Optional[Dict[str, str]] = None,
     max_iterations: int = 3,
     verbose: bool = True,
     interactive_ui: bool = False,
@@ -554,8 +766,9 @@ def run_compass_pipeline(
     
     Args:
         participant_dir: Path to participant data directory
-        target_condition: Target phenotype string
-        control_condition: Control comparator string
+        target_condition: Target phenotype string (legacy compatibility)
+        control_condition: Control comparator string (legacy compatibility)
+        prediction_task_spec: Canonical task specification (hierarchical/mixed)
         max_iterations: Maximum orchestration iterations
         verbose: Enable verbose output
     
@@ -566,6 +779,14 @@ def run_compass_pipeline(
     _sync_component_token_budgets(settings)
     _sync_role_token_limits_with_budgets(settings)
     start_time = datetime.now()
+
+    if prediction_task_spec is None:
+        prediction_task_spec = build_binary_task_spec(
+            target_label=target_condition,
+            control_label=control_condition,
+        )
+    target_condition, control_condition = _task_spec_to_legacy_labels(prediction_task_spec)
+    runtime_agent_instructions = _normalize_agent_instructions(agent_instructions)
     
     # Initialize UI
     ui = get_ui(enabled=interactive_ui)
@@ -576,6 +797,11 @@ def run_compass_pipeline(
             participant_id=participant_dir.name,
             target=target_condition,
             control=control_condition,
+            prediction_spec=(
+                prediction_task_spec.model_dump()
+                if hasattr(prediction_task_spec, "model_dump")
+                else prediction_task_spec.dict()
+            ),
             participant_dir=str(participant_dir),
             max_iterations=max_iterations
         )
@@ -620,7 +846,11 @@ def run_compass_pipeline(
     # Initialize logging
     exec_logger = ExecutionLogger(participant_id, verbose=verbose)
     decision_trace = DecisionTrace(participant_id)
-    exec_logger.log_pipeline_start(target_condition, control_condition)
+    exec_logger.log_pipeline_start(
+        target_condition=target_condition,
+        control_condition=control_condition,
+        prediction_task_mode=prediction_task_spec.root.mode.value if prediction_task_spec is not None else None,
+    )
     
     # Initialize token manager
     token_manager = TokenManager()
@@ -680,6 +910,21 @@ def run_compass_pipeline(
     predictor = Predictor(token_manager=token_manager)
     critic = Critic(token_manager=token_manager)
     communicator = Communicator(token_manager=token_manager)
+    orchestrator.set_runtime_instruction(
+        _combine_instruction(runtime_agent_instructions.get("global", ""), runtime_agent_instructions.get("orchestrator", ""))
+    )
+    predictor.set_runtime_instruction(
+        _combine_instruction(runtime_agent_instructions.get("global", ""), runtime_agent_instructions.get("predictor", ""))
+    )
+    critic.set_runtime_instruction(
+        _combine_instruction(runtime_agent_instructions.get("global", ""), runtime_agent_instructions.get("critic", ""))
+    )
+    communicator.set_runtime_instruction(
+        _combine_instruction(runtime_agent_instructions.get("global", ""), runtime_agent_instructions.get("communicator", ""))
+    )
+    executor.integrator.set_runtime_instruction(
+        _combine_instruction(runtime_agent_instructions.get("global", ""), runtime_agent_instructions.get("integrator", ""))
+    )
     
     # Main loop: Orchestrator -> Executor -> Predictor -> Critic
     iteration = 1
@@ -712,6 +957,7 @@ def run_compass_pipeline(
             participant_data=participant_data,
             target_condition=target_condition,
             control_condition=control_condition,
+            prediction_task_spec=prediction_task_spec,
             previous_feedback=previous_feedback,
             iteration=iteration
         )
@@ -741,6 +987,8 @@ def run_compass_pipeline(
             participant_data=participant_data,
             target_condition=target_condition,
             control_condition=control_condition,
+            prediction_task_spec=prediction_task_spec,
+            agent_instructions=runtime_agent_instructions,
         )
         print(f"[Executor] Completed in {int((time.time() - executor_started) * 1000)}ms")
         final_executor_output = executor_output
@@ -763,12 +1011,13 @@ def run_compass_pipeline(
             ui.on_fusion_complete(executor_output["predictor_input"])
 
         # Step 5: Predictor makes prediction
-        if interactive_ui: ui.set_status("Predictor evaluating CASE vs CONTROL...", stage=4)
+        if interactive_ui:
+            ui.set_status("Predictor generating phenotype outputs...", stage=4)
         if interactive_ui:
             ui.on_step_start(
                 step_id=910 + iteration,
                 tool_name="Predictor Agent",
-                description="Evaluating integrated evidence for final CASE/CONTROL prediction...",
+                description="Evaluating integrated evidence for final phenotype prediction...",
                 stage=4,
             )
 
@@ -776,6 +1025,7 @@ def run_compass_pipeline(
             executor_output=executor_output,
             target_condition=target_condition,
             control_condition=control_condition,
+            prediction_task_spec=prediction_task_spec,
             iteration=iteration
         )
         print(f"[Predictor] Completed for iteration {iteration}")
@@ -784,26 +1034,36 @@ def run_compass_pipeline(
             executor_output=executor_output,
             target_condition=target_condition,
             control_condition=control_condition,
+            prediction_task_spec=prediction_task_spec,
             iteration=iteration,
+            agent_instructions=runtime_agent_instructions,
         )
         executor_output["dataflow_summary"] = dataflow_summary
         exec_logger.log_dataflow_summary(dataflow_summary, iteration=iteration)
         
+        primary_label = _prediction_primary_label(prediction)
+        display_probability = _prediction_display_probability(prediction)
         exec_logger.log_predictor({
-            "classification": prediction.binary_classification.value,
-            "probability": prediction.probability_score
+            "classification": primary_label,
+            "probability": display_probability,
+            "prediction_task_mode": (
+                prediction_task_spec.root.mode.value if prediction_task_spec is not None else None
+            ),
         })
         
         if interactive_ui:
             ui.on_prediction(
-                classification=prediction.binary_classification.value,
-                probability=prediction.probability_score,
-                confidence=prediction.confidence_level.value
+                classification=primary_label,
+                probability=display_probability,
+                confidence=prediction.confidence_level.value,
+                prediction_payload=(
+                    prediction.model_dump() if hasattr(prediction, "model_dump") else prediction.dict()
+                ),
             )
         
         decision_trace.record_prediction(
-            classification=prediction.binary_classification.value,
-            probability=prediction.probability_score,
+            classification=primary_label,
+            probability=display_probability or 0.0,
             key_findings=[f.finding for f in prediction.key_findings[:3]],
             reasoning=prediction.clinical_summary[:500]
         )
@@ -821,6 +1081,7 @@ def run_compass_pipeline(
             hierarchical_deviation=participant_data.hierarchical_deviation.model_dump(),
             non_numerical_data=participant_data.non_numerical_data.raw_text,
             control_condition=control_condition,
+            prediction_task_spec=prediction_task_spec,
         )
         print(
             f"[Critic] Verdict={evaluation.verdict.value} "
@@ -835,7 +1096,7 @@ def run_compass_pipeline(
         decision_trace.record_critic_verdict(
             verdict=evaluation.verdict.value,
             checklist_passed=evaluation.checklist.pass_count,
-            checklist_total=7,
+            checklist_total=evaluation.checklist.total_count,
             reasoning=evaluation.reasoning[:500]
         )
 
@@ -846,6 +1107,8 @@ def run_compass_pipeline(
                 checklist_data = evaluation.checklist.dict()
             else:
                 checklist_data = {}
+            checklist_data["pass_count"] = evaluation.checklist.pass_count
+            checklist_data["total_count"] = evaluation.checklist.total_count
             
             improvements = []
             for s in evaluation.improvement_suggestions[:5]:
@@ -864,7 +1127,7 @@ def run_compass_pipeline(
                 verdict=evaluation.verdict.value,
                 confidence=evaluation.confidence_in_verdict,
                 checklist_passed=evaluation.checklist.pass_count,
-                checklist_total=7,
+                checklist_total=evaluation.checklist.total_count,
                 summary=evaluation.concise_summary or evaluation.reasoning[:240],
                 checklist=checklist_data,
                 weaknesses=evaluation.weaknesses[:5],
@@ -929,6 +1192,7 @@ def run_compass_pipeline(
         participant_id=participant_id,
         target_condition=target_condition,
         control_condition=control_condition,
+        prediction_task_spec=prediction_task_spec,
         selected_attempt=selected_attempt,
         feature_space=feature_space,
         output_dir=base_output_dir,
@@ -958,6 +1222,12 @@ def run_compass_pipeline(
         "dataflow_summary": (final_executor_output or {}).get("dataflow_summary", {}),
         "target_condition": target_condition,
         "control_condition": control_condition,
+        "prediction_task_spec": (
+            prediction_task_spec.model_dump()
+            if prediction_task_spec is not None and hasattr(prediction_task_spec, "model_dump")
+            else (prediction_task_spec.dict() if prediction_task_spec is not None else None)
+        ),
+        "agent_instructions": runtime_agent_instructions,
         "tokens_used": token_usage.get("total_tokens", 0),
         "domains_processed": (final_plan.priority_domains if final_plan else plan.priority_domains),
         "detailed_logs": detailed_logs_collection, # We need to populate this
@@ -987,10 +1257,19 @@ def run_compass_pipeline(
     duration_so_far = (datetime.now() - start_time).total_seconds()
 
     # Generate Performance Report
+    final_binary_label = _prediction_primary_label(final_prediction)
+    final_probability = final_prediction.probability_score
+    final_display_probability = _prediction_display_probability(final_prediction)
     performance_report = {
         "participant_id": participant_id,
         "target_condition": target_condition,
         "control_condition": control_condition,
+        "prediction_task_spec": (
+            prediction_task_spec.model_dump()
+            if prediction_task_spec is not None and hasattr(prediction_task_spec, "model_dump")
+            else (prediction_task_spec.dict() if prediction_task_spec is not None else None)
+        ),
+        "agent_instructions": runtime_agent_instructions,
         "execution_timestamp": start_time.isoformat(),
         "total_duration_seconds": round(duration_so_far, 2),
         "iterations": len(attempts),
@@ -999,9 +1278,16 @@ def run_compass_pipeline(
         "coverage_summary": coverage_summary,
         "dataflow_summary": (final_executor_output or {}).get("dataflow_summary", {}),
         "prediction_result": {
-            "classification": final_prediction.binary_classification.value,
-            "probability": round(final_prediction.probability_score, 4),
-            "confidence": final_prediction.confidence_level.value
+            "classification": final_binary_label,
+            "probability": round(float(final_probability), 4) if final_probability is not None else None,
+            "root_confidence": round(float(final_display_probability), 4) if final_display_probability is not None else None,
+            "confidence": final_prediction.confidence_level.value,
+            "primary_output_kind": final_prediction.primary_output_kind,
+            "root_prediction": (
+                final_prediction.root_prediction.model_dump()
+                if final_prediction.root_prediction is not None and hasattr(final_prediction.root_prediction, "model_dump")
+                else (final_prediction.root_prediction.dict() if final_prediction.root_prediction is not None else None)
+            ),
         },
         "control_condition": control_condition,
         "critic_verdict": final_evaluation.verdict.value,
@@ -1094,8 +1380,8 @@ def run_compass_pipeline(
     exec_logger.log_pipeline_end(
         success=True,
         summary={
-            "prediction": final_prediction.binary_classification.value,
-            "probability": final_prediction.probability_score,
+            "prediction": final_binary_label,
+            "probability": final_display_probability,
             "iterations": len(attempts),
             "duration_seconds": duration
         }
@@ -1103,19 +1389,27 @@ def run_compass_pipeline(
 
     if interactive_ui:
         ui.on_pipeline_complete(
-            result=final_prediction.binary_classification.value,
-            probability=final_prediction.probability_score,
+            result=final_binary_label,
+            probability=final_display_probability,
             iterations=len(attempts),
             total_duration_secs=duration,
-            total_tokens=token_usage.get("total_tokens", 0)
+            total_tokens=token_usage.get("total_tokens", 0),
+            prediction_payload=(
+                final_prediction.model_dump() if hasattr(final_prediction, "model_dump") else final_prediction.dict()
+            ),
         )
     
     print(f"\n{'='*70}")
     print(f"  COMPASS PIPELINE COMPLETE")
     print(f"{'='*70}")
     print(f"  Participant: {participant_id}")
-    print(f"  Prediction: {final_prediction.binary_classification.value}")
-    print(f"  Probability: {final_prediction.probability_score:.1%}")
+    print(f"  Prediction: {final_binary_label}")
+    if final_prediction.binary_classification is not None and final_probability is not None:
+        print(f"  Probability: {final_probability:.1%}")
+    elif final_display_probability is not None:
+        print(f"  Root Confidence: {final_display_probability:.1%}")
+    else:
+        print(f"  Probability: N/A (non-binary primary output)")
     print(f"  Iterations: {len(attempts)} (selected iteration {selected_iteration})")
     print(f"  Selection reason: {selection_reason}")
     print(f"  Duration: {duration:.1f}s")
@@ -1125,13 +1419,20 @@ def run_compass_pipeline(
     
     return {
         "participant_id": participant_id,
-        "prediction": final_prediction.binary_classification.value,
-        "probability": final_prediction.probability_score,
+        "prediction": final_binary_label,
+        "probability": final_display_probability,
+        "binary_probability": final_probability,
+        "root_confidence": final_display_probability,
         "confidence": final_prediction.confidence_level.value,
         "verdict": final_evaluation.verdict.value,
         "iterations": len(attempts),
         "selected_iteration": selected_iteration,
         "selection_reason": selection_reason,
+        "prediction_task_spec": (
+            prediction_task_spec.model_dump()
+            if prediction_task_spec is not None and hasattr(prediction_task_spec, "model_dump")
+            else (prediction_task_spec.dict() if prediction_task_spec is not None else None)
+        ),
         "control_condition": control_condition,
         "coverage_summary": coverage_summary,
         "duration_seconds": duration,
@@ -1150,6 +1451,12 @@ def run_compass_pipeline(
             "data_overview": data_overview_dict,
             "execution_summary": execution_summary,
             "control_condition": control_condition,
+            "prediction_task_spec": (
+                prediction_task_spec.model_dump()
+                if prediction_task_spec is not None and hasattr(prediction_task_spec, "model_dump")
+                else (prediction_task_spec.dict() if prediction_task_spec is not None else None)
+            ),
+            "agent_instructions": runtime_agent_instructions,
             "report_context_note": report_context_note,
             "base_output_dir": str(base_output_dir),
             "explainability": explainability_result,
@@ -1162,18 +1469,30 @@ def run_dataflow_audit(
     participant_dir: Path,
     target_condition: str,
     control_condition: str = DEFAULT_CONTROL_CONDITION,
+    prediction_task_spec: Optional[PredictionTaskSpec] = None,
     verbose: bool = True,
 ) -> dict:
     """
     Offline dataflow audit: build predictor payload and chunking without LLM calls.
     """
     settings = get_settings()
+    if prediction_task_spec is None:
+        prediction_task_spec = build_binary_task_spec(
+            target_label=target_condition,
+            control_label=control_condition,
+        )
+    target_condition, control_condition = _task_spec_to_legacy_labels(prediction_task_spec)
     data_loader = DataLoader()
     participant_data = data_loader.load(participant_dir)
 
     token_manager = TokenManager()
     executor = Executor(token_manager=token_manager)
-    context = executor._build_context(participant_data, target_condition, control_condition)
+    context = executor._build_context(
+        participant_data,
+        target_condition,
+        control_condition,
+        prediction_task_spec=prediction_task_spec,
+    )
 
     fusion_layer = FusionLayer()
     pass_through = FusionResult(
@@ -1263,6 +1582,12 @@ def run_dataflow_audit(
         "participant_id": participant_data.participant_id,
         "target_condition": target_condition,
         "control_condition": control_condition,
+        "prediction_task_root_mode": (
+            prediction_task_spec.root.mode.value if prediction_task_spec is not None else None
+        ),
+        "prediction_task_node_count": (
+            len(prediction_task_spec.node_index()) if prediction_task_spec is not None else 0
+        ),
         "coverage_summary": coverage_ledger.get("summary", {}),
         "predictor_payload_tokens": payload_tokens,
         "chunk_budget_tokens": chunk_budget,
@@ -1271,6 +1596,13 @@ def run_dataflow_audit(
         "chunk_stats": chunk_stats,
         "predictor_input_mode": predictor_input.get("mode"),
     }
+    report["assertions"] = {
+        "predictor_input_mode_present": bool(str(report.get("predictor_input_mode") or "").strip()),
+        "chunk_count_non_negative": int(report.get("chunk_count") or 0) >= 0,
+        "coverage_summary_present": isinstance(report.get("coverage_summary"), dict),
+        "task_mode_present": bool(str(report.get("prediction_task_root_mode") or "").strip()),
+    }
+    report["assertions_ok"] = all(bool(v) for v in report["assertions"].values())
 
     output_dir = _resolve_output_dir(participant_dir, participant_data.participant_id, settings)
     output_path = output_dir / f"dataflow_audit_{participant_data.participant_id}.json"
@@ -1322,7 +1654,9 @@ def _build_dataflow_summary(
     executor_output: Dict[str, Any],
     target_condition: str,
     control_condition: str,
+    prediction_task_spec: Optional[PredictionTaskSpec],
     iteration: int,
+    agent_instructions: Optional[Dict[str, str]] = None,
 ) -> Dict[str, Any]:
     predictor_input = executor_output.get("predictor_input") or {}
     coverage_ledger = executor_output.get("coverage_ledger") or {}
@@ -1387,6 +1721,13 @@ def _build_dataflow_summary(
         "iteration": iteration,
         "target_condition": target_condition,
         "control_condition": control_condition,
+        "prediction_task_root_mode": (
+            prediction_task_spec.root.mode.value if prediction_task_spec is not None else None
+        ),
+        "agent_instruction_flags": {
+            key: bool(str(value or "").strip())
+            for key, value in _normalize_agent_instructions(agent_instructions).items()
+        },
         "predictor_input_mode": predictor_input.get("mode"),
         "coverage": coverage_block,
         "chunking": chunking_block,
@@ -1401,6 +1742,7 @@ def _run_explainability_for_selected_attempt(
     participant_id: str,
     target_condition: str,
     control_condition: str,
+    prediction_task_spec: Optional[PredictionTaskSpec] = None,
     selected_attempt: Dict[str, Any],
     feature_space: Dict[str, Any],
     output_dir: Path,
@@ -1414,6 +1756,21 @@ def _run_explainability_for_selected_attempt(
             "methods_requested": [],
             "methods": {},
         }
+    if prediction_task_spec is not None and not prediction_task_spec.is_pure_binary_root():
+        result = {
+            "enabled": True,
+            "status": "skipped",
+            "reason": "XAI currently supports binary classification only.",
+            "methods_requested": list(getattr(settings.explainability, "methods", []) or []),
+            "methods": {},
+            "task_mode": prediction_task_spec.root.mode.value,
+        }
+        try:
+            exec_logger.log_explainability(result)
+        except Exception:
+            pass
+        return result
+
     try:
         result = run_explainability_methods(
             settings=settings,
@@ -1477,12 +1834,15 @@ def _select_best_attempt(attempts: List[Dict[str, Any]]) -> Tuple[Optional[Dict[
 def main():
     """CLI entry point."""
     parser = argparse.ArgumentParser(
-        description="COMPASS Multi-Agent System for Disorder Prediction",
+        description="COMPASS Multi-Agent System for Deep Phenotype Prediction",
         formatter_class=argparse.RawDescriptionHelpFormatter,
         epilog="""
 Examples:
-  python main.py /path/to/participant_001 --target neuropsychiatric
-  python main.py /path/to/participant_001 --target neurologic --iterations 5
+  python main.py /path/to/participant_001 --prediction_type binary --target_label CASE --control_label CONTROL
+  python main.py /path/to/participant_001 --prediction_type multiclass --target_label personality_type --class_labels A,B,C,D
+  python main.py /path/to/participant_001 --prediction_type regression_univariate --target_label total_iq --regression_output total_iq
+  python main.py /path/to/participant_001 --prediction_type regression_multivariate --target_label personality_traits --regression_outputs openness,conscientiousness,extraversion,agreeableness,neuroticism
+  python main.py /path/to/participant_001 --prediction_type hierarchical --task_spec_file /path/to/task_spec.json
         """
     )
     
@@ -1496,15 +1856,111 @@ Examples:
     parser.add_argument(
         "--target", "-t",
         type=str,
-        # choices=["neuropsychiatric", "neurologic"], # Removed to allow dynamic targets
-        default="neuropsychiatric",
-        help="Target condition to predict (e.g. 'neuropsychiatric', or specific phenotype string)"
+        default="target_phenotype",
+        help="Legacy target label alias (kept for compatibility; maps to --target_label)"
     )
     parser.add_argument(
         "--control", "-c",
         type=str,
         default=DEFAULT_CONTROL_CONDITION,
-        help="Control condition comparator (default: brain-implicated pathology, but NOT psychiatric)"
+        help="Legacy control label alias (kept for compatibility; maps to --control_label)"
+    )
+    parser.add_argument(
+        "--prediction_type",
+        type=str,
+        choices=["binary", "multiclass", "regression_univariate", "regression_multivariate", "hierarchical"],
+        default="binary",
+        help="Prediction task family"
+    )
+    parser.add_argument(
+        "--target_label",
+        type=str,
+        default=None,
+        help="Canonical target label (default: --target)"
+    )
+    parser.add_argument(
+        "--control_label",
+        type=str,
+        default=None,
+        help="Canonical control/comparator label (default: --control)"
+    )
+    parser.add_argument(
+        "--class_labels",
+        type=str,
+        default="",
+        help="Comma-separated class labels (required for multiclass)"
+    )
+    parser.add_argument(
+        "--regression_outputs",
+        type=str,
+        default="",
+        help="Regression output names (comma-separated for multivariate; for univariate prefer --regression_output)"
+    )
+    parser.add_argument(
+        "--regression_output",
+        type=str,
+        default="",
+        help="Single regression output name (recommended for univariate regression)"
+    )
+    parser.add_argument(
+        "--task_spec_file",
+        type=str,
+        default="",
+        help="Path to canonical prediction task specification JSON file"
+    )
+    parser.add_argument(
+        "--task_spec_json",
+        type=str,
+        default="",
+        help="Inline canonical prediction task specification JSON string"
+    )
+    parser.add_argument(
+        "--global_instruction",
+        type=str,
+        default="",
+        help="Optional runtime instruction applied to all agents"
+    )
+    parser.add_argument(
+        "--orchestrator_instruction",
+        type=str,
+        default="",
+        help="Optional runtime instruction for Orchestrator agent"
+    )
+    parser.add_argument(
+        "--executor_instruction",
+        type=str,
+        default="",
+        help="Optional runtime instruction for Executor behavior"
+    )
+    parser.add_argument(
+        "--tools_instruction",
+        type=str,
+        default="",
+        help="Optional runtime instruction for all execution tools"
+    )
+    parser.add_argument(
+        "--integrator_instruction",
+        type=str,
+        default="",
+        help="Optional runtime instruction for Integrator/Fusion"
+    )
+    parser.add_argument(
+        "--predictor_instruction",
+        type=str,
+        default="",
+        help="Optional runtime instruction for Predictor agent"
+    )
+    parser.add_argument(
+        "--critic_instruction",
+        type=str,
+        default="",
+        help="Optional runtime instruction for Critic agent"
+    )
+    parser.add_argument(
+        "--communicator_instruction",
+        type=str,
+        default="",
+        help="Optional runtime instruction for Communicator agent"
     )
     
     parser.add_argument(
@@ -1765,14 +2221,64 @@ Examples:
     if args.participant_dir and not args.participant_dir.exists():
         print(f"Error: Participant directory not found: {args.participant_dir}")
         sys.exit(1)
+
+    if str(args.task_spec_json or "").strip() and str(args.task_spec_file or "").strip():
+        print("Error: --task_spec_json and --task_spec_file are mutually exclusive.")
+        sys.exit(1)
+
+    cli_target_label = str(args.target_label or args.target or "target_phenotype").strip()
+    cli_control_label = str(args.control_label or args.control or DEFAULT_CONTROL_CONDITION).strip()
+    cli_class_labels = parse_csv_list(args.class_labels)
+    cli_regression_outputs = parse_csv_list(args.regression_outputs)
+    cli_regression_output = str(args.regression_output or "").strip()
+    if cli_regression_output:
+        if "," in cli_regression_output:
+            print("Error: --regression_output accepts exactly one output name without commas. Use --regression_outputs for multivariate mode.")
+            sys.exit(1)
+        if cli_regression_outputs and cli_regression_outputs != [cli_regression_output]:
+            print("Error: --regression_output conflicts with --regression_outputs. Use one form or provide matching values.")
+            sys.exit(1)
+        cli_regression_outputs = [cli_regression_output]
+
+    try:
+        cli_prediction_task_spec = _resolve_prediction_task_spec(
+            prediction_type=args.prediction_type,
+            target_label=cli_target_label,
+            control_label=cli_control_label,
+            class_labels=cli_class_labels,
+            regression_outputs=cli_regression_outputs,
+            task_spec_json=str(args.task_spec_json or ""),
+            task_spec_file=str(args.task_spec_file or ""),
+        )
+        cli_prediction_task_spec = _align_binary_task_spec_labels(
+            cli_prediction_task_spec,
+            target_label=cli_target_label,
+            control_label=cli_control_label,
+        )
+    except Exception as e:
+        print(f"Error resolving prediction task specification: {e}")
+        sys.exit(1)
+    cli_agent_instructions = _normalize_agent_instructions(
+        {
+            "global": args.global_instruction,
+            "orchestrator": args.orchestrator_instruction,
+            "executor": args.executor_instruction,
+            "tools": args.tools_instruction,
+            "integrator": args.integrator_instruction,
+            "predictor": args.predictor_instruction,
+            "critic": args.critic_instruction,
+            "communicator": args.communicator_instruction,
+        }
+    )
     
     # Run pipeline
     try:
         if args.audit:
             run_dataflow_audit(
                 participant_dir=args.participant_dir,
-                target_condition=args.target,
-                control_condition=args.control,
+                target_condition=cli_target_label,
+                control_condition=cli_control_label,
+                prediction_task_spec=cli_prediction_task_spec,
                 verbose=not args.quiet,
             )
             sys.exit(0)
@@ -1842,8 +2348,73 @@ Examples:
             def launch_wrapper(config: dict):
                 """Callback triggered by UI Launch button"""
                 participant_id = config.get("id")
-                target_condition = config.get("target")
-                control_condition = config.get("control") or DEFAULT_CONTROL_CONDITION
+                target_label_raw = config.get("target_label")
+                if target_label_raw is None:
+                    target_label_raw = config.get("target")
+                if target_label_raw is None:
+                    target_label_raw = cli_target_label
+                target_label = str(target_label_raw or "").strip()
+
+                # Preserve explicit empty comparator values from UI for non-classification runs.
+                control_label_raw = config.get("control_label")
+                if control_label_raw is None:
+                    control_label_raw = config.get("control")
+                if control_label_raw is None:
+                    control_label_raw = cli_control_label
+                control_label = str(control_label_raw or "").strip()
+                prediction_type = str(config.get("prediction_type") or "binary").strip().lower()
+                class_labels = config.get("class_labels")
+                if isinstance(class_labels, str):
+                    class_labels = parse_csv_list(class_labels)
+                regression_outputs = config.get("regression_outputs")
+                if isinstance(regression_outputs, str):
+                    regression_outputs = parse_csv_list(regression_outputs)
+                elif isinstance(regression_outputs, (tuple, set)):
+                    regression_outputs = [str(x).strip() for x in regression_outputs if str(x).strip()]
+                elif isinstance(regression_outputs, list):
+                    regression_outputs = [str(x).strip() for x in regression_outputs if str(x).strip()]
+                else:
+                    regression_outputs = []
+                regression_output = str(config.get("regression_output") or "").strip()
+                if regression_output:
+                    if "," in regression_output:
+                        print("[!] Invalid UI prediction task configuration: regression_output must be a single output name without commas.")
+                        return
+                    if regression_outputs and regression_outputs != [regression_output]:
+                        print("[!] Invalid UI prediction task configuration: regression_output conflicts with regression_outputs.")
+                        return
+                    regression_outputs = [regression_output]
+                raw_agent_instructions = config.get("agent_instructions")
+                if not isinstance(raw_agent_instructions, dict):
+                    raw_agent_instructions = {}
+                launch_agent_instructions = _normalize_agent_instructions(
+                    {
+                        **cli_agent_instructions,
+                        **raw_agent_instructions,
+                    }
+                )
+
+                prediction_task_spec_payload = config.get("prediction_spec")
+                try:
+                    runtime_task_spec = _resolve_prediction_task_spec(
+                        prediction_type=prediction_type,
+                        target_label=target_label,
+                        control_label=control_label,
+                        class_labels=list(class_labels or []),
+                        regression_outputs=list(regression_outputs or []),
+                        task_spec_json=str(config.get("task_spec_json") or ""),
+                        task_spec_file=str(config.get("task_spec_file") or ""),
+                        task_spec_payload=prediction_task_spec_payload if isinstance(prediction_task_spec_payload, dict) else None,
+                    )
+                    runtime_task_spec = _align_binary_task_spec_labels(
+                        runtime_task_spec,
+                        target_label=target_label,
+                        control_label=control_label,
+                    )
+                except Exception as e:
+                    print(f"[!] Invalid UI prediction task configuration: {e}")
+                    return
+                target_condition, control_condition = _task_spec_to_legacy_labels(runtime_task_spec)
                 
                 # Apply Dynamic Settings
                 from multi_agent_system.config.settings import get_settings, LLMBackend
@@ -1934,7 +2505,11 @@ Examples:
                 _apply_explainability_overrides(settings, args)
 
                 reset_llm_client()
-                print(f"[*] UI Triggered Launch: {participant_id} -> {target_condition} (control: {control_condition})")
+                launch_target_desc = _describe_task_spec_for_launch(runtime_task_spec)
+                print(
+                    f"[*] UI Triggered Launch: {participant_id} -> {launch_target_desc} "
+                    f"(mode: {runtime_task_spec.root.mode.value})"
+                )
                 
                 p_dir = resolve_participant_dir(participant_id, compass_data_root, settings)
                 if not p_dir or not p_dir.exists():
@@ -1946,6 +2521,8 @@ Examples:
                     participant_dir=p_dir,
                     target_condition=target_condition,
                     control_condition=control_condition,
+                    prediction_task_spec=runtime_task_spec,
+                    agent_instructions=launch_agent_instructions,
                     max_iterations=args.iterations,
                     verbose=not args.quiet,
                     interactive_ui=args.ui,
@@ -1960,6 +2537,15 @@ Examples:
                     raise RuntimeError("No completed pipeline run found. Run a participant first.")
 
                 communicator = Communicator()
+                internal_agent_instructions = _normalize_agent_instructions(
+                    internal.get("agent_instructions") or {}
+                )
+                communicator.set_runtime_instruction(
+                    _combine_instruction(
+                        internal_agent_instructions.get("global", ""),
+                        internal_agent_instructions.get("communicator", ""),
+                    )
+                )
                 result = _generate_deep_phenotype_report(
                     communicator=communicator,
                     prediction=internal.get("prediction"),
@@ -1967,7 +2553,7 @@ Examples:
                     executor_output=internal.get("executor_output") or {},
                     data_overview=internal.get("data_overview") or {},
                     execution_summary=internal.get("execution_summary") or {},
-                    control_condition=str(internal.get("control_condition") or DEFAULT_CONTROL_CONDITION),
+                    control_condition=str(internal.get("control_condition") or ""),
                     report_context_note=str(internal.get("report_context_note") or ""),
                     base_output_dir=Path(str(internal.get("base_output_dir"))),
                     participant_id=str(internal.get("participant_id") or "unknown"),
@@ -1986,12 +2572,27 @@ Examples:
             # Auto-trigger if path provided via CLI
             if args.participant_dir and args.participant_dir.exists():
                 participant_id = args.participant_dir.name
-                target_condition = args.target or "neuropsychiatric"
-                control_condition = args.control or DEFAULT_CONTROL_CONDITION
+                target_condition, control_condition = _task_spec_to_legacy_labels(cli_prediction_task_spec)
                 # Small delay to ensure server is up before first event
                 def auto_launch():
                     time.sleep(2)
-                    launch_wrapper({"id": participant_id, "target": target_condition, "control": control_condition})
+                    launch_wrapper(
+                        {
+                            "id": participant_id,
+                            "target": target_condition,
+                            "control": control_condition,
+                            "prediction_type": args.prediction_type,
+                            "class_labels": cli_class_labels,
+                            "regression_outputs": cli_regression_outputs,
+                            "regression_output": cli_regression_outputs[0] if len(cli_regression_outputs) == 1 else "",
+                            "prediction_spec": (
+                                cli_prediction_task_spec.model_dump()
+                                if hasattr(cli_prediction_task_spec, "model_dump")
+                                else cli_prediction_task_spec.dict()
+                            ),
+                            "agent_instructions": cli_agent_instructions,
+                        }
+                    )
                 threading.Thread(target=auto_launch, daemon=True).start()
 
             start_ui_loop(launch_wrapper, deep_report_wrapper)
@@ -2079,10 +2680,13 @@ Examples:
             reset_llm_client()
 
             # Run standard CLI
+            target_condition, control_condition = _task_spec_to_legacy_labels(cli_prediction_task_spec)
             result = run_compass_pipeline(
                 participant_dir=args.participant_dir,
-                target_condition=args.target,
-                control_condition=args.control or DEFAULT_CONTROL_CONDITION,
+                target_condition=target_condition,
+                control_condition=control_condition,
+                prediction_task_spec=cli_prediction_task_spec,
+                agent_instructions=cli_agent_instructions,
                 max_iterations=args.iterations,
                 verbose=not args.quiet,
                 interactive_ui=False,

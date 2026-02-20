@@ -249,7 +249,7 @@ class AutoRepair:
         
         # Common defaults
         defaults = {
-            "target_condition": "neuropsychiatric",
+            "target_condition": "target phenotype",
             "compression_ratio": 5,
             "confidence": "MEDIUM"
         }

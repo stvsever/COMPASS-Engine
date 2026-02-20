@@ -1,75 +1,101 @@
 {
-  "report_id": "RPT_SUBJ_001_PSEUDO_20260219_162111",
+  "report_id": "RPT_SUBJ_001_PSEUDO_20260220_203008",
   "participant_id": "SUBJ_001_PSEUDO",
-  "generated_at": "2026-02-19T16:21:11.877052",
+  "generated_at": "2026-02-20T20:30:08.901791",
   "prediction": {
-    "classification": "CASE",
-    "probability": 0.9,
-    "confidence": "HIGH",
-    "target_condition": "MAJOR DEPRESSIVE DISORDER",
-    "control_condition": "HEALTHY"
+    "prediction_type": "univariate_regression",
+    "classification": null,
+    "primary_output": "expected age of death: 76.000",
+    "probability": null,
+    "confidence": "MEDIUM",
+    "target_condition": "MORTALITY",
+    "control_condition": "",
+    "prediction_task_spec": {
+      "schema_version": "1.0",
+      "task_id": null,
+      "root": {
+        "node_id": "root",
+        "display_name": "MORTALITY",
+        "mode": "univariate_regression",
+        "class_labels": [],
+        "regression_outputs": [
+          "expected age of death"
+        ],
+        "unit_by_output": {},
+        "required": true,
+        "children": []
+      }
+    },
+    "root_prediction": {
+      "node_id": "root",
+      "path": "root",
+      "mode": "univariate_regression",
+      "classification": null,
+      "regression": {
+        "values": {
+          "expected age of death": 76.0
+        }
+      },
+      "confidence_level": "MEDIUM",
+      "confidence_score": 0.65,
+      "key_findings": [],
+      "reasoning_chain": [],
+      "supporting_evidence_for": [
+        "Anomalies convergentes inflammatoires/neurod\u00e9g\u00e9n\u00e9ratives pr\u00e9dictives de LE r\u00e9duite (litt\u00e9rature : -5-10 ans)",
+        "\u00c2ge biologique acc\u00e9l\u00e9r\u00e9 malgr\u00e9 45 ans chronologiques"
+      ],
+      "supporting_evidence_against": [
+        "Pas de signes terminaux (Glasgow, asystolie, |z|>5 vitaux)",
+        "Profils lifestyle mod\u00e9r\u00e9ment alt\u00e9r\u00e9s sans extr\u00eames"
+      ],
+      "uncertainty_factors": [
+        "Manque suivi temporel",
+        "Absence scores pronostiques (SOFA/APACHE)"
+      ],
+      "children": []
+    }
   },
   "evaluation": {
     "verdict": "SATISFACTORY",
-    "confidence_in_verdict": 1.0,
-    "checklist_passed": 7,
-    "checklist_total": 7
+    "confidence_in_verdict": 0.95,
+    "checklist_passed": 8,
+    "checklist_total": 8
   },
   "key_findings": [
     {
-      "domain": "CLINICAL",
-      "finding": "Persistent low mood, anhedonia, fatigue, early morning awakening, concentration impairment, weight loss (moderate mood scale 17/27)",
-      "direction": "ABNORMAL_LOW"
-    },
-    {
       "domain": "BIOLOGICAL_ASSAY",
-      "finding": "BDNF deficit (z=-2.0, 2nd percentile, MODERATE effect)",
-      "direction": "ABNORMAL_LOW"
-    },
-    {
-      "domain": "BIOLOGICAL_ASSAY",
-      "finding": "CRP elevation (z=1.7, 95th percentile, MODERATE effect); inflammation markers mean z=1.3",
+      "finding": "\u00c9l\u00e9vation marqu\u00e9e des sphingolipides (z=1.7, 95e percentile, effet MOD\u00c9R\u00c9)",
       "direction": "ABNORMAL_HIGH"
     },
     {
-      "domain": "BRAIN_MRI",
-      "finding": "Left hippocampal volume reduction (z=-2.0, 2nd percentile, LARGE effect); mean subcortical z=-1.4",
+      "domain": "BIOLOGICAL_ASSAY",
+      "finding": "D\u00e9ficit s\u00e9v\u00e8re en BDNF (z=-2.0, 2e percentile, effet MOD\u00c9R\u00c9)",
       "direction": "ABNORMAL_LOW"
     },
     {
       "domain": "BRAIN_MRI",
-      "finding": "DMN hyperconnectivity mPFC-PCC (z=2.5, 99th percentile, LARGE effect)",
-      "direction": "ABNORMAL_HIGH"
-    },
-    {
-      "domain": "LIFESTYLE_ENVIRONMENT",
-      "finding": "Insomnia severity (z=1.6, 95th percentile, MODERATE effect); sleep z=1.2",
-      "direction": "ABNORMAL_HIGH"
-    },
-    {
-      "domain": "LIFESTYLE_ENVIRONMENT",
-      "finding": "Perceived stress (z=1.4, 92nd percentile, SMALL effect); stress z=1.4",
-      "direction": "ABNORMAL_HIGH"
-    },
-    {
-      "domain": "COGNITION",
-      "finding": "Executive function deficit (z=-1.1, 14th percentile, SMALL effect); TMT-B z=-1.3",
+      "finding": "Atrophie hippocampique gauche s\u00e9v\u00e8re (z=-2.0, 2e percentile, effet MOD\u00c9R\u00c9)",
       "direction": "ABNORMAL_LOW"
     },
     {
       "domain": "BIOLOGICAL_ASSAY",
-      "finding": "Mood variability PRS elevation (z=1.8, 96th percentile, MODERATE effect)",
+      "finding": "Inflammation syst\u00e9mique (CRP z=1.7, effet MOD\u00c9R\u00c9)",
+      "direction": "ABNORMAL_HIGH"
+    },
+    {
+      "domain": "LIFESTYLE_ENVIRONMENT",
+      "finding": "Stress chronique \u00e9lev\u00e9 (z=1.4, 92e percentile, effet MOD\u00c9R\u00c9)",
       "direction": "ABNORMAL_HIGH"
     }
   ],
   "reasoning": [
-    "Step 1: Prioritize clinical notes - explicit MDD symptoms (low mood, anhedonia, insomnia, concentration, weight loss, impairment) meet DSM-5 criteria; past episodes, family hx weight strongly to CASE.",
-    "Step 2: Multimodal convergence - BIOLOGICAL_ASSAY/BRAIN_MRI prioritized by FeatureSynthesizer/ClinicalRelevanceRanker show MDD-specific patterns (BDNF low z=-2.0, hippocampal atrophy z=-2.0, DMN high z=2.5, inflammation/HPA high); 4/5 domains abnormal.",
-    "Step 3: Tool consensus - DifferentialDiagnosis 85% MDD likelihood; multimodal narratives HIGH confidence TOWARD_CASE; no rule-outs (stable thyroid, no hypomania).",
-    "Step 4: Avoid FP - Convergent clinical + biomarkers override isolated risks; prevalence-calibrated prob 0.90 (strongly elevated) with HIGH confidence due to multi-domain coherence.",
-    "Step 5: No symptoms hallucination - All referenced from raw data/notes."
+    "\u00c9valuation des features prioritaires (BIOLOGICAL_ASSAY et BRAIN_MRI) montrant convergence d'anomalies mod\u00e9r\u00e9es \u00e0 s\u00e9v\u00e8res (|z|>1.5) indiquant inflammaging et neurod\u00e9g\u00e9n\u00e9rescence.",
+    "Int\u00e9gration des notes cliniques : d\u00e9pression persistante, stress psychosocial, ant\u00e9c\u00e9dents familiaux (suicide tante \u00e0 50 ans), sans signes aigus de mortalit\u00e9 imminente.",
+    "Estimation quantitative : esp\u00e9rance de vie standard ~85 ans pour femme de 45 ans ; soustraction conservatrice de 9 ans bas\u00e9e sur risques cumul\u00e9s (inflammation + BDNF bas + atrophie + stress, cf. litt\u00e9rature sur r\u00e9duction LE par d\u00e9pression/inflammation).",
+    "\u00c2ge attendu de d\u00e9c\u00e8s estim\u00e9 \u00e0 76 ans, avec incertitude due \u00e0 absence de donn\u00e9es longitudinales et vitals.",
+    "Calibration : probabilit\u00e9 risque pr\u00e9matur\u00e9 ~65% (cf. DifferentialDiagnosis), traduite en r\u00e9gression conservatrice."
   ],
-  "clinical_summary": "This 45yo female presents with classic moderate melancholic MDD phenotype: 7-8 months persistent low mood, anhedonia, early awakening insomnia, fatigue, concentration/psychomotor slowing, appetite/weight loss (4-5kg), social withdrawal, occupational impairment, meeting DSM-5 criteria. Supported by convergent biomarkers (BDNF z=-2.0 2nd%, hippocampal atrophy left z=-2.0, CRP z=1.7, HPA cortisol z=1.2, DMN hyperconnectivity z=2.5, mood PRS z=1.8) across 4/5 domains, stress/sleep elevations (z=1.4-1.6), mild cognitive deficits. Prior responsive episode, family hx; distinguishes from healthy/stress via multi-hit neuroimmune-limbic signature. High confidence CASE match; recommend SSRI trial, sleep/psychotherapy.",
+  "clinical_summary": "Cette patiente de 45 ans pr\u00e9sente un profil multimodal \u00e0 risque mod\u00e9r\u00e9-\u00e9lev\u00e9 de mortalit\u00e9 pr\u00e9matur\u00e9e, domin\u00e9 par une convergence d'anomalies inflammatoires (sphingolipides z=1.7, CRP z=1.7), neurotrophiques (BDNF z=-2.0), structurales (hippocampe z=-2.0) et psychosociales (stress z=1.4), coh\u00e9rent avec une neurod\u00e9g\u00e9n\u00e9rescence inflammatoire acc\u00e9l\u00e9r\u00e9e et inflammaging. Sympt\u00f4mes d\u00e9pressifs chroniques et facteurs de mode de vie aggravants renforcent cette vuln\u00e9rabilit\u00e9, sans preuves d'imminence aigu\u00eb. \u00c2ge de d\u00e9c\u00e8s attendu estim\u00e9 \u00e0 76 ans (r\u00e9duction de ~9 ans vs. norme), n\u00e9cessitant surveillance longitudinale.",
   "execution": {
     "iterations": 1,
     "selected_iteration": 1,
@@ -87,8 +113,19 @@
     },
     "dataflow_summary": {
       "iteration": 1,
-      "target_condition": "MAJOR DEPRESSIVE DISORDER",
-      "control_condition": "HEALTHY",
+      "target_condition": "MORTALITY",
+      "control_condition": "",
+      "prediction_task_root_mode": "univariate_regression",
+      "agent_instruction_flags": {
+        "global": true,
+        "orchestrator": false,
+        "executor": false,
+        "tools": false,
+        "integrator": false,
+        "predictor": false,
+        "critic": false,
+        "communicator": false
+      },
       "predictor_input_mode": "RAW_PASS_THROUGH",
       "coverage": {
         "summary": {
@@ -116,13 +153,14 @@
         "processed_raw_full_included": true,
         "rag_added_count": null,
         "predictor_payload_estimate": {
-          "baseline_tokens": 39723,
-          "final_tokens": 47054,
-          "processed_raw_tokens": 46993,
+          "baseline_tokens": 37856,
+          "final_tokens": 45187,
+          "processed_raw_tokens": 45126,
           "single_chunk_limit": 1900000,
           "threshold": 1800000,
           "chunked_two_pass_required": false,
-          "strategy": "threshold_driven_no_loss_pass_through"
+          "strategy": "threshold_driven_no_loss_pass_through",
+          "runtime_instruction_applied": true
         },
         "coverage_snapshot": {
           "processed_whole_domains": [
@@ -160,13 +198,12 @@
         "processed_raw_flag_consistent": true
       }
     },
-    "tokens_used": 178698,
+    "tokens_used": 118154,
     "domains_processed": [
       "BIOLOGICAL_ASSAY",
       "BRAIN_MRI",
       "COGNITION",
-      "LIFESTYLE_ENVIRONMENT",
-      "DEMOGRAPHICS"
+      "LIFESTYLE_ENVIRONMENT"
     ],
     "detailed_logs": []
   },
@@ -175,33 +212,33 @@
       "decision_id": "D001",
       "component": "Orchestrator",
       "decision_type": "PLAN_GENERATION",
-      "input_summary": "Domains: BIOLOGICAL_ASSAY, BRAIN_MRI, COGNITION, LIFESTYLE_ENVIRONMENT, DEMOGRAPHICS",
-      "output_summary": "Generated 13-step plan",
-      "reasoning": "All domains have coverage >13%, total raw tokens (8680) fit budget but compression used for pattern detection in MDD-relevant areas (e.g., neuroimaging, biomarkers for neuroinflammation/volume loss, cognition deficits). Early parallel steps provide phenotype criteria, deviation narrative, and feature ranks. Unimodal parallel for efficiency despite FIT_FOR_RAW. Hierarchical fusions preserve detail: brain-cognition (neuropsych link), bio-lifestyle (systemic factors), then global with demographics/",
-      "timestamp": "2026-02-19T16:19:11.241685",
+      "input_summary": "Domains: BIOLOGICAL_ASSAY, BRAIN_MRI, COGNITION, LIFESTYLE_ENVIRONMENT",
+      "output_summary": "Generated 11-step plan",
+      "reasoning": "Le plan commence par des \u00e9tapes pr\u00e9coces parall\u00e8les (ph\u00e9notype, anomalies, synth\u00e8se de features) pour contextualiser sans d\u00e9pendances. Les compressions unimodales parall\u00e8les ciblent les domaines complexes (>1000 tokens) pour extraire des patterns cliniques pertinents \u00e0 la mortalit\u00e9, tout en pr\u00e9servant la couverture compl\u00e8te des donn\u00e9es (tous domaines disponibles trait\u00e9s). La fusion multimodale int\u00e8gre ensuite les sorties ; le ranking suit la synth\u00e8se de features ; les hypoth\u00e8ses et le diagnostic",
+      "timestamp": "2026-02-20T20:27:57.191280",
       "metadata": {}
     },
     {
       "decision_id": "D002",
       "component": "Predictor",
-      "decision_type": "CLASSIFICATION",
-      "input_summary": "Key findings: Persistent low mood, anhedonia, fatigue, early morning awakening, concentration impairment, weight loss (moderate mood scale 17/27), BDNF deficit (z=-2.0, 2nd percentile, MODERATE effect), CRP elevation (z=1.7, 95th percentile, MODERATE effect); inflammation markers mean z=1.3...",
-      "output_summary": "CASE (p=0.900)",
-      "reasoning": "This 45yo female presents with classic moderate melancholic MDD phenotype: 7-8 months persistent low mood, anhedonia, early awakening insomnia, fatigue, concentration/psychomotor slowing, appetite/weight loss (4-5kg), social withdrawal, occupational impairment, meeting DSM-5 criteria. Supported by convergent biomarkers (BDNF z=-2.0 2nd%, hippocampal atrophy left z=-2.0, CRP z=1.7, HPA cortisol z=1.2, DMN hyperconnectivity z=2.5, mood PRS z=1.8) across 4/5 domains, stress/sleep elevations (z=1.4-",
-      "timestamp": "2026-02-19T16:20:59.837582",
+      "decision_type": "PREDICTION_OUTPUT",
+      "input_summary": "Key findings: \u00c9l\u00e9vation marqu\u00e9e des sphingolipides (z=1.7, 95e percentile, effet MOD\u00c9R\u00c9), D\u00e9ficit s\u00e9v\u00e8re en BDNF (z=-2.0, 2e percentile, effet MOD\u00c9R\u00c9), Atrophie hippocampique gauche s\u00e9v\u00e8re (z=-2.0, 2e percentile, effet MOD\u00c9R\u00c9)...",
+      "output_summary": "expected age of death: 76.000 (confidence=0.650)",
+      "reasoning": "Cette patiente de 45 ans pr\u00e9sente un profil multimodal \u00e0 risque mod\u00e9r\u00e9-\u00e9lev\u00e9 de mortalit\u00e9 pr\u00e9matur\u00e9e, domin\u00e9 par une convergence d'anomalies inflammatoires (sphingolipides z=1.7, CRP z=1.7), neurotrophiques (BDNF z=-2.0), structurales (hippocampe z=-2.0) et psychosociales (stress z=1.4), coh\u00e9rent avec une neurod\u00e9g\u00e9n\u00e9rescence inflammatoire acc\u00e9l\u00e9r\u00e9e et inflammaging. Sympt\u00f4mes d\u00e9pressifs chroniques et facteurs de mode de vie aggravants renforcent cette vuln\u00e9rabilit\u00e9, sans preuves d'imminence aigu\u00eb",
+      "timestamp": "2026-02-20T20:30:03.150138",
       "metadata": {
-        "probability": 0.9,
-        "classification": "CASE"
+        "probability": 0.65,
+        "classification": "expected age of death: 76.000"
       }
     },
     {
       "decision_id": "D003",
       "component": "Critic",
       "decision_type": "EVALUATION",
-      "input_summary": "Checklist: 7/7 passed",
+      "input_summary": "Checklist: 8/8 passed",
       "output_summary": "SATISFACTORY",
-      "reasoning": "LOGIC (1.0): Step-wise chain is impeccable\u2014prioritizes clinical symptoms (DSM-5 match from notes), converges multimodal data via tools, incorporates consensus (85% MDD likelihood), explicitly avoids FP with prevalence calibration and no rule-outs (e.g., stable thyroid). No circularity, contradictions, or ignored counters (e.g., mild anxiety noted but secondary). Probability calibrated to evidence strength. EVIDENCE (1.0): 100% verifiable\u2014no hallucinations. Symptoms (low mood 7-8mo, anhedonia, ea",
-      "timestamp": "2026-02-19T16:21:11.875695",
+      "reasoning": "Required nodes present=True; output schema valid=True; classification probabilities valid=n/a; regression values valid=True; hierarchy consistent=n/a; coverage ratio=0.80; fallback_used=False.",
+      "timestamp": "2026-02-20T20:30:08.900016",
       "metadata": {}
     }
   ]

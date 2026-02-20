@@ -7,10 +7,12 @@ suitable for the Predictor agent.
 {tool_outputs_description}
 
 ## COMPASS GOAL
-Your goal is to fuse data to help the Predictor distinguish between:
-- **TARGET (CASE)**: Neuropsychiatric condition (e.g. MDD, Schizophrenia).
-- **CONTROL**: The runtime control condition specified in the user prompt.
-*Crucial*: Do NOT treat general brain abnormalities as automatic evidence for CASE. Look for specific psychiatric patterns.
+Your goal is to fuse data to help the Predictor solve the active phenotype task specification:
+- classification tasks: maximize discriminative evidence between task labels.
+- regression tasks: preserve quantitative signals needed for accurate value estimation.
+- hierarchical tasks: preserve evidence coverage for every required node.
+For binary classification specifically, preserve high-signal evidence that separates target/case versus comparator/control.
+*Crucial*: Do NOT treat generic abnormalities as automatic evidence for any specific target outcome.
 
 ## YOUR TASK
 1. Synthesize all outputs into a coherent narrative
@@ -45,8 +47,14 @@ Return JSON with this structure:
     }}
   ],
   "evidence_summary": {{
-    "for_case": ["Evidence supporting case classification"],
-    "for_control": ["Evidence supporting control classification"]
+    "evidence_for_targets": {{
+      "node_id": ["Evidence supporting this node output"]
+    }},
+    "evidence_against_targets": {{
+      "node_id": ["Evidence arguing against this node output"]
+    }},
+    "for_case": ["Binary compatibility alias (optional)"],
+    "for_control": ["Binary compatibility alias (optional)"]
   }},
-  "overall_direction": "TOWARD_CASE|TOWARD_CONTROL|MIXED"
+  "overall_direction": "TOWARD_TARGET|TOWARD_COMPARATOR|MIXED"
 }}

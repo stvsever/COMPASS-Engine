@@ -57,6 +57,22 @@ PARTICIPANT_DIR="${DATA_DIR}/participant_ID${PARTICIPANT_ID}"
 : "${MAX_TOOL_INPUT:=auto}"
 : "${MAX_TOOL_OUTPUT:=8000}"
 : "${LOCAL_KV_CACHE_DTYPE:=auto}"
+# Prediction task controls (default remains binary for backward compatibility)
+: "${PREDICTION_TYPE:=binary}"
+: "${CLASS_LABELS:=}"
+: "${REGRESSION_OUTPUT:=}"
+: "${REGRESSION_OUTPUTS:=}"
+: "${TASK_SPEC_FILE:=}"
+: "${TASK_SPEC_JSON:=}"
+# Optional runtime guidance
+: "${GLOBAL_INSTRUCTION:=}"
+: "${ORCHESTRATOR_INSTRUCTION:=}"
+: "${EXECUTOR_INSTRUCTION:=}"
+: "${TOOLS_INSTRUCTION:=}"
+: "${INTEGRATOR_INSTRUCTION:=}"
+: "${PREDICTOR_INSTRUCTION:=}"
+: "${CRITIC_INSTRUCTION:=}"
+: "${COMMUNICATOR_INSTRUCTION:=}"
 
 is_int() {
     [[ "$1" =~ ^[0-9]+$ ]]
@@ -209,6 +225,9 @@ echo "LOCAL_ENGINE: ${LOCAL_ENGINE}"
 echo "Requested ctx:${MAX_TOKENS} tokens"
 echo "GPU mem util: ${GPU_MEM_UTIL}"
 echo "Budget request: agent(in=${MAX_AGENT_INPUT}, out=${MAX_AGENT_OUTPUT}) tool(in=${MAX_TOOL_INPUT}, out=${MAX_TOOL_OUTPUT})"
+echo "Prediction type: ${PREDICTION_TYPE}"
+echo "Regression output: ${REGRESSION_OUTPUT:-<none>}"
+echo "Regression outputs: ${REGRESSION_OUTPUTS:-<none>}"
 echo "KV cache dtype request: ${LOCAL_KV_CACHE_DTYPE}"
 echo ""
 
@@ -282,8 +301,8 @@ fi
 # Ensures the engine is blinded to the ground truth label.
 SPECIFIC_TARGET=$(echo "${FULL_TARGET_LINE}" | cut -d'|' -f2- | sed -E 's/\bCASE\b//g; s/\bCONTROL\b//g; s/[()]//g' | xargs)
 
-# HARDCODED CONTROL baseline
-FIXED_CONTROL="possible brain-implicated pathology, but NOT the psychiatric target phenotype"
+# HARDCODED CONTROL baseline (only used in binary classification mode)
+FIXED_CONTROL="non-target comparator phenotype profile"
 
 echo "  Leaked label:   $(echo "${FULL_TARGET_LINE}" | grep -oE "CASE|CONTROL")" # Log internally in .out
 echo "  Engine Target:  '${SPECIFIC_TARGET}'"
@@ -560,8 +579,22 @@ PY
             echo '--- Dataflow preflight audit ---'
             python3 main.py \
                 '${PARTICIPANT_DIR}' \
+                --prediction_type '${PREDICTION_TYPE}' \
                 --target '${SPECIFIC_TARGET}' \
                 --control '${FIXED_CONTROL}' \
+                ${CLASS_LABELS:+--class_labels '${CLASS_LABELS}'} \
+                ${REGRESSION_OUTPUT:+--regression_output '${REGRESSION_OUTPUT}'} \
+                ${REGRESSION_OUTPUTS:+--regression_outputs '${REGRESSION_OUTPUTS}'} \
+                ${TASK_SPEC_FILE:+--task_spec_file '${TASK_SPEC_FILE}'} \
+                ${TASK_SPEC_JSON:+--task_spec_json '${TASK_SPEC_JSON}'} \
+                ${GLOBAL_INSTRUCTION:+--global_instruction '${GLOBAL_INSTRUCTION}'} \
+                ${ORCHESTRATOR_INSTRUCTION:+--orchestrator_instruction '${ORCHESTRATOR_INSTRUCTION}'} \
+                ${EXECUTOR_INSTRUCTION:+--executor_instruction '${EXECUTOR_INSTRUCTION}'} \
+                ${TOOLS_INSTRUCTION:+--tools_instruction '${TOOLS_INSTRUCTION}'} \
+                ${INTEGRATOR_INSTRUCTION:+--integrator_instruction '${INTEGRATOR_INSTRUCTION}'} \
+                ${PREDICTOR_INSTRUCTION:+--predictor_instruction '${PREDICTOR_INSTRUCTION}'} \
+                ${CRITIC_INSTRUCTION:+--critic_instruction '${CRITIC_INSTRUCTION}'} \
+                ${COMMUNICATOR_INSTRUCTION:+--communicator_instruction '${COMMUNICATOR_INSTRUCTION}'} \
                 --backend local \
                 --model '${MODEL_NAME}' \
                 --max_tokens ${MAX_TOKENS} \
@@ -586,8 +619,22 @@ PY
 
         python3 main.py \
             '${PARTICIPANT_DIR}' \
+            --prediction_type '${PREDICTION_TYPE}' \
             --target '${SPECIFIC_TARGET}' \
             --control '${FIXED_CONTROL}' \
+            ${CLASS_LABELS:+--class_labels '${CLASS_LABELS}'} \
+            ${REGRESSION_OUTPUT:+--regression_output '${REGRESSION_OUTPUT}'} \
+            ${REGRESSION_OUTPUTS:+--regression_outputs '${REGRESSION_OUTPUTS}'} \
+            ${TASK_SPEC_FILE:+--task_spec_file '${TASK_SPEC_FILE}'} \
+            ${TASK_SPEC_JSON:+--task_spec_json '${TASK_SPEC_JSON}'} \
+            ${GLOBAL_INSTRUCTION:+--global_instruction '${GLOBAL_INSTRUCTION}'} \
+            ${ORCHESTRATOR_INSTRUCTION:+--orchestrator_instruction '${ORCHESTRATOR_INSTRUCTION}'} \
+            ${EXECUTOR_INSTRUCTION:+--executor_instruction '${EXECUTOR_INSTRUCTION}'} \
+            ${TOOLS_INSTRUCTION:+--tools_instruction '${TOOLS_INSTRUCTION}'} \
+            ${INTEGRATOR_INSTRUCTION:+--integrator_instruction '${INTEGRATOR_INSTRUCTION}'} \
+            ${PREDICTOR_INSTRUCTION:+--predictor_instruction '${PREDICTOR_INSTRUCTION}'} \
+            ${CRITIC_INSTRUCTION:+--critic_instruction '${CRITIC_INSTRUCTION}'} \
+            ${COMMUNICATOR_INSTRUCTION:+--communicator_instruction '${COMMUNICATOR_INSTRUCTION}'} \
             --backend local \
             --model '${MODEL_NAME}' \
             --max_tokens ${MAX_TOKENS} \

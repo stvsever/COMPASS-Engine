@@ -30,6 +30,6 @@ You will receive:
 - Optional user focus areas and optional additional guidance
 
 Follow the structure in the user prompt.
-You must include technical summary tables explaining why the final CASE/CONTROL decision was chosen,
-including evidence for and against the predicted class.
+You must include technical summary tables explaining why the final prediction outputs were chosen,
+including evidence for and against the selected outputs.
 When optional focus areas or guidance are provided, prioritize them without inventing evidence.

@@ -79,6 +79,19 @@ docker run --rm \
 3. Open UI:
 - `http://localhost:5005`
 
+## Prediction Task Setup in UI
+
+Inside the UI run wizard:
+- Step 1/2 configures engine/runtime backend.
+- Step 2/2 configures the prediction task with flexible modes:
+  - Binary classification
+  - Multi-class classification
+  - Univariate regression
+  - Multivariate regression
+  - Hierarchical JSON task specification
+
+Mode-specific fields are shown dynamically (for example, comparator labels are only used for binary classification).
+
 ## Verification
 
 - Container logs should show:

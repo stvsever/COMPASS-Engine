@@ -121,6 +121,18 @@ class BaseTool(ABC):
             
             # Build user prompt
             user_prompt = self._build_prompt(input_data)
+            runtime_instruction = str(
+                input_data.get("tool_runtime_instruction")
+                or input_data.get("executor_runtime_instruction")
+                or input_data.get("runtime_instruction")
+                or ""
+            ).strip()
+            if runtime_instruction:
+                user_prompt = (
+                    f"{user_prompt}\n\n## Tool Runtime Instruction\n"
+                    f"{runtime_instruction}\n"
+                    "Apply this instruction while preserving strict JSON contract and evidence fidelity."
+                )
             
             max_tokens, temperature, max_attempts = self._resolve_runtime_policy()
 

@@ -27,7 +27,7 @@ RESULTS_DIR = PROJECT_ROOT.parent / "results"
 # Format:
 #   id         — participant identifier (folder: participant_ID{id})
 #   expected   — ground-truth label (CASE or CONTROL)
-#   target_str — phenotype string passed to main.py --target
+#   target_str — phenotype label passed to main.py --target_label
 PARTICIPANTS = [
     {"id": "01", "expected": "CASE",    "target_str": "MAJOR_DEPRESSIVE_DISORDER | F329:Major depressive disorder, single episode, unspecified"},
     {"id": "02", "expected": "CONTROL", "target_str": "MAJOR_DEPRESSIVE_DISORDER"},
@@ -35,7 +35,6 @@ PARTICIPANTS = [
     {"id": "04", "expected": "CASE",    "target_str": "MAJOR_DEPRESSIVE_DISORDER | F329:Major depressive disorder, single episode, unspecified"},
     {"id": "05", "expected": "CONTROL", "target_str": "MAJOR_DEPRESSIVE_DISORDER"},
 ]
-
 def run_participant(pid_info):
     pid = pid_info["id"]
     target_str = pid_info["target_str"]
@@ -64,14 +63,28 @@ def run_participant(pid_info):
     env["WANDB_DISABLED"] = "true"
     env["WANDB_MODE"] = "disabled"
     
+    prediction_type = str(BATCH_ARGS.get("prediction_type") or "binary")
     cmd = [
         sys.executable,
         str(MAIN_SCRIPT), 
         str(path), 
-        "--target", target_str,  # Pass the dynamic target string
+        "--prediction_type", prediction_type,
+        "--target_label", target_str,
         "--detailed_log",
         "--quiet"
     ]
+    if BATCH_ARGS.get("control_label"):
+        cmd.extend(["--control_label", str(BATCH_ARGS["control_label"])])
+    if BATCH_ARGS.get("class_labels"):
+        cmd.extend(["--class_labels", str(BATCH_ARGS["class_labels"])])
+    if BATCH_ARGS.get("regression_output"):
+        cmd.extend(["--regression_output", str(BATCH_ARGS["regression_output"])])
+    elif BATCH_ARGS.get("regression_outputs"):
+        cmd.extend(["--regression_outputs", str(BATCH_ARGS["regression_outputs"])])
+    if BATCH_ARGS.get("task_spec_file"):
+        cmd.extend(["--task_spec_file", str(BATCH_ARGS["task_spec_file"])])
+    if BATCH_ARGS.get("task_spec_json"):
+        cmd.extend(["--task_spec_json", str(BATCH_ARGS["task_spec_json"])])
     
     # Pass backend args if present in global config
     if BATCH_ARGS.get("backend"):
@@ -125,6 +138,18 @@ def main():
     import argparse
     parser = argparse.ArgumentParser(description="COMPASS Batch Runner — Sequential participant processing")
     parser.add_argument("--backend", choices=["openrouter", "openai", "local"], default="local")
+    parser.add_argument(
+        "--prediction_type",
+        choices=["binary", "multiclass", "regression_univariate", "regression_multivariate", "hierarchical"],
+        default="binary",
+        help="Prediction task type passed to main.py",
+    )
+    parser.add_argument("--control_label", type=str, default=None)
+    parser.add_argument("--class_labels", type=str, default="")
+    parser.add_argument("--regression_outputs", type=str, default="")
+    parser.add_argument("--regression_output", type=str, default="")
+    parser.add_argument("--task_spec_file", type=str, default="")
+    parser.add_argument("--task_spec_json", type=str, default="")
     parser.add_argument("--model", type=str, default=None)
     parser.add_argument("--max_tokens", type=int, default=32768)
     parser.add_argument("--max_agent_input", type=int, default=None)
@@ -143,8 +168,21 @@ def main():
     parser.add_argument("--local_trust_remote_code", action="store_true")
     parser.add_argument("--local_attn", type=str, default="auto")
     args = parser.parse_args()
+    regression_output = str(args.regression_output or "").strip()
+    regression_outputs = str(args.regression_outputs or "").strip()
+    if regression_output and regression_outputs:
+        parsed_multi = [x.strip() for x in regression_outputs.split(",") if x.strip()]
+        if parsed_multi != [regression_output]:
+            raise ValueError("--regression_output conflicts with --regression_outputs. Use one form or provide matching values.")
     
     BATCH_ARGS["backend"] = args.backend
+    BATCH_ARGS["prediction_type"] = args.prediction_type
+    BATCH_ARGS["control_label"] = args.control_label
+    BATCH_ARGS["class_labels"] = args.class_labels
+    BATCH_ARGS["regression_outputs"] = regression_outputs
+    BATCH_ARGS["regression_output"] = regression_output
+    BATCH_ARGS["task_spec_file"] = args.task_spec_file
+    BATCH_ARGS["task_spec_json"] = args.task_spec_json
     BATCH_ARGS["model"] = args.model
     BATCH_ARGS["max_tokens"] = args.max_tokens
     BATCH_ARGS["max_agent_input"] = args.max_agent_input
@@ -173,6 +211,7 @@ def main():
     print(f"  Participants: {n} ({n_cases} CASE, {n_controls} CONTROL)")
     print(f"  Data root:    {DATA_ROOT}")
     print(f"  Backend:      {args.backend}")
+    print(f"  Prediction:   {args.prediction_type}")
     print(f"  Model:        {args.model}")
     print(f"  Context:      {args.max_tokens}")
     print(
@@ -236,7 +275,17 @@ def main():
         avg = sum(timings.values()) / len(timings)
         print(f"  Avg per participant:   {timedelta(seconds=int(avg))}")
     
-    # ─── Classification Summary ──────────────────────────────────────────
+    # ─── Classification Summary (binary mode only) ──────────────────────
+    if args.prediction_type != "binary":
+        print()
+        print("=" * 60)
+        print(" SUMMARY")
+        print("=" * 60)
+        print("  Binary confusion summary is skipped for non-binary prediction modes.")
+        print("  Use annotated-dataset validation scripts for multiclass/regression/hierarchical metrics.")
+        print(f"  Total wall time: {batch_td}")
+        return
+
     print()
     print("=" * 60)
     print(" CLASSIFICATION SUMMARY")

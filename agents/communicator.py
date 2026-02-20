@@ -492,7 +492,7 @@ class Communicator(BaseAgent):
         return "\n".join(
             [
                 "You are the COMPASS Communicator Agent.",
-                "Produce a comprehensive explainability report in Markdown for a binary clinical prediction.",
+                "Produce a comprehensive explainability report in Markdown for deep phenotype prediction outputs.",
                 "",
                 "CRITICAL RULES:",
                 "1) Use only provided data. Do not hallucinate.",
@@ -998,16 +998,22 @@ class Communicator(BaseAgent):
 
     def _render_anchors(self, anchors: Dict[str, str]) -> str:
         blocks = [
-            ("Target Condition", anchors.get("target_condition", "")),
-            ("Control Condition", anchors.get("control_condition", "")),
-            ("Prediction Output", anchors.get("prediction_output", "")),
-            ("Critic Evaluation", anchors.get("critic_evaluation", "")),
-            ("Execution Summary", anchors.get("execution_summary", "")),
-            ("Dataflow Summary", anchors.get("dataflow_summary", "")),
-            ("Final Verdict Context Note", anchors.get("report_context_note", "")),
-            ("Clinical Focus Areas (Optional)", anchors.get("user_focus_modalities", "") or "Not provided"),
-            ("Additional Guidance (Optional)", anchors.get("user_general_instruction", "") or "Not provided"),
+            ("Target Label Context", anchors.get("target_condition", "")),
         ]
+        control_context = str(anchors.get("control_condition", "") or "").strip()
+        if control_context:
+            blocks.append(("Comparator Label Context", control_context))
+        blocks.extend(
+            [
+                ("Prediction Output", anchors.get("prediction_output", "")),
+                ("Critic Evaluation", anchors.get("critic_evaluation", "")),
+                ("Execution Summary", anchors.get("execution_summary", "")),
+                ("Dataflow Summary", anchors.get("dataflow_summary", "")),
+                ("Final Verdict Context Note", anchors.get("report_context_note", "")),
+                ("Clinical Focus Areas (Optional)", anchors.get("user_focus_modalities", "") or "Not provided"),
+                ("Additional Guidance (Optional)", anchors.get("user_general_instruction", "") or "Not provided"),
+            ]
+        )
         rows = [f"### {title}\n```text\n{body}\n```" for title, body in blocks]
         return "\n\n".join(rows)
 
@@ -1032,7 +1038,7 @@ class Communicator(BaseAgent):
                 "REQUIRED OUTPUT STRUCTURE:",
                 "- Title and participant/target header",
                 "- Executive overview (clinician-friendly)",
-                "- Binary verdict rationale (CASE vs CONTROL)",
+                "- Prediction rationale (classification/regression/hierarchical as applicable)",
                 "- Technical summary tables",
                 "- Domain-wise deep phenotyping",
                 "- Data coverage, uncertainty, and limitations",
@@ -1097,5 +1103,9 @@ class Communicator(BaseAgent):
             anchors_text=anchors_text,
             evidence_text=evidence_text,
             rag_text="",
+        )
+        prompt = self._append_runtime_instruction(
+            prompt,
+            label="Communicator Runtime Instruction",
         )
         return truncate_text_by_tokens(prompt, budget, model_hint=model_hint)

@@ -11,11 +11,10 @@ from enum import Enum
 
 class TargetCondition(str, Enum):
     """
-    Broad categorization of prediction targets.
-    Specific phenotypes (e.g., ANXIETY_DISORDERS) are also valid as strings in the system.
+    Broad categorization labels for target phenotypes.
+    Specific phenotype strings are also valid throughout the system.
     """
-    NEUROPSYCHIATRIC = "neuropsychiatric"
-    NEUROLOGIC = "neurologic"
+    PHENOTYPE = "phenotype"
 
 
 class DomainName(str, Enum):

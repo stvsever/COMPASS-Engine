@@ -6,16 +6,15 @@
 </div>
 -->
 
-**COMPASS** is an advanced multi-agent orchestrator for clinical decision support, enabling precise phenotypic prediction by integrating hierarchical multi-modal deviation maps and non-tabular electronic health information. Our current system is customized for neuropsychiatric phenotyping with data from the UK Biobank ; developed as part of an internship project @ IIS BioBizkaia.
+**COMPASS** is an advanced multi-agent orchestrator for deep phenotype prediction, integrating hierarchical multi-modal deviation maps and non-tabular health information. The current engine supports binary classification, multiclass classification, univariate regression, multivariate regression, and hierarchical mixed task trees.
 
 ## 🚀 Key Features
 
 - **Multi-Agent Orchestration**: A dynamic actor-critic team of specialized agents (**Orchestrator, Executor, Integrator, Predictor, Critic**) collaborates to synthesize complex diagnostic logic through iterative refinement cycles.
 - **Scalable Nature of LLM-based Knowledge**: Leverages the vast pre-trained clinical and biomedical knowledge of state-of-the-art large language models (LLM) for high-precision phenotypic prediction without requiring task-specific training, or fine-tuning.
-- **Semantic RAG Fusion**: Employs a "Smart Fusion" layer that prioritizes semantically relevant biomarkers using hierarchical embeddings and targeted context retrieval to maximize the information-to-token ratio.
-- **Explainable Clinical Reasoning**: Generates multi-modal evidence chains and structured patient reports, transforming complex high-dimensional data signals into human-interpretable clinical narratives; including three diverse LLM-optimized XAI methods.
-- **Deep Phenotyping Report**: A dedicated **Communicator** agent produces a `deep_phenotype.md` report that is evidence-grounded and explicit about missing data (no hallucinated metrics).
+- **Explainable Clinical Reasoning**: Generates multi-modal evidence chains using diverse XAI methods, transforming complex high-dimensional data signals into human-interpretable narratives.
 - **Live Dashboard**: Integrated real-time UI for monitoring agent reasoning, token usage, and cross-modal evidence synthesis as it happens.
+- **Deep Phenotyping Report**: A dedicated **Communicator** agent produces a `deep_phenotype.md` report that is evidence-grounded and explicit about missing data (no hallucinated metrics).
 
 
 ## 🧠 System Architecture
@@ -23,7 +22,7 @@
 COMPASS utilizes a sequential multi-agent workflow with iterative feedback loops.
 
 <div align="center">
-  <img src="overview/compass_flowchart.png" alt="COMPASS Flowchart" width="800" />
+  <img src="overview/compass_engine/compass_flowchart_simplified.png" alt="COMPASS Flowchart" width="800" />
 </div>
 
 ## 🖥️ Interactive Dashboard
@@ -62,22 +61,58 @@ Through the dashboard, you can:
 ## ⚡ Usage
 
 ### Quick Start (CLI)
-Run the pipeline on a participant folder:
+Run the pipeline on a participant folder ('binary classification' by default):
 
 ```bash
-python main.py data/pseudo_data/inputs/SUBJ_001_PSEUDO --target "Major Depressive Disorder" --control "brain-implicated pathology, but NOT psychiatric" --backend openrouter
+python main.py data/pseudo_data/inputs/SUBJ_001_PSEUDO \
+  --prediction_type binary \
+  --target_label target_phenotype \
+  --control_label non_target_comparator \
+  --backend openrouter
 ```
+
+Examples of other supported prediction tasks:
+
+```bash
+# Multiclass
+python main.py data/pseudo_data/inputs/SUBJ_001_PSEUDO \
+  --prediction_type multiclass \
+  --target_label phenotype_subtype \
+  --class_labels subtype_a,subtype_b,subtype_c
+
+# Univariate regression
+python main.py data/pseudo_data/inputs/SUBJ_001_PSEUDO \
+  --prediction_type regression_univariate \
+  --target_label total_score \
+  --regression_output total_score
+
+# Multivariate regression
+python main.py data/pseudo_data/inputs/SUBJ_001_PSEUDO \
+  --prediction_type regression_multivariate \
+  --target_label trait_profile \
+  --regression_outputs openness,conscientiousness,extraversion,agreeableness,neuroticism
+
+# Hierarchical mixed tree
+python main.py data/pseudo_data/inputs/SUBJ_001_PSEUDO \
+  --prediction_type hierarchical \
+  --task_spec_file /path/to/task_spec.json
+```
+
+Use `--regression_output` for univariate regression (single output) and `--regression_outputs` for multivariate regression (comma-separated list).
 
 ### Explainability CLI (Backend-only)
 Run explainability methods on the selected final attempt:
 
 ```bash
 python main.py data/pseudo_data/inputs/SUBJ_001_PSEUDO \
-  --target "Major Depressive Disorder" \
-  --control "brain-implicated pathology, but NOT psychiatric" \
+  --prediction_type binary \
+  --target_label target_phenotype \
+  --control_label non_target_comparator \
   --backend openrouter \
   --xai_methods external,internal,hybrid
 ```
+
+Important: XAI currently supports only pure root-level binary classification. For multiclass/regression/hierarchical tasks, XAI is skipped with explicit status metadata.
 
 Each participant folder must contain four core input files (see data/pseudo_data/inputs):
 ```text
@@ -119,7 +154,7 @@ For Intel Mac/Linux/Windows builds, use `--platform linux/amd64` (see `docker/RE
 > Optional variant: includes local-inference deps (`torch`/`transformers`/`bitsandbytes`) for people who really want them.
 > GPU acceleration is explicitly not here; use `hpc/`.
 
-### HPC Example (Single GPU)
+### HPC Example (Single GPU Setup)
 
 For a complete Slurm + Apptainer workflow example for single-GPU HPC execution, see:
 
@@ -135,7 +170,7 @@ This includes step-by-step setup, single-participant validation, sequential batc
 
 ### Clinical Validation with Annotated Datasets
 
-If your cohort includes ground-truth annotations (e.g., UK Biobank case-control labels), COMPASS provides automated validation tools that compute binary confusion matrices and deep statistical analyses across neuropsychiatric disorder groups.
+If your cohort includes ground-truth annotations, COMPASS provides validation tooling for binary, multiclass, regression, and hierarchical analyses.
 
 ```bash
 # Run analysis manually after a batch completes:
@@ -154,7 +189,9 @@ python utils/validation/with_annotated_dataset/detailed_analysis.py \
 
 For a detailed walkthrough, see `utils/validation/with_annotated_dataset/validation_guide.ipynb`.
 
-For a hands-on walkthrough, run the included Jupyter Notebook:
+### Notebook on General Usage 
+
+For a general hands-on walkthrough on how to use the COMPASS-engine, run the included Jupyter Notebook:
 
 ```bash
 jupyter notebook COMPASS_demo.ipynb
@@ -171,7 +208,7 @@ multi_agent_system/
 ├── agents/             # Autonomous agent definitions (Orchestrator, Predictor, Critic, etc.) and prompts
 ├── tools/              # Clinical analysis tools (COMPASS Core Tools) and prompt templates
 ├── frontend/           # Interactive Web UI (Flask backend + HTML/CSS/JS frontend)
-├── docker/             # Containerized UI/API runtime (CPU-first) and optional full-dependency variant
+├── docker/             # Containerized UI/API runtime and optional full-dependency variant
 ├── hpc/                # Slurm + Apptainer scripts and HPC operational notebook
 ├── utils/              # System utilities (Core Engine, Logging, Embeddings, Logic)
 ├── data/               # Data package
@@ -187,7 +224,7 @@ This Multi-Agent System is being developed in the context of a **Master's Intern
 
 The research is being conducted at the **Computational Neuroimaging Lab** of **[IIS Biobizkaia](https://compneurobilbao.eus)** (Bilbao, Spain).
 
-COMPASS is currently being tested on a large neuropsychiatric cohort from the **UK Biobank**, leveraging available multi-modal brain and clinical data to evaluate robustness, scalability, and generalization in real-world population settings.
+COMPASS is being developed and tested on large multimodal phenotype cohorts to evaluate robustness, scalability, and generalization in real-world population settings.
 
 ## 📚 Project Credits
 
@@ -223,7 +260,7 @@ Key future development directions include:
 - **Dedicated DataLoader Agent for Raw Multi-Modal Preparation**  
   A major next step is the implementation of a specialized **Data Loader Agent** that automatically prepares raw neuroimaging, deviation-map, and electronic health inputs into a standardized `ParticipantData` container, ensuring seamless delivery to the **Orchestrator Agent** and reducing manual preprocessing overhead.
 
-Together, these developments aim to strengthen COMPASS as a scalable, interpretable, and clinician-oriented framework for next-generation neuropsychiatric phenotyping and decision support.
+Together, these developments aim to strengthen the COMPASS-engine as a scalable, interpretable, and clinician-oriented framework for next-generation deep phenotyping and decision support.
 
 > [!CAUTION]
 > **EU MDR / PRE-CLINICAL DISCLAIMER**

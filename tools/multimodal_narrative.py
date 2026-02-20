@@ -42,7 +42,7 @@ class MultimodalNarrativeCreator(BaseTool):
     def _build_prompt(self, input_data: Dict[str, Any]) -> str:
         """Build the narrative creation prompt."""
         domains = input_data.get("input_domains", [])
-        target = input_data.get("target_condition", "neuropsychiatric")
+        target = input_data.get("target_condition", "target phenotype")
         control = input_data.get("control_condition", "")
         
         # Get dependency outputs (from previous unimodal compression)

@@ -15,7 +15,7 @@ class HypothesisGenerator(BaseTool):
     """
     Generates plausible biomedical hypotheses for abnormalities.
     
-    Links deviations to neuropsychiatric/neurologic conditions
+    Links deviations to target phenotype/phenotype comparator conditions
     through established pathophysiological mechanisms.
     """
     
@@ -39,7 +39,7 @@ class HypothesisGenerator(BaseTool):
     
     def _build_prompt(self, input_data: Dict[str, Any]) -> str:
         """Build the hypothesis generation prompt."""
-        target = input_data.get("target_condition", "neuropsychiatric")
+        target = input_data.get("target_condition", "target phenotype")
         control = input_data.get("control_condition", "")
         
         # Get abnormality data from dependency outputs or hierarchical deviation

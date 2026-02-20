@@ -1,9 +1,35 @@
 {
   "participant_id": "SUBJ_001_PSEUDO",
-  "target_condition": "MAJOR DEPRESSIVE DISORDER",
-  "control_condition": "HEALTHY",
-  "execution_timestamp": "2026-02-19T16:18:40.087983",
-  "total_duration_seconds": 151.79,
+  "target_condition": "MORTALITY",
+  "control_condition": "",
+  "prediction_task_spec": {
+    "schema_version": "1.0",
+    "task_id": null,
+    "root": {
+      "node_id": "root",
+      "display_name": "MORTALITY",
+      "mode": "univariate_regression",
+      "class_labels": [],
+      "regression_outputs": [
+        "expected age of death"
+      ],
+      "unit_by_output": {},
+      "required": true,
+      "children": []
+    }
+  },
+  "agent_instructions": {
+    "global": "ALL MUST BE IN FRENCH!",
+    "orchestrator": "",
+    "executor": "",
+    "tools": "",
+    "integrator": "",
+    "predictor": "",
+    "critic": "",
+    "communicator": ""
+  },
+  "execution_timestamp": "2026-02-20T20:27:09.923164",
+  "total_duration_seconds": 178.98,
   "iterations": 1,
   "selected_iteration": 1,
   "selection_reason": "Satisfactory verdict available; chose strongest satisfactory attempt (iteration 1).",
@@ -20,8 +46,19 @@
   },
   "dataflow_summary": {
     "iteration": 1,
-    "target_condition": "MAJOR DEPRESSIVE DISORDER",
-    "control_condition": "HEALTHY",
+    "target_condition": "MORTALITY",
+    "control_condition": "",
+    "prediction_task_root_mode": "univariate_regression",
+    "agent_instruction_flags": {
+      "global": true,
+      "orchestrator": false,
+      "executor": false,
+      "tools": false,
+      "integrator": false,
+      "predictor": false,
+      "critic": false,
+      "communicator": false
+    },
     "predictor_input_mode": "RAW_PASS_THROUGH",
     "coverage": {
       "summary": {
@@ -49,13 +86,14 @@
       "processed_raw_full_included": true,
       "rag_added_count": null,
       "predictor_payload_estimate": {
-        "baseline_tokens": 39723,
-        "final_tokens": 47054,
-        "processed_raw_tokens": 46993,
+        "baseline_tokens": 37856,
+        "final_tokens": 45187,
+        "processed_raw_tokens": 45126,
         "single_chunk_limit": 1900000,
         "threshold": 1800000,
         "chunked_two_pass_required": false,
-        "strategy": "threshold_driven_no_loss_pass_through"
+        "strategy": "threshold_driven_no_loss_pass_through",
+        "runtime_instruction_applied": true
       },
       "coverage_snapshot": {
         "processed_whole_domains": [
@@ -94,155 +132,168 @@
     }
   },
   "prediction_result": {
-    "classification": "CASE",
-    "probability": 0.9,
-    "confidence": "HIGH"
+    "classification": "expected age of death: 76.000",
+    "probability": null,
+    "root_confidence": 0.65,
+    "confidence": "MEDIUM",
+    "primary_output_kind": "regression",
+    "root_prediction": {
+      "node_id": "root",
+      "path": "root",
+      "mode": "univariate_regression",
+      "classification": null,
+      "regression": {
+        "values": {
+          "expected age of death": 76.0
+        }
+      },
+      "confidence_level": "MEDIUM",
+      "confidence_score": 0.65,
+      "key_findings": [],
+      "reasoning_chain": [],
+      "supporting_evidence_for": [
+        "Anomalies convergentes inflammatoires/neurod\u00e9g\u00e9n\u00e9ratives pr\u00e9dictives de LE r\u00e9duite (litt\u00e9rature : -5-10 ans)",
+        "\u00c2ge biologique acc\u00e9l\u00e9r\u00e9 malgr\u00e9 45 ans chronologiques"
+      ],
+      "supporting_evidence_against": [
+        "Pas de signes terminaux (Glasgow, asystolie, |z|>5 vitaux)",
+        "Profils lifestyle mod\u00e9r\u00e9ment alt\u00e9r\u00e9s sans extr\u00eames"
+      ],
+      "uncertainty_factors": [
+        "Manque suivi temporel",
+        "Absence scores pronostiques (SOFA/APACHE)"
+      ],
+      "children": []
+    }
   },
   "critic_verdict": "SATISFACTORY",
   "token_usage": {
-    "total_tokens": 178698,
-    "prompt_tokens": 144475,
-    "completion_tokens": 34223,
+    "total_tokens": 118154,
+    "prompt_tokens": 84304,
+    "completion_tokens": 33850,
     "calls": [
       {
         "component": "orchestrator",
-        "prompt_tokens": 4352,
-        "completion_tokens": 4366,
-        "total": 8718,
+        "prompt_tokens": 4433,
+        "completion_tokens": 6348,
+        "total": 10781,
         "step_tool": null,
         "step_reasoning": null
       },
       {
         "component": "executor",
-        "prompt_tokens": 5052,
-        "completion_tokens": 1860,
-        "total": 6912,
-        "step_tool": "AnomalyNarrativeBuilder",
-        "step_reasoning": "Provides rapid overview of patient abnormalities from deviation map for prioritization."
-      },
-      {
-        "component": "executor",
-        "prompt_tokens": 5352,
-        "completion_tokens": 2743,
-        "total": 8095,
-        "step_tool": "UnimodalCompressor",
-        "step_reasoning": "High-volume domain requires compression for pattern detection in biomarkers critical for MDD (e.g., cytokines, HPA axis)."
-      },
-      {
-        "component": "executor",
-        "prompt_tokens": 3340,
-        "completion_tokens": 1904,
-        "total": 5244,
-        "step_tool": "FeatureSynthesizer",
-        "step_reasoning": "Identifies top hierarchical features for MDD to guide relevance ranking and focus."
-      },
-      {
-        "component": "executor",
-        "prompt_tokens": 3236,
-        "completion_tokens": 2448,
-        "total": 5684,
-        "step_tool": "UnimodalCompressor",
-        "step_reasoning": "Medium-high volume; extracts patterns like hippocampal volume loss or connectivity issues key to MDD."
-      },
-      {
-        "component": "executor",
-        "prompt_tokens": 1188,
-        "completion_tokens": 1776,
-        "total": 2964,
+        "prompt_tokens": 1236,
+        "completion_tokens": 2005,
+        "total": 3241,
         "step_tool": "PhenotypeRepresentation",
-        "step_reasoning": "Establishes the gold-standard clinical template for all downstream comparisons and pattern matching."
+        "step_reasoning": "Fournit les crit\u00e8res ph\u00e9notypiques essentiels (biomarqueurs, exclusions) pour guider l'\u00e9valuation des donn\u00e9es patient vers la pr\u00e9diction de mortalit\u00e9."
       },
       {
         "component": "executor",
-        "prompt_tokens": 2592,
-        "completion_tokens": 2076,
-        "total": 4668,
+        "prompt_tokens": 5134,
+        "completion_tokens": 2240,
+        "total": 7374,
+        "step_tool": "AnomalyNarrativeBuilder",
+        "step_reasoning": "Permet un screening rapide des anomalies hi\u00e9rarchiques pour prioriser les domaines cliniquement impactants sur la mortalit\u00e9."
+      },
+      {
+        "component": "executor",
+        "prompt_tokens": 3409,
+        "completion_tokens": 1561,
+        "total": 4970,
+        "step_tool": "FeatureSynthesizer",
+        "step_reasoning": "Produit un ranking hi\u00e9rarchique des features pour optimiser l'allocation des ressources de raisonnement vers les signaux pr\u00e9dictifs de mortalit\u00e9."
+      },
+      {
+        "component": "executor",
+        "prompt_tokens": 2632,
+        "completion_tokens": 2181,
+        "total": 4813,
         "step_tool": "UnimodalCompressor",
-        "step_reasoning": "Medium volume; identifies executive/attention impairments typical in MDD."
+        "step_reasoning": "Volume moyen (1120 tokens) ; patterns cognitifs informatifs pour comorbidit\u00e9s pr\u00e9dictives de mortalit\u00e9."
       },
       {
         "component": "executor",
-        "prompt_tokens": 3041,
-        "completion_tokens": 2090,
-        "total": 5131,
+        "prompt_tokens": 5392,
+        "completion_tokens": 2505,
+        "total": 7897,
         "step_tool": "UnimodalCompressor",
-        "step_reasoning": "Medium volume; patterns in stress, sleep, environment relevant to MDD etiology."
+        "step_reasoning": "Domaine volumineux (3780 tokens) ; compression leverage d\u00e9tecteur de patterns pour discrimination quantitative de risque mortalit\u00e9."
       },
       {
         "component": "executor",
-        "prompt_tokens": 1785,
-        "completion_tokens": 1253,
-        "total": 3038,
+        "prompt_tokens": 1826,
+        "completion_tokens": 1925,
+        "total": 3751,
         "step_tool": "ClinicalRelevanceRanker",
-        "step_reasoning": "Prioritizes deviations post-synthesis for MDD-specific focus in fusions and diagnosis."
+        "step_reasoning": "Priorise features synth\u00e9tis\u00e9es par rapport au ph\u00e9notype mortalit\u00e9 pour raffiner l'analyse."
       },
       {
         "component": "executor",
-        "prompt_tokens": 4208,
-        "completion_tokens": 1927,
-        "total": 6135,
+        "prompt_tokens": 3276,
+        "completion_tokens": 2727,
+        "total": 6003,
+        "step_tool": "UnimodalCompressor",
+        "step_reasoning": "Volume moyen-\u00e9lev\u00e9 (1710 tokens) ; extraction de patterns neuro-imagerie cruciaux pour pr\u00e9diction r\u00e9gression mortalit\u00e9."
+      },
+      {
+        "component": "executor",
+        "prompt_tokens": 3081,
+        "completion_tokens": 3498,
+        "total": 6579,
+        "step_tool": "UnimodalCompressor",
+        "step_reasoning": "Volume moyen (1260 tokens) ; patterns comportementaux/environnementaux essentiels pour estimation r\u00e9gression mortalit\u00e9."
+      },
+      {
+        "component": "executor",
+        "prompt_tokens": 8637,
+        "completion_tokens": 2347,
+        "total": 10984,
         "step_tool": "MultimodalNarrativeCreator",
-        "step_reasoning": "Captures brain-cognition interactions (e.g., connectivity-cognitive deficits) central to MDD."
+        "step_reasoning": "Fusionne preuves cross-modales (bio, neuro, cog, lifestyle) pour identifier interactions pr\u00e9dictives de mortalit\u00e9."
       },
       {
         "component": "executor",
-        "prompt_tokens": 5728,
-        "completion_tokens": 2074,
-        "total": 7802,
-        "step_tool": "MultimodalNarrativeCreator",
-        "step_reasoning": "Integrates biomarkers with lifestyle for holistic view of inflammation/stress in MDD."
-      },
-      {
-        "component": "executor",
-        "prompt_tokens": 9044,
-        "completion_tokens": 2355,
-        "total": 11399,
-        "step_tool": "MultimodalNarrativeCreator",
-        "step_reasoning": "Creates comprehensive multimodal picture incorporating all data for final synthesis."
-      },
-      {
-        "component": "executor",
-        "prompt_tokens": 1164,
-        "completion_tokens": 1168,
-        "total": 2332,
+        "prompt_tokens": 1237,
+        "completion_tokens": 1406,
+        "total": 2643,
         "step_tool": "HypothesisGenerator",
-        "step_reasoning": "Derives mechanistic explanations from fused narratives to inform diagnosis."
+        "step_reasoning": "Produit explications m\u00e9canistiques des d\u00e9viations pour soutenir l'estimation quantitative de risque."
       },
       {
         "component": "executor",
-        "prompt_tokens": 2871,
-        "completion_tokens": 2378,
-        "total": 5249,
+        "prompt_tokens": 3694,
+        "completion_tokens": 2625,
+        "total": 6319,
         "step_tool": "DifferentialDiagnosis",
-        "step_reasoning": "Culminates analysis with ranked diagnoses and binary outcome grounded in full evidence."
+        "step_reasoning": "Synth\u00e8se finale int\u00e9grant tous \u00e9l\u00e9ments pour pr\u00e9diction r\u00e9gression univari\u00e9e de mortalit\u00e9, avec fichiers core pass\u00e9s."
       },
       {
         "component": "predictor",
-        "prompt_tokens": 42985,
-        "completion_tokens": 2328,
-        "total": 45313,
+        "prompt_tokens": 39994,
+        "completion_tokens": 2128,
+        "total": 42122,
         "step_tool": null,
         "step_reasoning": null
       },
       {
         "component": "critic",
-        "prompt_tokens": 48537,
-        "completion_tokens": 1477,
-        "total": 50014,
+        "prompt_tokens": 323,
+        "completion_tokens": 354,
+        "total": 677,
         "step_tool": null,
         "step_reasoning": null
       }
     ]
   },
   "plan_summary": {
-    "plan_id": "COMPASS_PLAN_SUBJ_001_MDD_v1",
-    "total_steps": 13,
+    "plan_id": "plan_mortalite_SUBJ_001_PSEUDO",
+    "total_steps": 11,
     "priority_domains": [
       "BIOLOGICAL_ASSAY",
       "BRAIN_MRI",
       "COGNITION",
-      "LIFESTYLE_ENVIRONMENT",
-      "DEMOGRAPHICS"
+      "LIFESTYLE_ENVIRONMENT"
     ]
   },
   "explainability": {

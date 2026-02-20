@@ -1,36 +1,47 @@
 [
   {
     "type": "PIPELINE_START",
-    "timestamp": "2026-02-19T16:18:40.095338",
+    "timestamp": "2026-02-20T20:27:09.927291",
     "data": {
       "participant_id": "SUBJ_001_PSEUDO",
-      "target_condition": "MAJOR DEPRESSIVE DISORDER",
-      "control_condition": "HEALTHY",
-      "timestamp": "2026-02-19T16:18:40.095334"
+      "target_condition": "MORTALITY",
+      "control_condition": "",
+      "prediction_task_mode": "univariate_regression",
+      "timestamp": "2026-02-20T20:27:09.927288"
     }
   },
   {
     "type": "ORCHESTRATOR",
-    "timestamp": "2026-02-19T16:19:11.240842",
+    "timestamp": "2026-02-20T20:27:57.189874",
     "data": {
-      "plan_id": "COMPASS_PLAN_SUBJ_001_MDD_v1",
-      "total_steps": 13,
+      "plan_id": "plan_mortalite_SUBJ_001_PSEUDO",
+      "total_steps": 11,
       "priority_domains": [
         "BIOLOGICAL_ASSAY",
         "BRAIN_MRI",
         "COGNITION",
-        "LIFESTYLE_ENVIRONMENT",
-        "DEMOGRAPHICS"
+        "LIFESTYLE_ENVIRONMENT"
       ]
     }
   },
   {
     "type": "DATAFLOW_SUMMARY",
-    "timestamp": "2026-02-19T16:20:59.836628",
+    "timestamp": "2026-02-20T20:30:03.147720",
     "data": {
       "iteration": 1,
-      "target_condition": "MAJOR DEPRESSIVE DISORDER",
-      "control_condition": "HEALTHY",
+      "target_condition": "MORTALITY",
+      "control_condition": "",
+      "prediction_task_root_mode": "univariate_regression",
+      "agent_instruction_flags": {
+        "global": true,
+        "orchestrator": false,
+        "executor": false,
+        "tools": false,
+        "integrator": false,
+        "predictor": false,
+        "critic": false,
+        "communicator": false
+      },
       "predictor_input_mode": "RAW_PASS_THROUGH",
       "coverage": {
         "summary": {
@@ -58,13 +69,14 @@
         "processed_raw_full_included": true,
         "rag_added_count": null,
         "predictor_payload_estimate": {
-          "baseline_tokens": 39723,
-          "final_tokens": 47054,
-          "processed_raw_tokens": 46993,
+          "baseline_tokens": 37856,
+          "final_tokens": 45187,
+          "processed_raw_tokens": 45126,
           "single_chunk_limit": 1900000,
           "threshold": 1800000,
           "chunked_two_pass_required": false,
-          "strategy": "threshold_driven_no_loss_pass_through"
+          "strategy": "threshold_driven_no_loss_pass_through",
+          "runtime_instruction_applied": true
         },
         "coverage_snapshot": {
           "processed_whole_domains": [
@@ -105,18 +117,19 @@
   },
   {
     "type": "PREDICTOR",
-    "timestamp": "2026-02-19T16:20:59.837206",
+    "timestamp": "2026-02-20T20:30:03.149484",
     "data": {
-      "classification": "CASE",
-      "probability": 0.9
+      "classification": "expected age of death: 76.000",
+      "probability": 0.65,
+      "prediction_task_mode": "univariate_regression"
     }
   },
   {
     "type": "CRITIC",
-    "timestamp": "2026-02-19T16:21:11.874723",
+    "timestamp": "2026-02-20T20:30:08.899550",
     "data": {
       "verdict": "SATISFACTORY",
-      "confidence": 1.0
+      "confidence": 0.95
     }
   }
 ]

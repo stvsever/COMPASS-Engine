@@ -2,11 +2,11 @@
 
 This folder contains an **example HPC workflow** for running COMPASS on Slurm-based GPU clusters.
 
-It was developed to support **clinical validation runs** of the COMPASS engine on a **single-GPU node** (example target hardware: **NVIDIA L40S, 48 GB VRAM**). The defaults in these scripts reflect that operating constraint.
+It was developed to support **phenotype validation runs** of the COMPASS engine on a **single-GPU node** (example target hardware: **NVIDIA L40S, 48 GB VRAM**). The defaults in these scripts reflect that operating constraint.
 
 It is intentionally written as a reproducible template for:
 - Single-participant validation (`04_submit_single.sh`)
-- Sequential batch clinical validation (`05_submit_batch.sh`)
+- Sequential batch validation (`05_submit_batch.sh`)
 
 Use it as a starting point. For your cluster, adapt partition/GPU/path settings as needed.
 
@@ -91,11 +91,22 @@ cat logs/compass_batch_<JOBID>.err
 
 - Runs the participant cohort defined in `utils/batch_run.py`.
 - Keeps execution **sequential** (single GPU) by design.
-- Passes local runtime and token budget flags through to `main.py` per participant:
+- Passes local runtime, token budgets, and prediction task flags through to `main.py` per participant:
+  - `PREDICTION_TYPE` (default `binary`)
+  - Optional `CLASS_LABELS`, `REGRESSION_OUTPUT` (univariate), `REGRESSION_OUTPUTS` (multivariate), `TASK_SPEC_FILE`, `TASK_SPEC_JSON`
+  - Optional runtime guidance: `GLOBAL_INSTRUCTION`, `ORCHESTRATOR_INSTRUCTION`, `EXECUTOR_INSTRUCTION`, `TOOLS_INSTRUCTION`, `INTEGRATOR_INSTRUCTION`, `PREDICTOR_INSTRUCTION`, `CRITIC_INSTRUCTION`, `COMMUNICATOR_INSTRUCTION`
   - `--max_tokens`
   - `--max_agent_input`, `--max_agent_output`
   - `--max_tool_input`, `--max_tool_output`
   - local engine/quantization settings
+
+### `04_submit_single.sh`
+
+- Uses the same prediction-task controls as Step 05.
+- Defaults remain binary (`PREDICTION_TYPE=binary`) so existing case/control workflows still run unchanged.
+- You can override to multiclass/regression/hierarchical by exporting:
+  - `PREDICTION_TYPE`
+  - optional `CLASS_LABELS`, `REGRESSION_OUTPUT` (univariate), `REGRESSION_OUTPUTS` (multivariate), `TASK_SPEC_FILE`, `TASK_SPEC_JSON`
 
 ## Participant cohort definition
 
@@ -119,6 +130,8 @@ The pipeline supports both:
 - Public API inference (OpenRouter/OpenAI)
 
 They are intentionally configurable independently. The HPC scripts in this folder are focused on the **local backend** path for clinical validation runs.
+
+Note: Explainability (XAI) remains binary-root-only. Non-binary prediction modes run normally, but XAI steps are skipped with explicit status metadata.
 
 ## Performance notes
 

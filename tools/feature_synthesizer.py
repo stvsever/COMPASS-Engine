@@ -40,7 +40,7 @@ class FeatureSynthesizer(BaseTool):
     
     def _build_prompt(self, input_data: Dict[str, Any]) -> str:
         """Build the feature synthesis prompt."""
-        target = input_data.get("target_condition", "neuropsychiatric")
+        target = input_data.get("target_condition", "target phenotype")
         control = input_data.get("control_condition", "")
         hierarchical_deviation = input_data.get("hierarchical_deviation", {})
         domains = input_data.get("input_domains", [])
@@ -169,7 +169,7 @@ class FeatureSynthesizer(BaseTool):
                 feature_synthesis_overview = (
                     "Predictive signal is concentrated in "
                     + ", ".join(prioritized_domains[:4])
-                    + ". Distinguish CASE vs CONTROL using cross-domain coherence, "
+                    + ". Distinguish plausible task outputs using cross-domain coherence, "
                       "consistency of abnormal patterns, and whether deviations align with target-specific mechanisms."
                 )
             else:
@@ -229,7 +229,7 @@ class FeatureSynthesizer(BaseTool):
         if not predictor_attention_guidance:
             predictor_attention_guidance = (
                 "Weight the strongest convergent domains first, validate against phenotype and non-numerical clinical context, "
-                "and prefer CONTROL when deviations are weak, scattered, or inconsistent with target-specific presentation."
+                "and in binary mode prefer CONTROL when deviations are weak, scattered, or inconsistent with target-specific presentation."
             )
 
         # Accept legacy numeric hints in free text only; never emit explicit feature arrays.

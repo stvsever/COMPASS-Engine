@@ -813,6 +813,27 @@
             background: #3f3f46;
         }
 
+        .step-back-inline {
+            border: 1px solid #2b3445;
+            background: #0f141d;
+            color: #9fb6ff;
+            width: 28px;
+            height: 28px;
+            border-radius: 7px;
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            cursor: pointer;
+            transition: all 0.2s ease;
+            margin-right: 8px;
+        }
+
+        .step-back-inline:hover {
+            background: #162032;
+            border-color: #3f4f69;
+            color: #c7d8ff;
+        }
+
         /* WIZARD */
         .wizard-step {
             display: none;
@@ -1157,26 +1178,22 @@
     <div id="setup-modal" class="modal-overlay active">
         <div class="glass-panel">
 
-            <!-- STEP 1: Run Setup (Only Step) -->
+            <!-- STEP 1: Engine Setup -->
             <div id="wiz-1" class="wizard-step active">
                 <i class="fas fa-satellite-dish launch-icon"></i>
-                <h2 style="font-size: 1.5rem; text-align: center; margin-bottom: 0.5rem;">Run Setup</h2>
+                <h2 style="font-size: 1.5rem; text-align: center; margin-bottom: 0.5rem;">Configure Inference Run</h2>
+                <div id="engine-config-block">
+                <div style="display:flex; align-items:center; gap:8px; margin-bottom:8px; color:#9ca3af; font-size:0.78rem;">
+                    <i class="fas fa-cogs"></i>
+                    <span>Step 1 of 2 • Engine Configuration</span>
+                </div>
+                <div class="advanced-subtle" style="margin-bottom: 1rem;">
+                    Configure runtime and models first.
+                </div>
                 <div style="margin-bottom: 1.5rem;">
                     <label class="form-label">PARTICIPANT IDENTIFIER (or path)</label>
                     <input type="text" id="input-pid" class="form-input"
                         placeholder="e.g. participant_ID6015951 or 6015951" value="">
-                </div>
-
-                <div>
-                    <label class="form-label">TARGET PHENOTYPE</label>
-                    <input type="text" id="input-target" class="form-input" placeholder="e.g. neuropsychiatric"
-                        value="neuropsychiatric">
-                </div>
-                <div style="margin-top:0.9rem;">
-                    <label class="form-label">CONTROL COMPARATOR</label>
-                    <input type="text" id="input-control" class="form-input"
-                        placeholder="e.g. brain-implicated pathology, but NOT psychiatric"
-                        value="brain-implicated pathology, but NOT psychiatric">
                 </div>
 
                 <!-- ADVANCED SETTINGS TOGGLE -->
@@ -1435,8 +1452,123 @@
                         </div>
                     </div>
                 </div>
+                </div>
 
-                <button id="btn-final-launch" class="btn-launch" onclick="launchPipeline()">
+                <div id="prediction-config-block" style="display:none; margin-bottom: 1rem;">
+                    <div style="display:flex; align-items:center; gap:8px; margin-bottom:8px; color:#9ca3af; font-size:0.78rem;">
+                        <button id="btn-setup-back-inline" class="step-back-inline" onclick="gotoEngineSetup()" title="Back to Step 1" aria-label="Back to Step 1">
+                            <i class="fas fa-arrow-left"></i>
+                        </button>
+                        <i class="fas fa-diagram-project"></i>
+                        <span>Step 2 of 2 • Prediction Task Configuration</span>
+                    </div>
+                    <div class="advanced-subtle" id="prediction-mode-hint" style="margin-bottom:10px;">
+                        Engine setup is complete. Configure the prediction task here; only fields relevant to the selected mode are shown.
+                    </div>
+                    <div>
+                        <label class="form-label">PREDICTION TYPE</label>
+                        <select id="input-prediction-type" class="form-input" onchange="onPredictionTypeChange()">
+                            <option value="binary" selected>Binary Classification</option>
+                            <option value="multiclass">Multi-class Classification</option>
+                            <option value="regression_univariate">Univariate Regression</option>
+                            <option value="regression_multivariate">Multivariate Regression</option>
+                            <option value="hierarchical">Hierarchical (JSON Spec)</option>
+                        </select>
+                    </div>
+                    <div id="group-target-label">
+                        <label class="form-label" id="label-target-input">PHENOTYPE LABEL</label>
+                        <input type="text" id="input-target" class="form-input" placeholder="e.g. target_phenotype" value="">
+                    </div>
+                    <div id="group-control-label" style="margin-top:0.9rem;">
+                        <label class="form-label" id="label-control-input">CONTROL / COMPARATOR LABEL</label>
+                        <input type="text" id="input-control" class="form-input"
+                            placeholder="e.g. non-target comparator phenotype profile"
+                            value="">
+                    </div>
+                    <div id="group-class-labels" style="margin-top:0.9rem; display:none;">
+                        <label class="form-label">CLASS LABELS (comma separated)</label>
+                        <input type="text" id="input-class-labels" class="form-input" placeholder="e.g. class_a,class_b,class_c">
+                    </div>
+                    <div id="group-regression-outputs" style="margin-top:0.9rem; display:none;">
+                        <label class="form-label" id="label-regression-outputs">REGRESSION OUTPUTS (comma separated)</label>
+                        <input type="text" id="input-regression-outputs" class="form-input" placeholder="e.g. openness,conscientiousness,extraversion">
+                    </div>
+                    <div id="group-task-spec-json" style="margin-top:0.9rem; display:none;">
+                        <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:4px;">
+                            <label class="form-label" style="margin-bottom:0;">HIERARCHICAL TASK SPEC (JSON)</label>
+                            <button type="button" onclick="insertHierarchicalExample(true)"
+                                style="height:28px; border:1px solid #2b3445; border-radius:8px; padding:0 10px; background:#0f141d; color:#9fb6ff; cursor:pointer; font-size:0.75rem;">
+                                Insert Example
+                            </button>
+                        </div>
+                        <div class="advanced-subtle" id="hierarchical-json-help" style="margin-bottom:6px;">
+                            Provide canonical JSON with `schema_version` and recursive `root` nodes. Each node must define `node_id`, `display_name`, `mode`, and mode-specific outputs (`class_labels` or `regression_outputs`).
+                        </div>
+                        <textarea id="input-task-spec-json" class="form-input" rows="8"
+                            placeholder='Paste task specification JSON here...'></textarea>
+                    </div>
+                    <div style="margin-top: 1.1rem;">
+                        <button onclick="togglePredictionGuidance()"
+                            style="background:none; border:none; color:var(--primary); font-size:0.8rem; cursor:pointer;">
+                            <i id="pred-adv-caret" class="fas fa-caret-right"></i> Advanced Configuration
+                        </button>
+                        <div id="prediction-guidance-opts"
+                            style="display:none; margin-top:10px; padding:10px; background:#18181b; border-radius:8px; max-height:48vh; overflow-y:auto;">
+                            <div class="advanced-subtle" style="margin-bottom:8px;">
+                                Optional runtime guidance for this run. Global guidance is applied to every agent and tool call across all iterations.
+                            </div>
+                            <label class="form-label">GLOBAL SYSTEM GUIDANCE</label>
+                            <textarea id="input-instr-global" class="form-input" rows="2"
+                                placeholder="Applies to all agents and tools (e.g., prioritize conservative outputs when evidence is weak)."></textarea>
+                            <div style="display:grid; grid-template-columns:1fr 1fr; gap:8px; margin-top:8px;">
+                                <div>
+                                    <label class="form-label">ORCHESTRATOR</label>
+                                    <textarea id="input-instr-orchestrator" class="form-input" rows="2"
+                                        placeholder="Planning guidance"></textarea>
+                                </div>
+                                <div>
+                                    <label class="form-label">EXECUTOR</label>
+                                    <textarea id="input-instr-executor" class="form-input" rows="2"
+                                        placeholder="Execution policy guidance"></textarea>
+                                </div>
+                                <div>
+                                    <label class="form-label">TOOLS</label>
+                                    <textarea id="input-instr-tools" class="form-input" rows="2"
+                                        placeholder="Tool-level extraction guidance"></textarea>
+                                </div>
+                                <div>
+                                    <label class="form-label">INTEGRATOR</label>
+                                    <textarea id="input-instr-integrator" class="form-input" rows="2"
+                                        placeholder="Fusion/context integration guidance"></textarea>
+                                </div>
+                                <div>
+                                    <label class="form-label">PREDICTOR</label>
+                                    <textarea id="input-instr-predictor" class="form-input" rows="2"
+                                        placeholder="Prediction synthesis guidance"></textarea>
+                                </div>
+                                <div>
+                                    <label class="form-label">CRITIC</label>
+                                    <textarea id="input-instr-critic" class="form-input" rows="2"
+                                        placeholder="Evaluation strictness guidance"></textarea>
+                                </div>
+                                <div>
+                                    <label class="form-label">COMMUNICATOR</label>
+                                    <textarea id="input-instr-communicator" class="form-input" rows="2"
+                                        placeholder="Final report style guidance"></textarea>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <div style="display:flex; gap:10px; margin-top: 0.5rem;">
+                    <button id="btn-setup-next" class="btn-launch" style="flex:1;" onclick="gotoPredictionSetup()">
+                        <span>Next: Prediction Task (2/2)</span>
+                        <i class="fas fa-arrow-right"></i>
+                    </button>
+                </div>
+
+                <button id="btn-final-launch" class="btn-launch" style="display:none;" onclick="launchPipeline()">
                     <span>Launch Pipeline</span>
                     <i class="fas fa-rocket"></i>
                 </button>
@@ -1454,7 +1586,8 @@
             <div id="final-verdict" class="verdict-badge" style="margin: 0.6rem auto 1rem auto;">Pending</div>
             <div
                 style="display:flex; justify-content:center; gap:12px; font-size:0.8rem; color:#a1a1aa; margin-bottom:1rem;">
-                <span>Probability: <strong id="final-probability" style="color:#fff;">--</strong></span>
+                <span>Prediction Type: <strong id="final-prediction-type" style="color:#fff;">--</strong></span>
+                <span>Primary Output: <strong id="final-primary-output" style="color:#fff;">--</strong></span>
                 <span>Iterations: <strong id="final-iterations" style="color:#fff;">--</strong></span>
             </div>
             <div id="final-summary"
@@ -1634,7 +1767,8 @@
                     <div class="verdict-card">
                         <div class="verdict-title">Prediction Output</div>
                         <div class="verdict-value" id="prediction-label">--</div>
-                        <div class="verdict-sub">Probability: <strong id="prediction-prob">--</strong></div>
+                        <div class="verdict-sub"><span id="prediction-prob-label">Probability</span>: <strong id="prediction-prob">--</strong></div>
+                        <div class="verdict-sub">Primary: <strong id="prediction-primary-output-value">--</strong></div>
                         <div class="verdict-sub">Confidence: <strong id="prediction-conf">--</strong></div>
                     </div>
                     <div class="verdict-card">
@@ -1694,6 +1828,91 @@
         let hfEmbeddingCatalogLoaded = false;
         let hfEmbeddingCatalogLoading = false;
         let hfModelDetailCache = {};
+        let setupWizardStep = 1;
+        const HIERARCHICAL_SPEC_EXAMPLE = JSON.stringify(
+            {
+                schema_version: "1.0",
+                task_id: "personality_hierarchy_demo",
+                root: {
+                    node_id: "big_five",
+                    display_name: "Big Five Trait Profile",
+                    mode: "multivariate_regression",
+                    regression_outputs: ["openness", "conscientiousness", "extraversion", "agreeableness", "neuroticism"],
+                    unit_by_output: {
+                        openness: "z_score",
+                        conscientiousness: "z_score",
+                        extraversion: "z_score",
+                        agreeableness: "z_score",
+                        neuroticism: "z_score"
+                    },
+                    required: true,
+                    children: [
+                        {
+                            node_id: "extraversion_facets",
+                            display_name: "Extraversion Subfacets",
+                            mode: "multivariate_regression",
+                            regression_outputs: ["sociability", "assertiveness", "activity_level"],
+                            required: true,
+                            children: []
+                        },
+                        {
+                            node_id: "trait_risk_band",
+                            display_name: "Risk Band",
+                            mode: "multiclass_classification",
+                            class_labels: ["low_risk", "moderate_risk", "high_risk"],
+                            required: true,
+                            children: []
+                        }
+                    ]
+                }
+            },
+            null,
+            2
+        );
+        const MODE_DEFAULTS = {
+            binary: {
+                target: "target_phenotype",
+                control: "non-target comparator phenotype profile",
+                classLabels: "CASE,CONTROL",
+                regressionOutputs: ""
+            },
+            multiclass: {
+                target: "phenotype_subtype",
+                control: "",
+                classLabels: "subtype_a,subtype_b,subtype_c",
+                regressionOutputs: ""
+            },
+            regression_univariate: {
+                target: "total_iq",
+                control: "",
+                classLabels: "",
+                regressionOutputs: "total_iq"
+            },
+            regression_multivariate: {
+                target: "trait_profile",
+                control: "",
+                classLabels: "",
+                regressionOutputs: "trait_a,trait_b,trait_c"
+            }
+        };
+        const AUTO_TARGET_VALUES = new Set(
+            Object.values(MODE_DEFAULTS).map((cfg) => String(cfg.target || "").trim().toLowerCase()).filter(Boolean)
+        );
+        const AUTO_CONTROL_VALUES = new Set(
+            Object.values(MODE_DEFAULTS).map((cfg) => String(cfg.control || "").trim().toLowerCase()).filter(Boolean)
+        );
+        const AUTO_CLASS_VALUES = new Set(
+            Object.values(MODE_DEFAULTS).map((cfg) => String(cfg.classLabels || "").trim().toLowerCase()).filter(Boolean)
+        );
+        const AUTO_REGRESSION_VALUES = new Set(
+            Object.values(MODE_DEFAULTS).map((cfg) => String(cfg.regressionOutputs || "").trim().toLowerCase()).filter(Boolean)
+        );
+
+        function shouldAutoSeedInput(inputValue, autoValues) {
+            const cleaned = String(inputValue || "").trim();
+            if (!cleaned) return true;
+            return autoValues.has(cleaned.toLowerCase());
+        }
 
         // WIZARD LOGIC
         function toggleModelInput() {
@@ -2051,10 +2270,299 @@
             }
         }
 
+        function togglePredictionGuidance() {
+            const el = document.getElementById('prediction-guidance-opts');
+            const caret = document.getElementById('pred-adv-caret');
+            if (!el) return;
+            if (el.style.display === 'none') {
+                el.style.display = 'block';
+                if (caret) {
+                    caret.classList.remove('fa-caret-right');
+                    caret.classList.add('fa-caret-down');
+                }
+            } else {
+                el.style.display = 'none';
+                if (caret) {
+                    caret.classList.remove('fa-caret-down');
+                    caret.classList.add('fa-caret-right');
+                }
+            }
+        }
+
+        function collectAgentInstructions() {
+            return {
+                global: (document.getElementById('input-instr-global')?.value || '').trim(),
+                orchestrator: (document.getElementById('input-instr-orchestrator')?.value || '').trim(),
+                executor: (document.getElementById('input-instr-executor')?.value || '').trim(),
+                tools: (document.getElementById('input-instr-tools')?.value || '').trim(),
+                integrator: (document.getElementById('input-instr-integrator')?.value || '').trim(),
+                predictor: (document.getElementById('input-instr-predictor')?.value || '').trim(),
+                critic: (document.getElementById('input-instr-critic')?.value || '').trim(),
+                communicator: (document.getElementById('input-instr-communicator')?.value || '').trim(),
+            };
+        }
+
+        function gotoPredictionSetup() {
+            setupWizardStep = 2;
+            document.getElementById('engine-config-block').style.display = 'none';
+            document.getElementById('prediction-config-block').style.display = 'block';
+            document.getElementById('btn-setup-next').style.display = 'none';
+            document.getElementById('btn-final-launch').style.display = 'flex';
+            onPredictionTypeChange();
+        }
+
+        function gotoEngineSetup() {
+            setupWizardStep = 1;
+            document.getElementById('engine-config-block').style.display = 'block';
+            document.getElementById('prediction-config-block').style.display = 'none';
+            document.getElementById('btn-setup-next').style.display = 'flex';
+            document.getElementById('btn-final-launch').style.display = 'none';
+        }
+
+        function insertHierarchicalExample(force = false) {
+            const textarea = document.getElementById('input-task-spec-json');
+            if (!textarea) return;
+            const current = String(textarea.value || '').trim();
+            if (force || !current) {
+                textarea.value = HIERARCHICAL_SPEC_EXAMPLE;
+            }
+        }
+
+        function onPredictionTypeChange() {
+            const predictionType = document.getElementById('input-prediction-type').value;
+            const groupTarget = document.getElementById('group-target-label');
+            const groupControl = document.getElementById('group-control-label');
+            const groupClassLabels = document.getElementById('group-class-labels');
+            const groupRegression = document.getElementById('group-regression-outputs');
+            const groupTaskJson = document.getElementById('group-task-spec-json');
+            const modeHint = document.getElementById('prediction-mode-hint');
+            const targetLabelEl = document.getElementById('label-target-input');
+            const controlLabelEl = document.getElementById('label-control-input');
+            const regressionLabelEl = document.getElementById('label-regression-outputs');
+            const targetInput = document.getElementById('input-target');
+            const controlInput = document.getElementById('input-control');
+            const classInput = document.getElementById('input-class-labels');
+            const regressionInput = document.getElementById('input-regression-outputs');
+
+            const setVisible = (el, visible) => {
+                if (!el) return;
+                el.style.display = visible ? 'block' : 'none';
+            };
+            const applyModeDefaults = (mode) => {
+                const defaults = MODE_DEFAULTS[mode] || {};
+                if (targetInput && shouldAutoSeedInput(targetInput.value, AUTO_TARGET_VALUES)) {
+                    targetInput.value = defaults.target || '';
+                }
+                if (controlInput && shouldAutoSeedInput(controlInput.value, AUTO_CONTROL_VALUES)) {
+                    controlInput.value = defaults.control || '';
+                }
+                if (classInput && shouldAutoSeedInput(classInput.value, AUTO_CLASS_VALUES)) {
+                    classInput.value = defaults.classLabels || '';
+                }
+                if (regressionInput && shouldAutoSeedInput(regressionInput.value, AUTO_REGRESSION_VALUES)) {
+                    regressionInput.value = defaults.regressionOutputs || '';
+                }
+            };
+
+            if (predictionType === 'binary') {
+                applyModeDefaults('binary');
+                setVisible(groupTarget, true);
+                setVisible(groupControl, true);
+                setVisible(groupClassLabels, false);
+                setVisible(groupRegression, false);
+                setVisible(groupTaskJson, false);
+                if (targetLabelEl) targetLabelEl.textContent = 'PHENOTYPE LABEL';
+                if (controlLabelEl) controlLabelEl.textContent = 'CONTROL / COMPARATOR LABEL';
+                if (targetInput) targetInput.placeholder = 'e.g. depression';
+                if (controlInput) controlInput.placeholder = 'e.g. non-target comparator phenotype profile';
+                if (modeHint) modeHint.textContent = 'Binary mode: provide phenotype label and control/comparator label.';
+                return;
+            }
+
+            if (predictionType === 'multiclass') {
+                applyModeDefaults('multiclass');
+                setVisible(groupTarget, true);
+                setVisible(groupControl, false);
+                setVisible(groupClassLabels, true);
+                setVisible(groupRegression, false);
+                setVisible(groupTaskJson, false);
+                if (targetLabelEl) targetLabelEl.textContent = 'PHENOTYPE LABEL';
+                if (targetInput) targetInput.placeholder = 'e.g. phenotype_subtype';
+                if (modeHint) modeHint.textContent = 'Multi-class mode: provide phenotype label and all class labels (3 or more).';
+                return;
+            }
+
+            if (predictionType === 'regression_univariate') {
+                applyModeDefaults('regression_univariate');
+                setVisible(groupTarget, true);
+                setVisible(groupControl, false);
+                setVisible(groupClassLabels, false);
+                setVisible(groupRegression, true);
+                setVisible(groupTaskJson, false);
+                if (targetLabelEl) targetLabelEl.textContent = 'PHENOTYPE LABEL';
+                if (targetInput) targetInput.placeholder = 'e.g. cognition_profile';
+                if (regressionLabelEl) regressionLabelEl.textContent = 'REGRESSION OUTPUT';
+                if (regressionInput) regressionInput.placeholder = 'e.g. total_iq';
+                if (modeHint) modeHint.textContent = 'Univariate regression: provide phenotype label and exactly one numeric output.';
+                return;
+            }
+
+            if (predictionType === 'regression_multivariate') {
+                applyModeDefaults('regression_multivariate');
+                setVisible(groupTarget, true);
+                setVisible(groupControl, false);
+                setVisible(groupClassLabels, false);
+                setVisible(groupRegression, true);
+                setVisible(groupTaskJson, false);
+                if (targetLabelEl) targetLabelEl.textContent = 'PHENOTYPE LABEL';
+                if (targetInput) targetInput.placeholder = 'e.g. trait_profile';
+                if (regressionLabelEl) regressionLabelEl.textContent = 'REGRESSION OUTPUTS (comma separated)';
+                if (regressionInput) regressionInput.placeholder = 'e.g. openness,conscientiousness,extraversion';
+                if (modeHint) modeHint.textContent = 'Multivariate regression: provide phenotype label and two or more numeric outputs.';
+                return;
+            }
+
+            // hierarchical
+            setVisible(groupTarget, false);
+            setVisible(groupControl, false);
+            setVisible(groupClassLabels, false);
+            setVisible(groupRegression, false);
+            setVisible(groupTaskJson, true);
+            if (modeHint) {
+                modeHint.textContent =
+                    'Hierarchical mode is fully defined via JSON task spec (mixed classification/regression nodes supported).';
+            }
+            insertHierarchicalExample(false);
+        }
+
+        function buildPredictionSpec() {
+            const predictionType = document.getElementById('input-prediction-type').value;
+            const targetLabelRaw = (document.getElementById('input-target').value || '').trim();
+            const controlLabelRaw = (document.getElementById('input-control').value || '').trim();
+            const classLabelsRaw = (document.getElementById('input-class-labels').value || '').trim();
+            const regressionOutputsRaw = (document.getElementById('input-regression-outputs').value || '').trim();
+            const splitCsv = (raw) => raw ? raw.split(',').map((v) => v.trim()).filter(Boolean) : [];
+            const classLabels = splitCsv(classLabelsRaw);
+            let regressionOutputs = [];
+            if (predictionType === 'regression_multivariate') {
+                regressionOutputs = splitCsv(regressionOutputsRaw);
+            } else if (predictionType === 'regression_univariate') {
+                if (regressionOutputsRaw.includes(',')) {
+                    throw new Error('Univariate regression accepts exactly one output name (no commas).');
+                }
+                regressionOutputs = regressionOutputsRaw ? [regressionOutputsRaw] : [];
+            } else {
+                regressionOutputs = splitCsv(regressionOutputsRaw);
+            }
+
+            if (predictionType === 'hierarchical') {
+                const rawJson = (document.getElementById('input-task-spec-json').value || '').trim();
+                if (!rawJson) throw new Error('Hierarchical mode requires a JSON task specification.');
+                let parsed;
+                try {
+                    parsed = JSON.parse(rawJson);
+                } catch (e) {
+                    throw new Error(`Invalid hierarchical JSON: ${e.message}`);
+                }
+                if (!parsed || typeof parsed !== 'object' || !parsed.root || typeof parsed.root !== 'object') {
+                    throw new Error('Hierarchical task specification must contain a root node object.');
+                }
+                const root = parsed.root || {};
+                let targetLabel = targetLabelRaw || String(root.display_name || root.node_id || 'hierarchical_target');
+                let controlLabel = controlLabelRaw || '';
+                const rootMode = String(root.mode || '').trim();
+                const rootClasses = Array.isArray(root.class_labels)
+                    ? root.class_labels.map((x) => String(x || '').trim()).filter(Boolean)
+                    : [];
+                if (rootMode === 'binary_classification' && rootClasses.length === 2) {
+                    targetLabel = targetLabelRaw || rootClasses[0];
+                    controlLabel = controlLabelRaw || rootClasses[1];
+                }
+                return {
+                    predictionType,
+                    targetLabel,
+                    controlLabel,
+                    classLabels: [],
+                    regressionOutputs: [],
+                    regressionOutput: '',
+                    predictionSpec: parsed,
+                    taskSpecJson: rawJson,
+                };
+            }
+
+            let mode = 'binary_classification';
+            let labels = [];
+            let outputs = [];
+            let targetLabel = targetLabelRaw;
+            let controlLabel = controlLabelRaw;
+            if (predictionType === 'binary') {
+                mode = 'binary_classification';
+                targetLabel = targetLabelRaw || 'target_phenotype';
+                controlLabel = controlLabelRaw || 'non-target comparator phenotype profile';
+                // In binary mode, target/control inputs are authoritative.
+                // Hidden class-label fields from other modes must not override them.
+                labels = [targetLabel || 'CASE', controlLabel || 'CONTROL'];
+            } else if (predictionType === 'multiclass') {
+                mode = 'multiclass_classification';
+                if (classLabels.length < 3) throw new Error('Multi-class mode requires at least 3 class labels.');
+                targetLabel = targetLabelRaw || 'phenotype_subtype';
+                controlLabel = '';
+                labels = classLabels;
+            } else if (predictionType === 'regression_univariate') {
+                mode = 'univariate_regression';
+                targetLabel = targetLabelRaw || 'total_iq';
+                controlLabel = '';
+                if (regressionOutputs.length === 0) {
+                    regressionOutputs = [targetLabel];
+                }
+                if (regressionOutputs.length !== 1) throw new Error('Univariate regression requires exactly 1 regression output.');
+                outputs = regressionOutputs;
+            } else if (predictionType === 'regression_multivariate') {
+                mode = 'multivariate_regression';
+                targetLabel = targetLabelRaw || 'phenotype_profile';
+                controlLabel = '';
+                if (regressionOutputs.length < 2) throw new Error('Multivariate regression requires at least 2 regression outputs.');
+                outputs = regressionOutputs;
+            }
+
+            const root = {
+                node_id: 'root',
+                display_name: targetLabel || 'Target',
+                mode: mode,
+                class_labels: labels,
+                regression_outputs: outputs,
+                required: true,
+                children: [],
+            };
+            return {
+                predictionType,
+                targetLabel,
+                controlLabel,
+                classLabels,
+                regressionOutputs,
+                regressionOutput: outputs.length === 1 ? outputs[0] : '',
+                predictionSpec: { schema_version: '1.0', root },
+                taskSpecJson: '',
+            };
+        }
+
         async function launchPipeline() {
             const pid = document.getElementById('input-pid').value;
-            const target = document.getElementById('input-target').value;
-            const control = document.getElementById('input-control').value;
+            dismissCriticToast();
+            document.getElementById('result-modal').classList.remove('active');
+            document.getElementById('final-verdict').textContent = 'Pending';
+            document.getElementById('final-prediction-type').textContent = '--';
+            document.getElementById('final-primary-output').textContent = '--';
+            document.getElementById('final-iterations').textContent = '--';
+            document.getElementById('final-summary').textContent = 'Computing final summary...';
+            document.getElementById('final-checklist').innerHTML = '';
+            const criticFallbackEl = document.getElementById('critic-fallback');
+            if (criticFallbackEl) {
+                criticFallbackEl.innerHTML = '';
+                criticFallbackEl.style.display = 'none';
+            }
+            document.getElementById('critic-summary').textContent = 'Awaiting critic evaluation...';
+            document.getElementById('critic-checklist').innerHTML = '';
 
             // Advanced settings
             const budget = document.getElementById('input-budget').value;
@@ -2088,6 +2596,14 @@
             const routing = collectRoleSettings();
 
             if (!pid) return alert("Participant ID required");
+            let predictionConfig;
+            try {
+                predictionConfig = buildPredictionSpec();
+            } catch (e) {
+                alert(e.message || 'Invalid prediction task configuration.');
+                return;
+            }
+            const agentInstructions = collectAgentInstructions();
 
             const btn = document.getElementById('btn-final-launch');
             btn.innerHTML = '<i class="fas fa-circle-notch spin"></i> Launching...';
@@ -2098,7 +2614,18 @@
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
                     body: JSON.stringify({
-                        id: pid, target: target, control: control,
+                        id: pid,
+                        target: predictionConfig.targetLabel,
+                        control: predictionConfig.controlLabel,
+                        prediction_type: predictionConfig.predictionType,
+                        target_label: predictionConfig.targetLabel,
+                        control_label: predictionConfig.controlLabel,
+                        class_labels: predictionConfig.classLabels,
+                        regression_outputs: predictionConfig.regressionOutputs,
+                        regression_output: predictionConfig.regressionOutput,
+                        prediction_spec: predictionConfig.predictionSpec,
+                        task_spec_json: predictionConfig.taskSpecJson,
+                        agent_instructions: agentInstructions,
                         total_budget: budget ? parseInt(budget) : null,
                         max_agent_input: maxAgent ? parseInt(maxAgent) : null,
                         max_tool_output: maxTool ? parseInt(maxTool) : null,
@@ -2364,6 +2891,8 @@
             if (window.marked && typeof window.marked.setOptions === 'function') {
                 window.marked.setOptions({ gfm: true, breaks: true });
             }
+            gotoEngineSetup();
+            onPredictionTypeChange();
             toggleModelInput();
             loadOpenRouterModels();
             loadHfModels();
@@ -2515,32 +3044,232 @@
         }
 
         function normalizeClassification(raw) {
-            if (!raw) return 'UNKNOWN';
-            const upper = String(raw).toUpperCase();
-            if (upper.includes('CONTROL')) return 'CONTROL';
-            if (upper.includes('CASE')) return 'CASE';
-            return String(raw).trim();
+            if (raw === null || raw === undefined) return 'UNKNOWN';
+            const value = String(raw).trim();
+            if (!value) return 'UNKNOWN';
+            const upper = value.toUpperCase();
+            if (upper === 'CONTROL') return 'CONTROL';
+            if (upper === 'CASE') return 'CASE';
+            return value;
         }
 
-        const CHECKLIST_LABELS = {
+        const CHECKLIST_LABEL_OVERRIDES = {
+            has_required_outputs: "Required outputs",
+            output_schema_valid: "Output schema",
+            classification_probabilities_valid: "Class probabilities",
+            regression_values_valid: "Regression values",
+            hierarchy_consistent: "Hierarchy consistency",
             has_binary_outcome: "Binary outcome",
             valid_probability: "Valid probability",
             sufficient_coverage: "Coverage",
             evidence_based_reasoning: "Evidence-based",
-            clinically_relevant: "Clinical relevance",
+            clinically_relevant: "Phenotype relevance",
             logically_coherent: "Coherence",
             critical_domains_processed: "Critical domains"
         };
 
+        function checklistLabelForKey(key) {
+            if (CHECKLIST_LABEL_OVERRIDES[key]) return CHECKLIST_LABEL_OVERRIDES[key];
+            const raw = String(key || '').replace(/_/g, ' ').trim();
+            if (!raw) return 'Check';
+            return raw.charAt(0).toUpperCase() + raw.slice(1);
+        }
+
+        function formatNumericValue(value, digits = 3) {
+            const num = Number(value);
+            if (!Number.isFinite(num)) return '--';
+            return num.toFixed(digits);
+        }
+
+        function modeLabelFromMode(mode) {
+            const m = String(mode || '').trim();
+            if (m === 'binary_classification') return 'Binary classification';
+            if (m === 'multiclass_classification') return 'Multi-class classification';
+            if (m === 'univariate_regression') return 'Univariate regression';
+            if (m === 'multivariate_regression') return 'Multivariate regression';
+            if (!m) return 'Prediction output';
+            return m.replace(/_/g, ' ');
+        }
+
+        function buildPrimaryPredictionView(predictionState) {
+            const stateObj = predictionState || {};
+            const payload = (stateObj.payload && typeof stateObj.payload === 'object') ? stateObj.payload : {};
+            const root = (payload.root_prediction && typeof payload.root_prediction === 'object') ? payload.root_prediction : null;
+            const payloadSpecRoot = (
+                payload.prediction_task_spec
+                && typeof payload.prediction_task_spec === 'object'
+                && payload.prediction_task_spec.root
+                && typeof payload.prediction_task_spec.root === 'object'
+            ) ? payload.prediction_task_spec.root : null;
+            const stateSpecRoot = (
+                window.__lastState
+                && window.__lastState.prediction_spec
+                && typeof window.__lastState.prediction_spec === 'object'
+                && window.__lastState.prediction_spec.root
+                && typeof window.__lastState.prediction_spec.root === 'object'
+            ) ? window.__lastState.prediction_spec.root : null;
+            let label = normalizeClassification(stateObj.label || stateObj.result || '');
+            let probabilityText = 'N/A';
+            let probabilityLabel = 'Probability';
+            let primaryOutput = label === 'UNKNOWN' ? '--' : label;
+            let mode = null;
+            let modeLabel = 'Prediction output';
+
+            if (typeof stateObj.prob === 'number' && Number.isFinite(stateObj.prob)) {
+                probabilityText = `${(stateObj.prob * 100).toFixed(1)}%`;
+            } else if (typeof payload.probability_score === 'number' && Number.isFinite(payload.probability_score)) {
+                probabilityText = `${(payload.probability_score * 100).toFixed(1)}%`;
+            }
+
+            if (root) {
+                mode = String(root.mode || '').trim();
+            } else if (payloadSpecRoot) {
+                mode = String(payloadSpecRoot.mode || '').trim();
+            } else if (stateSpecRoot) {
+                mode = String(stateSpecRoot.mode || '').trim();
+            }
+
+            if (mode) {
+                modeLabel = modeLabelFromMode(mode);
+            }
+
+            if (mode === 'binary_classification' || mode === 'multiclass_classification') {
+                probabilityLabel = mode === 'binary_classification' ? 'Predicted-label confidence' : 'Top-class confidence';
+                const cls = (root && root.classification && typeof root.classification === 'object') ? root.classification : {};
+                const predicted = normalizeClassification(cls.predicted_label || payload.binary_classification || label);
+                if (predicted && predicted !== 'UNKNOWN') {
+                    label = predicted;
+                    primaryOutput = predicted;
+                }
+                const probs = (cls.probabilities && typeof cls.probabilities === 'object') ? cls.probabilities : {};
+                const probKeys = Object.keys(probs);
+                if (probKeys.length > 0) {
+                    let score = probs[predicted];
+                    if (!Number.isFinite(score)) {
+                        score = Math.max(...probKeys.map((k) => Number(probs[k]) || 0));
+                    }
+                    if (Number.isFinite(score)) {
+                        probabilityText = `${(score * 100).toFixed(1)}%`;
+                    }
+                } else if (mode === 'binary_classification' && Number.isFinite(Number(payload.probability_score))) {
+                    const caseProb = Math.max(0, Math.min(1, Number(payload.probability_score)));
+                    const binaryAlias = String(payload.binary_classification || '').toUpperCase();
+                    const labelProb = binaryAlias === 'CONTROL' ? (1 - caseProb) : caseProb;
+                    probabilityText = `${(labelProb * 100).toFixed(1)}%`;
+                }
+            } else if (mode === 'univariate_regression' || mode === 'multivariate_regression') {
+                probabilityLabel = 'Root confidence';
+                const reg = (root && root.regression && typeof root.regression === 'object') ? root.regression : {};
+                const values = (reg.values && typeof reg.values === 'object') ? reg.values : {};
+                const entries = Object.entries(values);
+                if (entries.length > 0) {
+                    label = modeLabel;
+                    const shown = entries.slice(0, 4).map(([key, value]) => `${key}: ${formatNumericValue(value)}`);
+                    const extra = entries.length > 4 ? ` (+${entries.length - 4} more)` : '';
+                    primaryOutput = `${shown.join(', ')}${extra}`;
+                }
+                const confScore = Number(root && root.confidence_score);
+                if (Number.isFinite(confScore)) {
+                    probabilityText = `${(Math.max(0, Math.min(1, confScore)) * 100).toFixed(1)}%`;
+                }
+            }
+
+            const flatCount = Array.isArray(payload.flat_predictions) ? payload.flat_predictions.length : 0;
+            if (flatCount > 1) {
+                primaryOutput = `${primaryOutput} | nodes: ${flatCount}`;
+                modeLabel = 'Hierarchical task';
+                if (!mode) {
+                    probabilityLabel = 'Hierarchy nodes';
+                    probabilityText = String(flatCount);
+                }
+            }
+
+            const color = label === 'CASE'
+                ? 'var(--case)'
+                : (label === 'CONTROL' ? 'var(--control)' : 'var(--text-main)');
+
+            return {
+                label: label || '--',
+                probabilityText,
+                probabilityLabel,
+                primaryOutput: primaryOutput || '--',
+                confidence: stateObj.confidence || payload.confidence_level || '--',
+                color,
+                mode,
+                modeLabel,
+            };
+        }
+
+        function buildRunSummaryNarrative(state, predictionView) {
+            const criticData = (state && state.critic && typeof state.critic === 'object') ? state.critic : {};
+            const verdict = String(criticData.verdict || '').toUpperCase();
+            const checklist = (criticData.checklist && typeof criticData.checklist === 'object')
+                ? criticData.checklist
+                : {};
+            const passCount = Number.isFinite(checklist.pass_count)
+                ? Number(checklist.pass_count)
+                : (Number.isFinite(criticData.passed) ? Number(criticData.passed) : null);
+            const totalCount = Number.isFinite(checklist.total_count)
+                ? Number(checklist.total_count)
+                : (Number.isFinite(criticData.total) ? Number(criticData.total) : null);
+            const checksText = (passCount !== null && totalCount !== null) ? `${passCount}/${totalCount} checks` : 'quality checks';
+            const modeLabel = (predictionView && predictionView.modeLabel) ? predictionView.modeLabel : 'Prediction output';
+            const verdictText = verdict === 'SATISFACTORY'
+                ? 'passed'
+                : (verdict === 'UNSATISFACTORY' ? 'requires revision' : 'is under review');
+
+            let summary = `${modeLabel} ${verdictText} (${checksText}).`;
+            if (predictionView && predictionView.primaryOutput && predictionView.primaryOutput !== '--') {
+                summary += ` Primary output: ${predictionView.primaryOutput}.`;
+            }
+
+            const criticSummary = String(criticData.summary || '').trim();
+            if (criticSummary) {
+                return criticSummary;
+            }
+            return summary.trim();
+        }
+
         function buildChecklistPills(checklist, compact = true) {
             if (!checklist) return '';
-            const entries = Object.keys(CHECKLIST_LABELS).map(key => ({
+            let keys = [];
+            const hasActiveList = Array.isArray(checklist.active_checks);
+            const explicitActive = hasActiveList
+                ? checklist.active_checks
+                    .map((key) => String(key || '').trim())
+                    .filter((key) => key && typeof checklist[key] === 'boolean')
+                : [];
+            if (hasActiveList) {
+                keys = explicitActive;
+            } else {
+                keys = Object.keys(checklist).filter((key) => typeof checklist[key] === 'boolean');
+            }
+            if (keys.length === 0) {
+                const passCountOnly = Number.isFinite(checklist.pass_count) ? Number(checklist.pass_count) : null;
+                const totalOnly = Number.isFinite(checklist.total_count) ? Number(checklist.total_count) : null;
+                if (passCountOnly !== null && totalOnly !== null) {
+                    return `<span class="check-pill ${passCountOnly === totalOnly ? 'pass' : 'fail'}">${passCountOnly}/${totalOnly} checks</span>`;
+                }
+                return '';
+            }
+
+            const hasGeneralizedKeys = keys.includes('has_required_outputs')
+                || keys.includes('classification_probabilities_valid')
+                || keys.includes('regression_values_valid')
+                || keys.includes('hierarchy_consistent');
+            if (hasGeneralizedKeys) {
+                keys = keys.filter((key) => key !== 'has_binary_outcome' && key !== 'valid_probability');
+            }
+
+            const entries = keys.map((key) => ({
                 key,
-                label: CHECKLIST_LABELS[key],
+                label: checklistLabelForKey(key),
                 pass: Boolean(checklist[key])
             }));
-            const passCount = entries.filter(e => e.pass).length;
-            const total = entries.length || 7;
+            const passCount = Number.isFinite(checklist.pass_count)
+                ? Number(checklist.pass_count)
+                : entries.filter(e => e.pass).length;
+            const total = Number.isFinite(checklist.total_count) ? Number(checklist.total_count) : entries.length;
             const failed = entries.filter(e => !e.pass);
 
             let pills = `<span class="check-pill ${failed.length ? 'fail' : 'pass'}">${passCount}/${total} checks</span>`;
@@ -2871,7 +3600,9 @@
                 } else {
                     document.getElementById('prediction-hero').style.display = 'none';
                     document.getElementById('prediction-label').textContent = '--';
+                    document.getElementById('prediction-prob-label').textContent = 'Probability';
                     document.getElementById('prediction-prob').textContent = '--';
+                    document.getElementById('prediction-primary-output-value').textContent = '--';
                     document.getElementById('prediction-conf').textContent = '--';
                     document.getElementById('critic-verdict').textContent = '--';
                     document.getElementById('critic-summary').textContent = 'Awaiting critic evaluation...';
@@ -2881,14 +3612,17 @@
                         fallbackEl.innerHTML = '';
                         fallbackEl.style.display = 'none';
                     }
+                    document.getElementById('final-prediction-type').textContent = '--';
                 }
 
                 if (state.prediction) {
-                    const label = state.prediction.label || normalizeClassification(state.prediction.result);
-                    document.getElementById('prediction-label').textContent = label;
-                    document.getElementById('prediction-prob').textContent = (state.prediction.prob * 100).toFixed(1) + "%";
-                    document.getElementById('prediction-conf').textContent = state.prediction.confidence || '--';
-                    document.getElementById('prediction-label').style.color = label === 'CASE' ? 'var(--case)' : (label === 'CONTROL' ? 'var(--control)' : 'var(--text-main)');
+                    const view = buildPrimaryPredictionView(state.prediction);
+                    document.getElementById('prediction-label').textContent = view.label;
+                    document.getElementById('prediction-prob-label').textContent = view.probabilityLabel || 'Probability';
+                    document.getElementById('prediction-prob').textContent = view.probabilityText;
+                    document.getElementById('prediction-primary-output-value').textContent = view.primaryOutput;
+                    document.getElementById('prediction-conf').textContent = view.confidence || '--';
+                    document.getElementById('prediction-label').style.color = view.color;
                 }
 
                 if (state.critic) {
@@ -2897,6 +3631,9 @@
                     document.getElementById('critic-verdict').style.color = verdict === 'SATISFACTORY' ? 'var(--verdict_ok)' : 'var(--verdict_bad)';
                     document.getElementById('critic-summary').textContent = state.critic.summary || 'No critic summary provided.';
                     document.getElementById('critic-checklist').innerHTML = buildChecklistPills(state.critic.checklist, true);
+                    if (verdict === 'SATISFACTORY') {
+                        dismissCriticToast();
+                    }
                     const fallbackEl = document.getElementById('critic-fallback');
                     if (fallbackEl) {
                         if (state.critic.fallback_used) {
@@ -2916,8 +3653,8 @@
                     const statusDot = document.getElementById('status-dot');
                     statusDot.style.color = verdict === 'SATISFACTORY' ? 'var(--verdict_ok)' : 'var(--verdict_bad)';
                 } else if (state.prediction) {
-                    const label = state.prediction.label || normalizeClassification(state.prediction.result);
-                    document.getElementById('status-dot').style.color = label === 'CASE' ? 'var(--case)' : (label === 'CONTROL' ? 'var(--control)' : 'var(--text-main)');
+                    const view = buildPrimaryPredictionView(state.prediction);
+                    document.getElementById('status-dot').style.color = view.color;
                 }
 
                 // Reset modal flag if iteration changes
@@ -2930,11 +3667,13 @@
                 // Trigger when critic verdict is FINAL (SATISFACTORY or last iteration reached).
                 if (state.critic && !hasShownResultModal && isFinalCritic) {
                     hasShownResultModal = true;
-                    const summary = state.critic.summary || state.critic_summary || 'No critic summary provided.';
-                    document.getElementById('final-summary').textContent = summary;
-                    document.getElementById('final-probability').textContent = state.completion && state.completion.probability !== undefined
-                        ? (state.completion.probability * 100).toFixed(1) + "%"
-                        : (state.prediction ? (state.prediction.prob * 100).toFixed(1) + "%" : "--");
+                    const predictionView = state.prediction ? buildPrimaryPredictionView(state.prediction) : null;
+                    const summary = buildRunSummaryNarrative(state, predictionView);
+                    document.getElementById('final-summary').textContent = summary || 'No critic summary provided.';
+                    const finalPrimaryOutput = predictionView ? predictionView.primaryOutput : "--";
+                    const finalPredictionType = predictionView ? (predictionView.modeLabel || '--') : '--';
+                    document.getElementById('final-prediction-type').textContent = finalPredictionType;
+                    document.getElementById('final-primary-output').textContent = finalPrimaryOutput;
                     document.getElementById('final-iterations').textContent = state.completion && state.completion.iterations
                         ? state.completion.iterations
                         : (state.iteration || '--');

@@ -116,9 +116,9 @@ class DecisionTrace:
         """Record prediction decision."""
         self.record(
             component="Predictor",
-            decision_type="CLASSIFICATION",
+            decision_type="PREDICTION_OUTPUT",
             input_summary=f"Key findings: {', '.join(key_findings[:3])}...",
-            output_summary=f"{classification} (p={probability:.3f})",
+            output_summary=f"{classification} (confidence={probability:.3f})",
             reasoning=reasoning,
             probability=probability,
             classification=classification

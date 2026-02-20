@@ -15,6 +15,7 @@ from datetime import datetime
 from .base_agent import BaseAgent
 from ..config.settings import get_settings
 from ..data.models.execution_plan import ExecutionPlan, PlanStep, ToolName
+from ..data.models.prediction_task import PredictionMode, PredictionTaskSpec
 from ..utils.core.data_loader import ParticipantData
 from ..utils.token_packer import count_tokens
 from ..utils.validation import validate_execution_plan
@@ -28,7 +29,7 @@ class Orchestrator(BaseAgent):
     
     Input:
     - data_overview.json with domain coverage and token estimates
-    - Target condition (neuropsychiatric or neurologic)
+    - Target condition (target phenotype or phenotype comparator)
     - Token budget constraints
     - Available tools description
     
@@ -55,6 +56,7 @@ class Orchestrator(BaseAgent):
         participant_data: ParticipantData,
         target_condition: str,
         control_condition: str,
+        prediction_task_spec: Optional[PredictionTaskSpec] = None,
         token_budget: Optional[int] = None,
         previous_feedback: Optional[str] = None,
         iteration: int = 1
@@ -64,7 +66,7 @@ class Orchestrator(BaseAgent):
         
         Args:
             participant_data: Loaded participant data
-            target_condition: "neuropsychiatric" or "neurologic"
+            target_condition: Target phenotype label
             token_budget: Optional token budget override
             previous_feedback: Feedback from critic if re-orchestrating
             iteration: Which iteration of orchestration loop
@@ -79,6 +81,7 @@ class Orchestrator(BaseAgent):
             participant_data=participant_data,
             target_condition=target_condition,
             control_condition=control_condition,
+            prediction_task_spec=prediction_task_spec,
             token_budget=token_budget or self.settings.token_budget.total_budget,
             previous_feedback=previous_feedback
         )
@@ -113,6 +116,7 @@ class Orchestrator(BaseAgent):
             participant_id=participant_data.participant_id,
             target_condition=target_condition,
             control_condition=control_condition,
+            prediction_task_spec=prediction_task_spec,
             iteration=iteration,
             previous_feedback=previous_feedback
         )
@@ -123,6 +127,7 @@ class Orchestrator(BaseAgent):
                 participant_data=participant_data,
                 target_condition=target_condition,
                 control_condition=control_condition,
+                prediction_task_spec=prediction_task_spec,
                 iteration=iteration,
                 previous_feedback=previous_feedback,
             )
@@ -148,6 +153,7 @@ class Orchestrator(BaseAgent):
         participant_data: ParticipantData,
         target_condition: str,
         control_condition: str,
+        prediction_task_spec: Optional[PredictionTaskSpec],
         token_budget: int,
         previous_feedback: Optional[str]
     ) -> str:
@@ -246,10 +252,17 @@ If a specific domain (e.g., BRAIN_MRI, GENOMICS) often has >5-15k tokens, DO NOT
             volume_context,
             f"\n## PREDICTION TARGET",
             f"Target: {target_condition}",
-            f"Control: {control_condition}",
+            f"Task spec: {prediction_task_spec.to_brief_dict() if prediction_task_spec else {'root_mode': 'binary_classification', 'node_count': 1}}",
             f"\n## AVAILABLE TOOLS",
             tools_desc,
         ]
+        root_mode = (
+            prediction_task_spec.root.mode
+            if prediction_task_spec is not None
+            else None
+        )
+        if root_mode in (PredictionMode.BINARY_CLASSIFICATION, PredictionMode.MULTICLASS_CLASSIFICATION) and str(control_condition or "").strip():
+            prompt_parts.insert(-3, f"Control: {control_condition}")
         
         if previous_feedback:
             prompt_parts.extend([
@@ -286,7 +299,10 @@ Return a JSON object with:
 }
 """)
         
-        return "\n".join(prompt_parts)
+        return self._append_runtime_instruction(
+            "\n".join(prompt_parts),
+            label="Orchestrator Runtime Instruction",
+        )
     
     def _get_tools_description(self) -> str:
         """Get formatted description of available tools."""
@@ -295,8 +311,8 @@ Return a JSON object with:
             ("AnomalyNarrativeBuilder", "Build narratives from deviation maps (EARLY, parallel-safe)"),
             ("FeatureSynthesizer", "Synthesize feature importance from hierarchy (EARLY, parallel-safe)"),
             ("UnimodalCompressor", "Compress single-domain data into clinical summaries (MID)"),
-            ("ClinicalRelevanceRanker", "Rank features by clinical relevance (MID, after FeatureSynthesizer)"),
             ("MultimodalNarrativeCreator", "Create integrated narratives across 2+ domains (MID, after compression)"),
+            ("ClinicalRelevanceRanker", "Rank features by clinical relevance (MID, after FeatureSynthesizer)"),
             ("HypothesisGenerator", "Generate biomedical hypotheses for abnormalities (LATE)"),
             ("DifferentialDiagnosis", "Generate differential diagnoses with rule-out logic (LATE, final step)"),
             ("CodeExecutor", "Execute Python code for custom analyses (FLEXIBLE)"),
@@ -314,6 +330,7 @@ Return a JSON object with:
         participant_id: str,
         target_condition: str,
         control_condition: str,
+        prediction_task_spec: Optional[PredictionTaskSpec],
         iteration: int,
         previous_feedback: Optional[str]
     ) -> ExecutionPlan:
@@ -379,6 +396,7 @@ Return a JSON object with:
             participant_id=participant_id,
             target_condition=target_condition,
             control_condition=control_condition,
+            prediction_task_spec=prediction_task_spec,
             created_at=datetime.now(),
             total_estimated_tokens=plan_data.get("total_estimated_tokens", 0),
             priority_domains=plan_data.get("priority_domains", []),
@@ -395,6 +413,7 @@ Return a JSON object with:
         participant_data: ParticipantData,
         target_condition: str,
         control_condition: str,
+        prediction_task_spec: Optional[PredictionTaskSpec],
         iteration: int,
         previous_feedback: Optional[str],
     ) -> ExecutionPlan:
@@ -437,6 +456,7 @@ Return a JSON object with:
             participant_id=participant_data.participant_id,
             target_condition=target_condition,
             control_condition=control_condition,
+            prediction_task_spec=prediction_task_spec,
             created_at=datetime.now(),
             total_estimated_tokens=estimate,
             priority_domains=present_domains[:5],

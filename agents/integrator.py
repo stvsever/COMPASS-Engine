@@ -64,7 +64,9 @@ class Integrator(BaseAgent):
         step_outputs: Dict[int, Dict[str, Any]], 
         context: Dict[str, Any], 
         target_condition: str,
-        control_condition: str
+        control_condition: str,
+        prediction_task_spec: Optional[Dict[str, Any]] = None,
+        runtime_instruction: str = "",
     ) -> Dict[str, Any]:
         """
         Execute the integration process.
@@ -96,7 +98,12 @@ class Integrator(BaseAgent):
             multimodal_data=multimodal_data,
             target_condition=target_condition,
             control_condition=control_condition,
-            system_prompt=self.system_prompt # Pass the prompt loaded by BaseAgent
+            prediction_task_spec=prediction_task_spec,
+            system_prompt=self._append_runtime_instruction(
+                self.system_prompt,
+                label="Integrator Runtime Instruction",
+            ),
+            runtime_instruction=str(runtime_instruction or "").strip(),
         )
         
         # 2. Final Packaging for Predictor
@@ -125,7 +132,10 @@ class Integrator(BaseAgent):
         non_numerical_data: str,
         target_condition: str,
         control_condition: str,
+        prediction_task_spec: Optional[Dict[str, Any]] = None,
         iteration: int = 1,
+        tool_runtime_instruction: str = "",
+        executor_runtime_instruction: str = "",
     ) -> Dict[str, Any]:
         """
         Build chunk evidence for Predictor using the ChunkEvidenceExtractor tool.
@@ -316,9 +326,12 @@ class Integrator(BaseAgent):
                     chunk_sections=list(chunk_sections),
                     target_condition=target_condition,
                     control_condition=control_condition,
+                    prediction_task_spec=prediction_task_spec,
                     chunk_index=idx,
                     chunk_total=total,
                     chunk_text=meta.get("chunk_text"),
+                    tool_runtime_instruction=tool_runtime_instruction,
+                    executor_runtime_instruction=executor_runtime_instruction,
                 )
                 future_map[future] = (idx, token_est, section_count, section_preview)
 
@@ -363,10 +376,13 @@ class Integrator(BaseAgent):
         chunk_sections: List[PredictorSection],
         target_condition: str,
         control_condition: str,
+        prediction_task_spec: Optional[Dict[str, Any]],
         chunk_index: int,
         chunk_total: int,
         chunk_text: Optional[str] = None,
         depth: int = 0,
+        tool_runtime_instruction: str = "",
+        executor_runtime_instruction: str = "",
     ) -> Dict[str, Any]:
         if chunk_text is None:
             chunk_text = assembler.chunk_to_text(chunk_sections, chunk_index, chunk_total)
@@ -377,13 +393,17 @@ class Integrator(BaseAgent):
             "chunk_text": chunk_text,
             "target_condition": target_condition,
             "control_condition": control_condition,
+            "prediction_task_spec": prediction_task_spec or {},
             "chunk_index": chunk_index,
             "chunk_total": chunk_total,
             "hinted_feature_keys": hinted_keys,
+            "tool_runtime_instruction": str(tool_runtime_instruction or ""),
+            "executor_runtime_instruction": str(executor_runtime_instruction or ""),
         })
         if output.success:
             return self._normalize_chunk_evidence(
                 payload=output.output,
+                prediction_task_spec=prediction_task_spec,
                 chunk_index=chunk_index,
                 chunk_total=chunk_total,
                 source_sections=source_sections,
@@ -402,10 +422,13 @@ class Integrator(BaseAgent):
                 chunk_sections=chunk_sections[:mid],
                 target_condition=target_condition,
                 control_condition=control_condition,
+                prediction_task_spec=prediction_task_spec,
                 chunk_index=chunk_index,
                 chunk_total=chunk_total,
                 chunk_text=None,
                 depth=depth + 1,
+                tool_runtime_instruction=tool_runtime_instruction,
+                executor_runtime_instruction=executor_runtime_instruction,
             )
             right = self._extract_chunk_with_fallback(
                 tool=tool,
@@ -413,13 +436,17 @@ class Integrator(BaseAgent):
                 chunk_sections=chunk_sections[mid:],
                 target_condition=target_condition,
                 control_condition=control_condition,
+                prediction_task_spec=prediction_task_spec,
                 chunk_index=chunk_index,
                 chunk_total=chunk_total,
                 chunk_text=None,
                 depth=depth + 1,
+                tool_runtime_instruction=tool_runtime_instruction,
+                executor_runtime_instruction=executor_runtime_instruction,
             )
             return self._merge_chunk_evidence(
                 rows=[left, right],
+                prediction_task_spec=prediction_task_spec,
                 chunk_index=chunk_index,
                 chunk_total=chunk_total,
                 source_sections=source_sections,
@@ -432,10 +459,13 @@ class Integrator(BaseAgent):
                 "summary": f"Chunk extraction failed: {output.error}",
                 "for_case": [],
                 "for_control": [],
+                "evidence_for_targets": {},
+                "evidence_against_targets": {},
                 "uncertainty_factors": [str(output.error or "unknown_error")],
                 "key_findings": [],
                 "cited_feature_keys": hinted_keys,
             },
+            prediction_task_spec=prediction_task_spec,
             chunk_index=chunk_index,
             chunk_total=chunk_total,
             source_sections=source_sections,
@@ -447,6 +477,7 @@ class Integrator(BaseAgent):
         self,
         *,
         payload: Any,
+        prediction_task_spec: Optional[Dict[str, Any]],
         chunk_index: int,
         chunk_total: int,
         source_sections: List[str],
@@ -468,6 +499,8 @@ class Integrator(BaseAgent):
                         "summary": "Chunk extractor returned a list without object payload.",
                         "for_case": [],
                         "for_control": [],
+                        "evidence_for_targets": {},
+                        "evidence_against_targets": {},
                         "uncertainty_factors": ["invalid_chunk_payload:list_without_object"],
                         "key_findings": [],
                         "cited_feature_keys": [],
@@ -477,6 +510,8 @@ class Integrator(BaseAgent):
                     "summary": f"Chunk extractor returned invalid payload type: {type(payload).__name__}",
                     "for_case": [],
                     "for_control": [],
+                    "evidence_for_targets": {},
+                    "evidence_against_targets": {},
                     "uncertainty_factors": [f"invalid_chunk_payload:{type(payload).__name__}"],
                     "key_findings": [],
                     "cited_feature_keys": [],
@@ -488,6 +523,23 @@ class Integrator(BaseAgent):
         else:
             cited = sorted(set(cited) | set(fallback_feature_keys))
 
+        task_root_id = "root"
+        if isinstance(prediction_task_spec, dict):
+            root = prediction_task_spec.get("root")
+            if isinstance(root, dict):
+                task_root_id = str(root.get("node_id") or "root")
+
+        ev_for = payload.get("evidence_for_targets")
+        ev_against = payload.get("evidence_against_targets")
+        if not isinstance(ev_for, dict):
+            ev_for = {}
+        if not isinstance(ev_against, dict):
+            ev_against = {}
+        if not ev_for and payload.get("for_case"):
+            ev_for = {task_root_id: _as_str_list(payload.get("for_case"))}
+        if not ev_against and payload.get("for_control"):
+            ev_against = {task_root_id: _as_str_list(payload.get("for_control"))}
+
         return {
             "chunk_index": chunk_index,
             "chunk_total": chunk_total,
@@ -495,6 +547,8 @@ class Integrator(BaseAgent):
             "summary": str(payload.get("summary") or "No summary provided").strip(),
             "for_case": _as_str_list(payload.get("for_case")),
             "for_control": _as_str_list(payload.get("for_control")),
+            "evidence_for_targets": {str(k): _as_str_list(v) for k, v in ev_for.items()},
+            "evidence_against_targets": {str(k): _as_str_list(v) for k, v in ev_against.items()},
             "uncertainty_factors": _as_str_list(payload.get("uncertainty_factors")),
             "key_findings": payload.get("key_findings") if isinstance(payload.get("key_findings"), list) else [],
             "cited_feature_keys": cited,
@@ -505,6 +559,7 @@ class Integrator(BaseAgent):
         self,
         *,
         rows: List[Dict[str, Any]],
+        prediction_task_spec: Optional[Dict[str, Any]],
         chunk_index: int,
         chunk_total: int,
         source_sections: List[str],
@@ -521,16 +576,41 @@ class Integrator(BaseAgent):
         uncertainty_rows: List[str] = []
         findings: List[Dict[str, Any]] = []
         cited: Set[str] = set(fallback_feature_keys)
+        evidence_for: Dict[str, List[str]] = {}
+        evidence_against: Dict[str, List[str]] = {}
 
         for row in rows:
             if not isinstance(row, dict):
                 continue
             case_rows.extend(_as_str_list(row.get("for_case")))
             control_rows.extend(_as_str_list(row.get("for_control")))
+            ev_for = row.get("evidence_for_targets")
+            if isinstance(ev_for, dict):
+                for key, vals in ev_for.items():
+                    evidence_for.setdefault(str(key), [])
+                    evidence_for[str(key)].extend(_as_str_list(vals))
+            ev_against = row.get("evidence_against_targets")
+            if isinstance(ev_against, dict):
+                for key, vals in ev_against.items():
+                    evidence_against.setdefault(str(key), [])
+                    evidence_against[str(key)].extend(_as_str_list(vals))
             uncertainty_rows.extend(_as_str_list(row.get("uncertainty_factors")))
             if isinstance(row.get("key_findings"), list):
                 findings.extend([f for f in row.get("key_findings") if isinstance(f, dict)])
             cited.update(_as_str_list(row.get("cited_feature_keys")))
+
+        task_root_id = "root"
+        if isinstance(prediction_task_spec, dict):
+            root = prediction_task_spec.get("root")
+            if isinstance(root, dict):
+                task_root_id = str(root.get("node_id") or "root")
+        if not evidence_for and case_rows:
+            evidence_for = {task_root_id: list(case_rows)}
+        if not evidence_against and control_rows:
+            evidence_against = {task_root_id: list(control_rows)}
+
+        evidence_for = {k: list(dict.fromkeys(v)) for k, v in evidence_for.items()}
+        evidence_against = {k: list(dict.fromkeys(v)) for k, v in evidence_against.items()}
 
         summary_parts = [
             str(r.get("summary") or "").strip()
@@ -546,6 +626,8 @@ class Integrator(BaseAgent):
             "summary": summary,
             "for_case": list(dict.fromkeys(case_rows)),
             "for_control": list(dict.fromkeys(control_rows)),
+            "evidence_for_targets": evidence_for,
+            "evidence_against_targets": evidence_against,
             "uncertainty_factors": list(dict.fromkeys(uncertainty_rows + [f"merge_reason:{merge_reason}"])),
             "key_findings": findings[:20],
             "cited_feature_keys": sorted(cited),

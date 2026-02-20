@@ -45,7 +45,7 @@ class UnimodalCompressor(BaseTool):
     def _build_prompt(self, input_data: Dict[str, Any]) -> str:
         """Build the compression prompt."""
         domain = input_data.get("input_domains", ["UNKNOWN"])[0]
-        target = input_data.get("target_condition", "neuropsychiatric")
+        target = input_data.get("target_condition", "target phenotype")
         control = input_data.get("control_condition", "")
         parameters = input_data.get("parameters", {})
         compression_ratio = parameters.get("compression_ratio", 5)

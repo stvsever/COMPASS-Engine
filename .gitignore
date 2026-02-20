@@ -50,8 +50,8 @@ overview/*
 !overview/logo/COMPASS_logo_2.png
 !overview/main.tex
 !overview/utils/uml_diagram.py
-!overview/compass_flowchart.mmd
-!overview/compass_flowchart.png
+!overview/compass_engine/compass_flowchart.png
+!overview/compass_engine/compass_flowchart_simplified.png
 !overview/user_interface/
 !overview/user_interface/COMPASS_UI_1.png
 

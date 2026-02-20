@@ -4,14 +4,14 @@ COMPASS Validation Utilities
 Validation functions for inputs, outputs, and data structures.
 """
 
-import os
 import json
 import logging
+import math
 from pathlib import Path
 from typing import Dict, List, Optional, Any, Tuple
 
 from ..config.settings import get_settings
-from ..data.models.schemas import TargetCondition
+from ..data.models.prediction_task import PredictionTaskSpec, PredictionMode
 
 logger = logging.getLogger("compass.validation")
 
@@ -60,20 +60,26 @@ def validate_participant_files(
 
 def validate_target_condition(target: str) -> Tuple[bool, str]:
     """
-    Validate prediction target condition.
+    Validate prediction target label.
     
     Returns:
         Tuple of (is_valid, normalized_target_or_error)
     """
-    target_lower = target.lower().strip()
-    
-    if target_lower in ["neuropsychiatric", "neuropsych", "psychiatric"]:
-        return True, "neuropsychiatric"
-    
-    if target_lower in ["neurologic", "neurological", "neural"]:
-        return True, "neurologic"
-    
-    return False, f"Invalid target condition: {target}. Must be 'neuropsychiatric' or 'neurologic'"
+    normalized = str(target or "").strip()
+    if not normalized:
+        return False, "Invalid target label: value must be non-empty"
+    return True, normalized
+
+
+def validate_prediction_task_spec(task_spec: Dict[str, Any]) -> Tuple[bool, List[str]]:
+    """
+    Validate canonical prediction task specification.
+    """
+    try:
+        PredictionTaskSpec(**(task_spec or {}))
+    except Exception as exc:
+        return False, [str(exc)]
+    return True, []
 
 
 def validate_data_overview(data: Dict[str, Any]) -> Tuple[bool, List[str]]:
@@ -165,18 +171,70 @@ def validate_prediction(prediction: Dict[str, Any]) -> Tuple[bool, List[str]]:
         Tuple of (is_valid, error_messages)
     """
     errors = []
-    
-    required_keys = [
-        "binary_classification",
-        "probability_score",
-        "key_findings",
-        "reasoning_chain"
-    ]
-    
+
+    # Generalized schema path.
+    if "root_prediction" in prediction or "prediction_task_spec" in prediction:
+        root = prediction.get("root_prediction") or {}
+        if not isinstance(root, dict):
+            errors.append("root_prediction must be an object")
+            return len(errors) == 0, errors
+
+        mode = str(root.get("mode") or "").strip()
+        if not mode:
+            errors.append("root_prediction.mode is required")
+        else:
+            valid_modes = {m.value for m in PredictionMode}
+            if mode not in valid_modes:
+                errors.append(f"Invalid root_prediction.mode: {mode}")
+
+        if mode in {PredictionMode.BINARY_CLASSIFICATION.value, PredictionMode.MULTICLASS_CLASSIFICATION.value}:
+            cls_payload = root.get("classification")
+            if not isinstance(cls_payload, dict):
+                errors.append("classification output required for classification mode")
+            else:
+                probs = cls_payload.get("probabilities") or {}
+                if probs:
+                    if not isinstance(probs, dict):
+                        errors.append("classification.probabilities must be an object")
+                    else:
+                        total = 0.0
+                        for label, raw in probs.items():
+                            try:
+                                val = float(raw)
+                            except Exception:
+                                errors.append(f"classification probability for '{label}' is non-numeric")
+                                continue
+                            if val < 0.0 or val > 1.0:
+                                errors.append(f"classification probability for '{label}' must be in [0,1], got {val}")
+                            total += val
+                        if abs(total - 1.0) > 0.05:
+                            errors.append(f"classification probabilities should sum ~1.0, got {total:.4f}")
+        elif mode in {PredictionMode.UNIVARIATE_REGRESSION.value, PredictionMode.MULTIVARIATE_REGRESSION.value}:
+            reg_payload = root.get("regression")
+            if not isinstance(reg_payload, dict):
+                errors.append("regression output required for regression mode")
+            else:
+                values = reg_payload.get("values")
+                if not isinstance(values, dict) or not values:
+                    errors.append("regression.values must be a non-empty object")
+                else:
+                    for name, raw in values.items():
+                        try:
+                            val = float(raw)
+                        except Exception:
+                            errors.append(f"regression value for '{name}' is non-numeric")
+                            continue
+                        if not math.isfinite(val):
+                            errors.append(f"regression value for '{name}' must be finite")
+
+        return len(errors) == 0, errors
+
+    # Legacy binary schema path.
+    required_keys = ["binary_classification", "probability_score", "key_findings", "reasoning_chain"]
     for key in required_keys:
         if key not in prediction:
             errors.append(f"Missing required key: {key}")
-    
+
     if "binary_classification" in prediction:
         valid_classes = ["CASE", "CONTROL"]
         if prediction["binary_classification"] not in valid_classes:
@@ -184,28 +242,22 @@ def validate_prediction(prediction: Dict[str, Any]) -> Tuple[bool, List[str]]:
                 f"Invalid classification: {prediction['binary_classification']}. "
                 f"Must be one of {valid_classes}"
             )
-    
+
     if "probability_score" in prediction:
         prob = prediction["probability_score"]
         if not isinstance(prob, (int, float)):
             errors.append("probability_score must be numeric")
         elif prob < 0 or prob > 1:
             errors.append(f"probability_score must be between 0 and 1, got {prob}")
-    
-    # Check consistency between classification and probability
+
     if "binary_classification" in prediction and "probability_score" in prediction:
         classif = prediction["binary_classification"]
         prob = prediction["probability_score"]
-        
         if classif == "CASE" and prob < 0.5:
-            errors.append(
-                f"Inconsistent: CASE classification with probability {prob} < 0.5"
-            )
+            errors.append(f"Inconsistent: CASE classification with probability {prob} < 0.5")
         if classif == "CONTROL" and prob >= 0.5:
-            errors.append(
-                f"Inconsistent: CONTROL classification with probability {prob} >= 0.5"
-            )
-    
+            errors.append(f"Inconsistent: CONTROL classification with probability {prob} >= 0.5")
+
     return len(errors) == 0, errors
 
 

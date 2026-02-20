@@ -9,6 +9,7 @@ from pydantic import BaseModel, Field
 from enum import Enum
 from datetime import datetime
 
+from .prediction_task import PredictionTaskSpec
 
 class ToolName(str, Enum):
     """Available tools in the COMPASS system."""
@@ -82,8 +83,12 @@ class ExecutionPlan(BaseModel):
     """
     plan_id: str = Field(..., description="Unique plan identifier")
     participant_id: str
-    target_condition: str = Field(..., description="neuropsychiatric or neurologic")
+    target_condition: str = Field(..., description="Target phenotype label")
     control_condition: str = Field("", description="control comparator string")
+    prediction_task_spec: Optional[PredictionTaskSpec] = Field(
+        default=None,
+        description="Canonical hierarchical prediction task specification",
+    )
     created_at: datetime = Field(default_factory=datetime.now)
     
     # Planning metadata
@@ -155,6 +160,11 @@ class ExecutionPlan(BaseModel):
             "participant_id": self.participant_id,
             "target": self.target_condition,
             "control": self.control_condition,
+            "prediction_task_root_mode": (
+                self.prediction_task_spec.root.mode.value
+                if self.prediction_task_spec is not None
+                else None
+            ),
             "total_steps": self.total_steps,
             "completed": self.completed_steps,
             "priority_domains": self.priority_domains,
