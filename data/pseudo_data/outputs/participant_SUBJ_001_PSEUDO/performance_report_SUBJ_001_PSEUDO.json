@@ -1,0 +1,269 @@
+{
+  "participant_id": "SUBJ_001_PSEUDO",
+  "target_condition": "MAJOR DEPRESSIVE DISORDER",
+  "control_condition": "HEALTHY",
+  "execution_timestamp": "2026-02-19T16:18:40.087983",
+  "total_duration_seconds": 151.79,
+  "iterations": 1,
+  "selected_iteration": 1,
+  "selection_reason": "Satisfactory verdict available; chose strongest satisfactory attempt (iteration 1).",
+  "coverage_summary": {
+    "all_feature_count": 103,
+    "processed_feature_count": 103,
+    "unprocessed_raw_feature_count": 7,
+    "processed_raw_low_priority_feature_count": 96,
+    "chunk_cited_feature_count": 0,
+    "represented_feature_count": 103,
+    "missing_feature_count": 0,
+    "missing_features": [],
+    "invariant_ok": true
+  },
+  "dataflow_summary": {
+    "iteration": 1,
+    "target_condition": "MAJOR DEPRESSIVE DISORDER",
+    "control_condition": "HEALTHY",
+    "predictor_input_mode": "RAW_PASS_THROUGH",
+    "coverage": {
+      "summary": {
+        "all_feature_count": 103,
+        "processed_feature_count": 103,
+        "unprocessed_raw_feature_count": 7,
+        "processed_raw_low_priority_feature_count": 96,
+        "chunk_cited_feature_count": 0,
+        "represented_feature_count": 103,
+        "missing_feature_count": 0,
+        "missing_features": [],
+        "invariant_ok": true
+      },
+      "forced_raw_count": 0
+    },
+    "chunking": {
+      "predictor_chunk_count": 0,
+      "chunk_evidence_count": 0,
+      "chunked_two_pass_required": false,
+      "single_chunk_limit": 1900000,
+      "chunking_skipped": true,
+      "chunking_reason": "payload_fit_excluding_processed_raw"
+    },
+    "context_fill": {
+      "processed_raw_full_included": true,
+      "rag_added_count": null,
+      "predictor_payload_estimate": {
+        "baseline_tokens": 39723,
+        "final_tokens": 47054,
+        "processed_raw_tokens": 46993,
+        "single_chunk_limit": 1900000,
+        "threshold": 1800000,
+        "chunked_two_pass_required": false,
+        "strategy": "threshold_driven_no_loss_pass_through"
+      },
+      "coverage_snapshot": {
+        "processed_whole_domains": [
+          "BIOLOGICAL_ASSAY",
+          "BRAIN_MRI",
+          "COGNITION",
+          "LIFESTYLE_ENVIRONMENT"
+        ],
+        "processed_prefixes_by_domain": {},
+        "excluded_leaf_counts": {
+          "BIOLOGICAL_ASSAY": 42,
+          "BRAIN_MRI": 19,
+          "COGNITION": 14,
+          "LIFESTYLE_ENVIRONMENT": 21
+        },
+        "unprocessed_leaf_counts": {
+          "DEMOGRAPHICS": 7
+        },
+        "all_feature_count": 103,
+        "unprocessed_feature_count": 7,
+        "processed_feature_count": 96,
+        "missing_feature_count": 0
+      },
+      "embedding_store": {
+        "path": "/Users/stijnvanseveren/Library/Caches/compass/embeddings.sqlite3",
+        "fallback_active": false,
+        "fallback_reason": null,
+        "in_memory": false
+      }
+    },
+    "assertions": {
+      "invariant_ok": true,
+      "missing_feature_count_zero": true,
+      "chunk_evidence_matches_count": true,
+      "processed_raw_flag_consistent": true
+    }
+  },
+  "prediction_result": {
+    "classification": "CASE",
+    "probability": 0.9,
+    "confidence": "HIGH"
+  },
+  "critic_verdict": "SATISFACTORY",
+  "token_usage": {
+    "total_tokens": 178698,
+    "prompt_tokens": 144475,
+    "completion_tokens": 34223,
+    "calls": [
+      {
+        "component": "orchestrator",
+        "prompt_tokens": 4352,
+        "completion_tokens": 4366,
+        "total": 8718,
+        "step_tool": null,
+        "step_reasoning": null
+      },
+      {
+        "component": "executor",
+        "prompt_tokens": 5052,
+        "completion_tokens": 1860,
+        "total": 6912,
+        "step_tool": "AnomalyNarrativeBuilder",
+        "step_reasoning": "Provides rapid overview of patient abnormalities from deviation map for prioritization."
+      },
+      {
+        "component": "executor",
+        "prompt_tokens": 5352,
+        "completion_tokens": 2743,
+        "total": 8095,
+        "step_tool": "UnimodalCompressor",
+        "step_reasoning": "High-volume domain requires compression for pattern detection in biomarkers critical for MDD (e.g., cytokines, HPA axis)."
+      },
+      {
+        "component": "executor",
+        "prompt_tokens": 3340,
+        "completion_tokens": 1904,
+        "total": 5244,
+        "step_tool": "FeatureSynthesizer",
+        "step_reasoning": "Identifies top hierarchical features for MDD to guide relevance ranking and focus."
+      },
+      {
+        "component": "executor",
+        "prompt_tokens": 3236,
+        "completion_tokens": 2448,
+        "total": 5684,
+        "step_tool": "UnimodalCompressor",
+        "step_reasoning": "Medium-high volume; extracts patterns like hippocampal volume loss or connectivity issues key to MDD."
+      },
+      {
+        "component": "executor",
+        "prompt_tokens": 1188,
+        "completion_tokens": 1776,
+        "total": 2964,
+        "step_tool": "PhenotypeRepresentation",
+        "step_reasoning": "Establishes the gold-standard clinical template for all downstream comparisons and pattern matching."
+      },
+      {
+        "component": "executor",
+        "prompt_tokens": 2592,
+        "completion_tokens": 2076,
+        "total": 4668,
+        "step_tool": "UnimodalCompressor",
+        "step_reasoning": "Medium volume; identifies executive/attention impairments typical in MDD."
+      },
+      {
+        "component": "executor",
+        "prompt_tokens": 3041,
+        "completion_tokens": 2090,
+        "total": 5131,
+        "step_tool": "UnimodalCompressor",
+        "step_reasoning": "Medium volume; patterns in stress, sleep, environment relevant to MDD etiology."
+      },
+      {
+        "component": "executor",
+        "prompt_tokens": 1785,
+        "completion_tokens": 1253,
+        "total": 3038,
+        "step_tool": "ClinicalRelevanceRanker",
+        "step_reasoning": "Prioritizes deviations post-synthesis for MDD-specific focus in fusions and diagnosis."
+      },
+      {
+        "component": "executor",
+        "prompt_tokens": 4208,
+        "completion_tokens": 1927,
+        "total": 6135,
+        "step_tool": "MultimodalNarrativeCreator",
+        "step_reasoning": "Captures brain-cognition interactions (e.g., connectivity-cognitive deficits) central to MDD."
+      },
+      {
+        "component": "executor",
+        "prompt_tokens": 5728,
+        "completion_tokens": 2074,
+        "total": 7802,
+        "step_tool": "MultimodalNarrativeCreator",
+        "step_reasoning": "Integrates biomarkers with lifestyle for holistic view of inflammation/stress in MDD."
+      },
+      {
+        "component": "executor",
+        "prompt_tokens": 9044,
+        "completion_tokens": 2355,
+        "total": 11399,
+        "step_tool": "MultimodalNarrativeCreator",
+        "step_reasoning": "Creates comprehensive multimodal picture incorporating all data for final synthesis."
+      },
+      {
+        "component": "executor",
+        "prompt_tokens": 1164,
+        "completion_tokens": 1168,
+        "total": 2332,
+        "step_tool": "HypothesisGenerator",
+        "step_reasoning": "Derives mechanistic explanations from fused narratives to inform diagnosis."
+      },
+      {
+        "component": "executor",
+        "prompt_tokens": 2871,
+        "completion_tokens": 2378,
+        "total": 5249,
+        "step_tool": "DifferentialDiagnosis",
+        "step_reasoning": "Culminates analysis with ranked diagnoses and binary outcome grounded in full evidence."
+      },
+      {
+        "component": "predictor",
+        "prompt_tokens": 42985,
+        "completion_tokens": 2328,
+        "total": 45313,
+        "step_tool": null,
+        "step_reasoning": null
+      },
+      {
+        "component": "critic",
+        "prompt_tokens": 48537,
+        "completion_tokens": 1477,
+        "total": 50014,
+        "step_tool": null,
+        "step_reasoning": null
+      }
+    ]
+  },
+  "plan_summary": {
+    "plan_id": "COMPASS_PLAN_SUBJ_001_MDD_v1",
+    "total_steps": 13,
+    "priority_domains": [
+      "BIOLOGICAL_ASSAY",
+      "BRAIN_MRI",
+      "COGNITION",
+      "LIFESTYLE_ENVIRONMENT",
+      "DEMOGRAPHICS"
+    ]
+  },
+  "explainability": {
+    "enabled": false,
+    "status": "skipped",
+    "reason": "Explainability disabled.",
+    "methods_requested": [],
+    "methods": {}
+  },
+  "xai_report": {
+    "generated": false,
+    "path": null,
+    "trigger_source": null,
+    "skipped": false,
+    "reason": null,
+    "metadata": {}
+  },
+  "deep_phenotype": {
+    "generated": false,
+    "path": null,
+    "trigger_source": null,
+    "metadata": {}
+  }
+}

@@ -1,0 +1,253 @@
+{
+  "participant_id": "SUBJ_002_PSEUDO",
+  "target_condition": "neuropsychiatric",
+  "control_condition": "brain-implicated pathology, but NOT psychiatric",
+  "execution_timestamp": "2026-02-16T20:51:23.118564",
+  "total_duration_seconds": 130.33,
+  "iterations": 1,
+  "selected_iteration": 1,
+  "selection_reason": "Satisfactory verdict available; chose strongest satisfactory attempt (iteration 1).",
+  "coverage_summary": {
+    "all_feature_count": 40,
+    "processed_feature_count": 40,
+    "unprocessed_raw_feature_count": 6,
+    "processed_raw_low_priority_feature_count": 34,
+    "chunk_cited_feature_count": 0,
+    "represented_feature_count": 40,
+    "missing_feature_count": 0,
+    "missing_features": [],
+    "invariant_ok": true
+  },
+  "dataflow_summary": {
+    "iteration": 1,
+    "target_condition": "neuropsychiatric",
+    "control_condition": "brain-implicated pathology, but NOT psychiatric",
+    "predictor_input_mode": "RAW_PASS_THROUGH",
+    "coverage": {
+      "summary": {
+        "all_feature_count": 40,
+        "processed_feature_count": 40,
+        "unprocessed_raw_feature_count": 6,
+        "processed_raw_low_priority_feature_count": 34,
+        "chunk_cited_feature_count": 0,
+        "represented_feature_count": 40,
+        "missing_feature_count": 0,
+        "missing_features": [],
+        "invariant_ok": true
+      },
+      "forced_raw_count": 0
+    },
+    "chunking": {
+      "predictor_chunk_count": 0,
+      "chunk_evidence_count": 0,
+      "chunked_two_pass_required": false,
+      "single_chunk_limit": 1900000,
+      "chunking_skipped": true,
+      "chunking_reason": "payload_fit_excluding_processed_raw"
+    },
+    "context_fill": {
+      "processed_raw_full_included": true,
+      "rag_added_count": null,
+      "predictor_payload_estimate": {
+        "baseline_tokens": 10771,
+        "final_tokens": 13198,
+        "processed_raw_tokens": 13135,
+        "single_chunk_limit": 1900000,
+        "threshold": 1800000,
+        "chunked_two_pass_required": false,
+        "strategy": "threshold_driven_no_loss_pass_through"
+      },
+      "coverage_snapshot": {
+        "processed_whole_domains": [
+          "BIOLOGICAL_ASSAY",
+          "BRAIN_MRI",
+          "COGNITION",
+          "LIFESTYLE_ENVIRONMENT"
+        ],
+        "processed_prefixes_by_domain": {},
+        "excluded_leaf_counts": {
+          "BIOLOGICAL_ASSAY": 10,
+          "BRAIN_MRI": 7,
+          "COGNITION": 8,
+          "LIFESTYLE_ENVIRONMENT": 9
+        },
+        "unprocessed_leaf_counts": {
+          "DEMOGRAPHICS": 6
+        },
+        "all_feature_count": 40,
+        "unprocessed_feature_count": 6,
+        "processed_feature_count": 34,
+        "missing_feature_count": 0
+      },
+      "embedding_store": {
+        "path": "/Users/stijnvanseveren/Library/Caches/compass/embeddings.sqlite3",
+        "fallback_active": false,
+        "fallback_reason": null,
+        "in_memory": false
+      }
+    },
+    "assertions": {
+      "invariant_ok": true,
+      "missing_feature_count_zero": true,
+      "chunk_evidence_matches_count": true,
+      "processed_raw_flag_consistent": true
+    }
+  },
+  "prediction_result": {
+    "classification": "CONTROL",
+    "probability": 0.05,
+    "confidence": "HIGH"
+  },
+  "critic_verdict": "SATISFACTORY",
+  "token_usage": {
+    "total_tokens": 91275,
+    "prompt_tokens": 61141,
+    "completion_tokens": 30134,
+    "calls": [
+      {
+        "component": "orchestrator",
+        "prompt_tokens": 4254,
+        "completion_tokens": 3200,
+        "total": 7454,
+        "step_tool": null,
+        "step_reasoning": null
+      },
+      {
+        "component": "executor",
+        "prompt_tokens": 3166,
+        "completion_tokens": 1709,
+        "total": 4875,
+        "step_tool": "AnomalyNarrativeBuilder",
+        "step_reasoning": "Provides rapid overview of abnormalities across hierarchy for prioritization."
+      },
+      {
+        "component": "executor",
+        "prompt_tokens": 1186,
+        "completion_tokens": 1703,
+        "total": 2889,
+        "step_tool": "PhenotypeRepresentation",
+        "step_reasoning": "Defines target clinical criteria early to guide all downstream matching and differential tools."
+      },
+      {
+        "component": "executor",
+        "prompt_tokens": 2255,
+        "completion_tokens": 2080,
+        "total": 4335,
+        "step_tool": "UnimodalCompressor",
+        "step_reasoning": "Identifies lifestyle factors modulating neuropsychiatric risk."
+      },
+      {
+        "component": "executor",
+        "prompt_tokens": 2296,
+        "completion_tokens": 2405,
+        "total": 4701,
+        "step_tool": "UnimodalCompressor",
+        "step_reasoning": "Extracts abnormality patterns from biomarkers despite low coverage/token volume for diagnostic value."
+      },
+      {
+        "component": "executor",
+        "prompt_tokens": 2188,
+        "completion_tokens": 3019,
+        "total": 5207,
+        "step_tool": "UnimodalCompressor",
+        "step_reasoning": "Detects cognitive impairment patterns key for psychiatric phenotyping."
+      },
+      {
+        "component": "executor",
+        "prompt_tokens": 2371,
+        "completion_tokens": 3486,
+        "total": 5857,
+        "step_tool": "FeatureSynthesizer",
+        "step_reasoning": "Identifies top abnormal features hierarchically to focus reasoning resources."
+      },
+      {
+        "component": "executor",
+        "prompt_tokens": 2059,
+        "completion_tokens": 3242,
+        "total": 5301,
+        "step_tool": "UnimodalCompressor",
+        "step_reasoning": "Captures neuroimaging patterns critical for brain-psychiatric distinction; whole domain fits tokens."
+      },
+      {
+        "component": "executor",
+        "prompt_tokens": 942,
+        "completion_tokens": 826,
+        "total": 1768,
+        "step_tool": "ClinicalRelevanceRanker",
+        "step_reasoning": "Prioritizes features post-synthesis for targeted fusion and diagnosis."
+      },
+      {
+        "component": "executor",
+        "prompt_tokens": 3893,
+        "completion_tokens": 2872,
+        "total": 6765,
+        "step_tool": "MultimodalNarrativeCreator",
+        "step_reasoning": "Fuses all data into global clinical picture with interactions for hypothesis generation."
+      },
+      {
+        "component": "executor",
+        "prompt_tokens": 1095,
+        "completion_tokens": 1403,
+        "total": 2498,
+        "step_tool": "HypothesisGenerator",
+        "step_reasoning": "Proposes mechanisms linking observations to target/control distinction."
+      },
+      {
+        "component": "executor",
+        "prompt_tokens": 2531,
+        "completion_tokens": 1517,
+        "total": 4048,
+        "step_tool": "DifferentialDiagnosis",
+        "step_reasoning": "Delivers prediction (neuropsychiatric CASE vs brain pathology CONTROL) as ranked differentials."
+      },
+      {
+        "component": "predictor",
+        "prompt_tokens": 16593,
+        "completion_tokens": 1609,
+        "total": 18202,
+        "step_tool": null,
+        "step_reasoning": null
+      },
+      {
+        "component": "critic",
+        "prompt_tokens": 16312,
+        "completion_tokens": 1063,
+        "total": 17375,
+        "step_tool": null,
+        "step_reasoning": null
+      }
+    ]
+  },
+  "plan_summary": {
+    "plan_id": "SUBJ_002_PSEUDO_plan_v1",
+    "total_steps": 11,
+    "priority_domains": [
+      "BRAIN_MRI",
+      "COGNITION",
+      "BIOLOGICAL_ASSAY",
+      "LIFESTYLE_ENVIRONMENT",
+      "DEMOGRAPHICS"
+    ]
+  },
+  "explainability": {
+    "enabled": false,
+    "status": "skipped",
+    "reason": "Explainability disabled.",
+    "methods_requested": [],
+    "methods": {}
+  },
+  "xai_report": {
+    "generated": false,
+    "path": null,
+    "trigger_source": null,
+    "skipped": false,
+    "reason": null,
+    "metadata": {}
+  },
+  "deep_phenotype": {
+    "generated": false,
+    "path": null,
+    "trigger_source": null,
+    "metadata": {}
+  }
+}

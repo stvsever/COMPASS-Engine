@@ -1,0 +1,188 @@
+{
+  "report_id": "RPT_SUBJ_002_PSEUDO_20260216_205333",
+  "participant_id": "SUBJ_002_PSEUDO",
+  "generated_at": "2026-02-16T20:53:33.448394",
+  "prediction": {
+    "classification": "CONTROL",
+    "probability": 0.05,
+    "confidence": "HIGH",
+    "target_condition": "neuropsychiatric",
+    "control_condition": "brain-implicated pathology, but NOT psychiatric"
+  },
+  "evaluation": {
+    "verdict": "SATISFACTORY",
+    "confidence_in_verdict": 1.0,
+    "checklist_passed": 7,
+    "checklist_total": 7
+  },
+  "key_findings": [
+    {
+      "domain": "CLINICAL_NOTES",
+      "finding": "No psychiatric or neurologic symptoms reported; healthy volunteer with normal exam",
+      "direction": "NORMAL"
+    },
+    {
+      "domain": "BRAIN_MRI",
+      "finding": "Normal structural and diffusion metrics (structural z=0.0, diffusion z=0.1)",
+      "direction": "NORMAL"
+    },
+    {
+      "domain": "COGNITION",
+      "finding": "Preserved cognition across domains (attention z=0.3, memory z=0.2, processing_speed z=0.1, executive z=0.1)",
+      "direction": "NORMAL"
+    },
+    {
+      "domain": "BIOLOGICAL_ASSAY",
+      "finding": "Favorable biomarkers (inflammation z=-0.3, vitamins z=0.2, metabolic z=-0.1)",
+      "direction": "NORMAL"
+    },
+    {
+      "domain": "LIFESTYLE_ENVIRONMENT",
+      "finding": "Protective factors (physical_activity z=0.6)",
+      "direction": "NORMAL"
+    }
+  ],
+  "reasoning": [
+    "Step 1: Prioritize non_numerical_data - explicit healthy status, no psychiatric history/symptoms, normal exam/labs/MRI (incidental cyst non-pathologic).",
+    "Step 2: Review hierarchical deviations - all |z|<0.6 (negligible), no domain means exceed threshold; uniform normality across BIOLOGICAL_ASSAY, BRAIN_MRI, COGNITION.",
+    "Step 3: Integrate tool outputs - MultimodalNarrative, AnomalyNarrative, HypothesisGenerator all converge on healthy/resilient profile, rule out neuropsychiatric (e.g., DifferentialDiagnosis UNLIKELY).",
+    "Step 4: Phenotype mismatch - no psychiatric symptoms, cognitive/mood clusters absent; biomarkers normal, not matching expected frontotemporal/inflammatory signature.",
+    "Step 5: Calibrate probability low (0.05) given zero convergent evidence, high confidence from consistent data; default CONTROL avoids false positive."
+  ],
+  "clinical_summary": "This 42-year-old healthy volunteer presents with a comprehensively normal multimodal profile, including unremarkable clinical history (no psychiatric/neurologic symptoms, normal exam), negligible z-score deviations across all domains (max |z|=0.9 in physical activity, protective), normal brain MRI (incidental stable cyst z=0), preserved cognition, favorable biomarkers (low inflammation), and healthy lifestyle. No evidence supports neuropsychiatric phenotype matching; strongly aligns with healthy control, distinct from brain-implicated pathology.",
+  "execution": {
+    "iterations": 1,
+    "selected_iteration": 1,
+    "selection_reason": "Satisfactory verdict available; chose strongest satisfactory attempt (iteration 1).",
+    "coverage_summary": {
+      "all_feature_count": 40,
+      "processed_feature_count": 40,
+      "unprocessed_raw_feature_count": 6,
+      "processed_raw_low_priority_feature_count": 34,
+      "chunk_cited_feature_count": 0,
+      "represented_feature_count": 40,
+      "missing_feature_count": 0,
+      "missing_features": [],
+      "invariant_ok": true
+    },
+    "dataflow_summary": {
+      "iteration": 1,
+      "target_condition": "neuropsychiatric",
+      "control_condition": "brain-implicated pathology, but NOT psychiatric",
+      "predictor_input_mode": "RAW_PASS_THROUGH",
+      "coverage": {
+        "summary": {
+          "all_feature_count": 40,
+          "processed_feature_count": 40,
+          "unprocessed_raw_feature_count": 6,
+          "processed_raw_low_priority_feature_count": 34,
+          "chunk_cited_feature_count": 0,
+          "represented_feature_count": 40,
+          "missing_feature_count": 0,
+          "missing_features": [],
+          "invariant_ok": true
+        },
+        "forced_raw_count": 0
+      },
+      "chunking": {
+        "predictor_chunk_count": 0,
+        "chunk_evidence_count": 0,
+        "chunked_two_pass_required": false,
+        "single_chunk_limit": 1900000,
+        "chunking_skipped": true,
+        "chunking_reason": "payload_fit_excluding_processed_raw"
+      },
+      "context_fill": {
+        "processed_raw_full_included": true,
+        "rag_added_count": null,
+        "predictor_payload_estimate": {
+          "baseline_tokens": 10771,
+          "final_tokens": 13198,
+          "processed_raw_tokens": 13135,
+          "single_chunk_limit": 1900000,
+          "threshold": 1800000,
+          "chunked_two_pass_required": false,
+          "strategy": "threshold_driven_no_loss_pass_through"
+        },
+        "coverage_snapshot": {
+          "processed_whole_domains": [
+            "BIOLOGICAL_ASSAY",
+            "BRAIN_MRI",
+            "COGNITION",
+            "LIFESTYLE_ENVIRONMENT"
+          ],
+          "processed_prefixes_by_domain": {},
+          "excluded_leaf_counts": {
+            "BIOLOGICAL_ASSAY": 10,
+            "BRAIN_MRI": 7,
+            "COGNITION": 8,
+            "LIFESTYLE_ENVIRONMENT": 9
+          },
+          "unprocessed_leaf_counts": {
+            "DEMOGRAPHICS": 6
+          },
+          "all_feature_count": 40,
+          "unprocessed_feature_count": 6,
+          "processed_feature_count": 34,
+          "missing_feature_count": 0
+        },
+        "embedding_store": {
+          "path": "/Users/stijnvanseveren/Library/Caches/compass/embeddings.sqlite3",
+          "fallback_active": false,
+          "fallback_reason": null,
+          "in_memory": false
+        }
+      },
+      "assertions": {
+        "invariant_ok": true,
+        "missing_feature_count_zero": true,
+        "chunk_evidence_matches_count": true,
+        "processed_raw_flag_consistent": true
+      }
+    },
+    "tokens_used": 91275,
+    "domains_processed": [
+      "BRAIN_MRI",
+      "COGNITION",
+      "BIOLOGICAL_ASSAY",
+      "LIFESTYLE_ENVIRONMENT",
+      "DEMOGRAPHICS"
+    ],
+    "detailed_logs": []
+  },
+  "decision_trace": [
+    {
+      "decision_id": "D001",
+      "component": "Orchestrator",
+      "decision_type": "PLAN_GENERATION",
+      "input_summary": "Domains: BRAIN_MRI, COGNITION, BIOLOGICAL_ASSAY, LIFESTYLE_ENVIRONMENT, DEMOGRAPHICS",
+      "output_summary": "Generated 11-step plan",
+      "reasoning": "Data is low-volume (3490 total tokens, FIT_FOR_RAW), enabling full coverage without subtree splitting; all domains processed for completeness. Early parallel steps (1-3) provide phenotype template, anomaly narrative, and feature ranks using deviation map. Mid parallel compressors (4-7) extract clinical patterns from complex domains (skipping simple DEMOGRAPHICS). Clinical ranker (8) refines post-featuresynth. Single fusion (9) integrates all compressed/raw domains + non_numerical_data.txt + core",
+      "timestamp": "2026-02-16T20:51:51.865752",
+      "metadata": {}
+    },
+    {
+      "decision_id": "D002",
+      "component": "Predictor",
+      "decision_type": "CLASSIFICATION",
+      "input_summary": "Key findings: No psychiatric or neurologic symptoms reported; healthy volunteer with normal exam, Normal structural and diffusion metrics (structural z=0.0, diffusion z=0.1), Preserved cognition across domains (attention z=0.3, memory z=0.2, processing_speed z=0.1, executive z=0.1)...",
+      "output_summary": "CONTROL (p=0.050)",
+      "reasoning": "This 42-year-old healthy volunteer presents with a comprehensively normal multimodal profile, including unremarkable clinical history (no psychiatric/neurologic symptoms, normal exam), negligible z-score deviations across all domains (max |z|=0.9 in physical activity, protective), normal brain MRI (incidental stable cyst z=0), preserved cognition, favorable biomarkers (low inflammation), and healthy lifestyle. No evidence supports neuropsychiatric phenotype matching; strongly aligns with healthy",
+      "timestamp": "2026-02-16T20:53:27.389480",
+      "metadata": {
+        "probability": 0.05,
+        "classification": "CONTROL"
+      }
+    },
+    {
+      "decision_id": "D003",
+      "component": "Critic",
+      "decision_type": "EVALUATION",
+      "input_summary": "Checklist: 7/7 passed",
+      "output_summary": "SATISFACTORY",
+      "reasoning": "Prediction excels in all criteria: Binary outcome clear (CONTROL), probability realistic/low for healthy profile. 100% domain/feature coverage despite low % coverage (likely small n_leaves, but all available data utilized via RAW_PASS_THROUGH). Reasoning references verifiable specifics (z-scores match hierarchical deviations/non-numerical data precisely, e.g., normal MRI structural z=0.0/diffusion z=0.1, preserved cognition z=0.1-0.3, low inflammation z=-0.3). No logical gaps/contradictions; too",
+      "timestamp": "2026-02-16T20:53:33.447137",
+      "metadata": {}
+    }
+  ]
+}

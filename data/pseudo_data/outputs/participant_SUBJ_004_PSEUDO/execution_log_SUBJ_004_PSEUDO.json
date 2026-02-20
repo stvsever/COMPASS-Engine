@@ -1,0 +1,120 @@
+[
+  {
+    "type": "PIPELINE_START",
+    "timestamp": "2026-02-16T21:29:49.060569",
+    "data": {
+      "participant_id": "SUBJ_004_PSEUDO",
+      "target_condition": "neuropsychiatric",
+      "control_condition": "brain-implicated pathology, but NOT psychiatric",
+      "timestamp": "2026-02-16T21:29:49.060565"
+    }
+  },
+  {
+    "type": "ORCHESTRATOR",
+    "timestamp": "2026-02-16T21:30:31.927616",
+    "data": {
+      "plan_id": "SUBJ_004_PSEUDO_neuropsych_001",
+      "total_steps": 13,
+      "priority_domains": [
+        "BRAIN_MRI",
+        "COGNITION",
+        "BIOLOGICAL_ASSAY"
+      ]
+    }
+  },
+  {
+    "type": "DATAFLOW_SUMMARY",
+    "timestamp": "2026-02-16T21:32:18.606984",
+    "data": {
+      "iteration": 1,
+      "target_condition": "neuropsychiatric",
+      "control_condition": "brain-implicated pathology, but NOT psychiatric",
+      "predictor_input_mode": "RAW_PASS_THROUGH",
+      "coverage": {
+        "summary": {
+          "all_feature_count": 49,
+          "processed_feature_count": 49,
+          "unprocessed_raw_feature_count": 6,
+          "processed_raw_low_priority_feature_count": 43,
+          "chunk_cited_feature_count": 0,
+          "represented_feature_count": 49,
+          "missing_feature_count": 0,
+          "missing_features": [],
+          "invariant_ok": true
+        },
+        "forced_raw_count": 0
+      },
+      "chunking": {
+        "predictor_chunk_count": 0,
+        "chunk_evidence_count": 0,
+        "chunked_two_pass_required": false,
+        "single_chunk_limit": 1900000,
+        "chunking_skipped": true,
+        "chunking_reason": "payload_fit_excluding_processed_raw"
+      },
+      "context_fill": {
+        "processed_raw_full_included": true,
+        "rag_added_count": null,
+        "predictor_payload_estimate": {
+          "baseline_tokens": 18268,
+          "final_tokens": 21466,
+          "processed_raw_tokens": 21403,
+          "single_chunk_limit": 1900000,
+          "threshold": 1800000,
+          "chunked_two_pass_required": false,
+          "strategy": "threshold_driven_no_loss_pass_through"
+        },
+        "coverage_snapshot": {
+          "processed_whole_domains": [
+            "BIOLOGICAL_ASSAY",
+            "BRAIN_MRI",
+            "COGNITION",
+            "LIFESTYLE_ENVIRONMENT"
+          ],
+          "processed_prefixes_by_domain": {},
+          "excluded_leaf_counts": {
+            "BRAIN_MRI": 18,
+            "COGNITION": 8,
+            "BIOLOGICAL_ASSAY": 9,
+            "LIFESTYLE_ENVIRONMENT": 8
+          },
+          "unprocessed_leaf_counts": {
+            "DEMOGRAPHICS": 6
+          },
+          "all_feature_count": 49,
+          "unprocessed_feature_count": 6,
+          "processed_feature_count": 43,
+          "missing_feature_count": 0
+        },
+        "embedding_store": {
+          "path": "/Users/stijnvanseveren/Library/Caches/compass/embeddings.sqlite3",
+          "fallback_active": false,
+          "fallback_reason": null,
+          "in_memory": false
+        }
+      },
+      "assertions": {
+        "invariant_ok": true,
+        "missing_feature_count_zero": true,
+        "chunk_evidence_matches_count": true,
+        "processed_raw_flag_consistent": true
+      }
+    }
+  },
+  {
+    "type": "PREDICTOR",
+    "timestamp": "2026-02-16T21:32:18.608330",
+    "data": {
+      "classification": "CONTROL",
+      "probability": 0.08
+    }
+  },
+  {
+    "type": "CRITIC",
+    "timestamp": "2026-02-16T21:32:29.094440",
+    "data": {
+      "verdict": "SATISFACTORY",
+      "confidence": 0.96
+    }
+  }
+]

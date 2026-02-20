@@ -1,0 +1,250 @@
+{
+  "participant_id": "SUBJ_003_PSEUDO",
+  "target_condition": "neuropsychiatric",
+  "control_condition": "brain-implicated pathology, but NOT psychiatric",
+  "execution_timestamp": "2026-02-16T21:40:11.769501",
+  "total_duration_seconds": 116.43,
+  "iterations": 1,
+  "selected_iteration": 1,
+  "selection_reason": "Satisfactory verdict available; chose strongest satisfactory attempt (iteration 1).",
+  "coverage_summary": {
+    "all_feature_count": 36,
+    "processed_feature_count": 36,
+    "unprocessed_raw_feature_count": 0,
+    "processed_raw_low_priority_feature_count": 36,
+    "chunk_cited_feature_count": 0,
+    "represented_feature_count": 36,
+    "missing_feature_count": 0,
+    "missing_features": [],
+    "invariant_ok": true
+  },
+  "dataflow_summary": {
+    "iteration": 1,
+    "target_condition": "neuropsychiatric",
+    "control_condition": "brain-implicated pathology, but NOT psychiatric",
+    "predictor_input_mode": "RAW_PASS_THROUGH",
+    "coverage": {
+      "summary": {
+        "all_feature_count": 36,
+        "processed_feature_count": 36,
+        "unprocessed_raw_feature_count": 0,
+        "processed_raw_low_priority_feature_count": 36,
+        "chunk_cited_feature_count": 0,
+        "represented_feature_count": 36,
+        "missing_feature_count": 0,
+        "missing_features": [],
+        "invariant_ok": true
+      },
+      "forced_raw_count": 0
+    },
+    "chunking": {
+      "predictor_chunk_count": 0,
+      "chunk_evidence_count": 0,
+      "chunked_two_pass_required": false,
+      "single_chunk_limit": 1900000,
+      "chunking_skipped": true,
+      "chunking_reason": "payload_fit_excluding_processed_raw"
+    },
+    "context_fill": {
+      "processed_raw_full_included": true,
+      "rag_added_count": null,
+      "predictor_payload_estimate": {
+        "baseline_tokens": 16803,
+        "final_tokens": 19235,
+        "processed_raw_tokens": 19172,
+        "single_chunk_limit": 1900000,
+        "threshold": 1800000,
+        "chunked_two_pass_required": false,
+        "strategy": "threshold_driven_no_loss_pass_through"
+      },
+      "coverage_snapshot": {
+        "processed_whole_domains": [
+          "BIOLOGICAL_ASSAY",
+          "COGNITION",
+          "DEMOGRAPHICS",
+          "LIFESTYLE_ENVIRONMENT"
+        ],
+        "processed_prefixes_by_domain": {},
+        "excluded_leaf_counts": {
+          "DEMOGRAPHICS": 6,
+          "LIFESTYLE_ENVIRONMENT": 13,
+          "COGNITION": 8,
+          "BIOLOGICAL_ASSAY": 9
+        },
+        "unprocessed_leaf_counts": {},
+        "all_feature_count": 36,
+        "unprocessed_feature_count": 0,
+        "processed_feature_count": 36,
+        "missing_feature_count": 0
+      },
+      "embedding_store": {
+        "path": "/Users/stijnvanseveren/Library/Caches/compass/embeddings.sqlite3",
+        "fallback_active": false,
+        "fallback_reason": null,
+        "in_memory": false
+      }
+    },
+    "assertions": {
+      "invariant_ok": true,
+      "missing_feature_count_zero": true,
+      "chunk_evidence_matches_count": true,
+      "processed_raw_flag_consistent": true
+    }
+  },
+  "prediction_result": {
+    "classification": "CONTROL",
+    "probability": 0.05,
+    "confidence": "HIGH"
+  },
+  "critic_verdict": "SATISFACTORY",
+  "token_usage": {
+    "total_tokens": 100912,
+    "prompt_tokens": 71484,
+    "completion_tokens": 29428,
+    "calls": [
+      {
+        "component": "orchestrator",
+        "prompt_tokens": 4235,
+        "completion_tokens": 3407,
+        "total": 7642,
+        "step_tool": null,
+        "step_reasoning": null
+      },
+      {
+        "component": "executor",
+        "prompt_tokens": 2193,
+        "completion_tokens": 2000,
+        "total": 4193,
+        "step_tool": "UnimodalCompressor",
+        "step_reasoning": "High relevance for neuropsychiatric; compression highlights cognitive deviation patterns (~640 tokens)."
+      },
+      {
+        "component": "executor",
+        "prompt_tokens": 1186,
+        "completion_tokens": 1426,
+        "total": 2612,
+        "step_tool": "PhenotypeRepresentation",
+        "step_reasoning": "Provides essential clinical 'rule book' early for all downstream tools to match patient data against."
+      },
+      {
+        "component": "executor",
+        "prompt_tokens": 3182,
+        "completion_tokens": 1393,
+        "total": 4575,
+        "step_tool": "AnomalyNarrativeBuilder",
+        "step_reasoning": "Enables rapid domain-level abnormality screening to prioritize neuropsychiatric-relevant anomalies early."
+      },
+      {
+        "component": "executor",
+        "prompt_tokens": 2297,
+        "completion_tokens": 2070,
+        "total": 4367,
+        "step_tool": "UnimodalCompressor",
+        "step_reasoning": "Key biological markers (~810 tokens); compression identifies assay abnormalities for phenotype matching."
+      },
+      {
+        "component": "executor",
+        "prompt_tokens": 2443,
+        "completion_tokens": 2763,
+        "total": 5206,
+        "step_tool": "FeatureSynthesizer",
+        "step_reasoning": "Guides resource allocation to most deviant features for efficient neuropsychiatric prediction."
+      },
+      {
+        "component": "executor",
+        "prompt_tokens": 2546,
+        "completion_tokens": 2405,
+        "total": 4951,
+        "step_tool": "UnimodalCompressor",
+        "step_reasoning": "Medium volume (~780 tokens); compression extracts lifestyle patterns critical for psychiatric risk vs brain pathology."
+      },
+      {
+        "component": "executor",
+        "prompt_tokens": 1989,
+        "completion_tokens": 4697,
+        "total": 6686,
+        "step_tool": "UnimodalCompressor",
+        "step_reasoning": "Ensures uniform processing and pattern detection even for small domain; include data_overview.json, hierarchical_deviation_map.json, non_numerical_data.txt."
+      },
+      {
+        "component": "executor",
+        "prompt_tokens": 934,
+        "completion_tokens": 785,
+        "total": 1719,
+        "step_tool": "ClinicalRelevanceRanker",
+        "step_reasoning": "Prioritizes features post-synthesis for targeted hypothesis and diagnosis."
+      },
+      {
+        "component": "executor",
+        "prompt_tokens": 4060,
+        "completion_tokens": 1899,
+        "total": 5959,
+        "step_tool": "MultimodalNarrativeCreator",
+        "step_reasoning": "Fuses all data for holistic view after parallel compression, preserving 95-99% relevant info."
+      },
+      {
+        "component": "executor",
+        "prompt_tokens": 1129,
+        "completion_tokens": 1239,
+        "total": 2368,
+        "step_tool": "HypothesisGenerator",
+        "step_reasoning": "Bridges narratives to mechanistic explanations required for final diagnosis."
+      },
+      {
+        "component": "executor",
+        "prompt_tokens": 2492,
+        "completion_tokens": 2093,
+        "total": 4585,
+        "step_tool": "DifferentialDiagnosis",
+        "step_reasoning": "Final step for binary prediction, depending on all priors for comprehensive synthesis."
+      },
+      {
+        "component": "predictor",
+        "prompt_tokens": 20707,
+        "completion_tokens": 1794,
+        "total": 22501,
+        "step_tool": null,
+        "step_reasoning": null
+      },
+      {
+        "component": "critic",
+        "prompt_tokens": 22091,
+        "completion_tokens": 1457,
+        "total": 23548,
+        "step_tool": null,
+        "step_reasoning": null
+      }
+    ]
+  },
+  "plan_summary": {
+    "plan_id": "compass_plan_SUBJ_003",
+    "total_steps": 11,
+    "priority_domains": [
+      "COGNITION",
+      "BIOLOGICAL_ASSAY",
+      "LIFESTYLE_ENVIRONMENT",
+      "DEMOGRAPHICS"
+    ]
+  },
+  "explainability": {
+    "enabled": false,
+    "status": "skipped",
+    "reason": "Explainability disabled.",
+    "methods_requested": [],
+    "methods": {}
+  },
+  "xai_report": {
+    "generated": false,
+    "path": null,
+    "trigger_source": null,
+    "skipped": false,
+    "reason": null,
+    "metadata": {}
+  },
+  "deep_phenotype": {
+    "generated": false,
+    "path": null,
+    "trigger_source": null,
+    "metadata": {}
+  }
+}

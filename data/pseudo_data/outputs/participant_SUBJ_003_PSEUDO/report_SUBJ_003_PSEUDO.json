@@ -1,0 +1,189 @@
+{
+  "report_id": "RPT_SUBJ_003_PSEUDO_20260216_214208",
+  "participant_id": "SUBJ_003_PSEUDO",
+  "generated_at": "2026-02-16T21:42:08.196740",
+  "prediction": {
+    "classification": "CONTROL",
+    "probability": 0.05,
+    "confidence": "HIGH",
+    "target_condition": "neuropsychiatric",
+    "control_condition": "brain-implicated pathology, but NOT psychiatric"
+  },
+  "evaluation": {
+    "verdict": "SATISFACTORY",
+    "confidence_in_verdict": 0.95,
+    "checklist_passed": 7,
+    "checklist_total": 7
+  },
+  "key_findings": [
+    {
+      "domain": "LIFESTYLE_ENVIRONMENT",
+      "finding": "Elevated stress (z=0.7, 76th percentile, NEGLIGIBLE effect)",
+      "direction": "ABNORMAL_HIGH"
+    },
+    {
+      "domain": "LIFESTYLE_ENVIRONMENT",
+      "finding": "Sleep issues (z=0.6, 73rd percentile, NEGLIGIBLE effect)",
+      "direction": "ABNORMAL_HIGH"
+    },
+    {
+      "domain": "COGNITION",
+      "finding": "Psychomotor speed deficit (z=-0.5, 31st percentile, NEGLIGIBLE effect)",
+      "direction": "ABNORMAL_LOW"
+    },
+    {
+      "domain": "BIOLOGICAL_ASSAY",
+      "finding": "Iron status reduced (z=-0.6, 27th percentile, NEGLIGIBLE effect)",
+      "direction": "ABNORMAL_LOW"
+    },
+    {
+      "domain": "BIOLOGICAL_ASSAY",
+      "finding": "Vitamins reduced (z=-0.5, 31st percentile, NEGLIGIBLE effect)",
+      "direction": "ABNORMAL_LOW"
+    },
+    {
+      "domain": "COGNITION",
+      "finding": "Executive function mild deficit (z=-0.4, 34th percentile, NEGLIGIBLE effect)",
+      "direction": "ABNORMAL_LOW"
+    }
+  ],
+  "reasoning": [
+    "Step 1: Review clinical notes (non_numerical_data): No psychiatric symptoms (no low mood, psychosis, anxiety); explicit clinician impression of healthy postpartum fatigue. Prioritizes CONTROL per NO SYMPTOMS rule.",
+    "Step 2: Assess hierarchical deviations and features: All |z| <1.0 (negligible effects, max z=1.1 in one sleep leaf); weak convergence in lifestyle/cognition/biology explained by postpartum context.",
+    "Step 3: Integrate tool outputs: Differential diagnosis rates neuropsychiatric UNLIKELY (5%); multimodal narrative TOWARD_CONTROL; phenotype requires psychiatric + neuro symptoms (absent).",
+    "Step 4: Calibrate probability: Very low risk (0.05) given prevalence, no symptoms, small effects; high confidence from consistent data and explicit healthy impression."
+  ],
+  "clinical_summary": "This 33-year-old female, 6 months postpartum, presents with mild situational sleep disruption, stress, fatigue-related cognitive slowing, and subclinical iron/vitamin deficiencies (all |z|<1.0, negligible effects), fully attributable to physiological adaptation per clinical notes and tools. Absent psychiatric symptoms (no mood dysregulation, psychosis, anxiety) and normal neurologic exam rule out neuropsychiatric phenotype matching; aligns with control (non-psychiatric brain pathology absent). Strong evidence favors healthy control status with monitoring recommended.",
+  "execution": {
+    "iterations": 1,
+    "selected_iteration": 1,
+    "selection_reason": "Satisfactory verdict available; chose strongest satisfactory attempt (iteration 1).",
+    "coverage_summary": {
+      "all_feature_count": 36,
+      "processed_feature_count": 36,
+      "unprocessed_raw_feature_count": 0,
+      "processed_raw_low_priority_feature_count": 36,
+      "chunk_cited_feature_count": 0,
+      "represented_feature_count": 36,
+      "missing_feature_count": 0,
+      "missing_features": [],
+      "invariant_ok": true
+    },
+    "dataflow_summary": {
+      "iteration": 1,
+      "target_condition": "neuropsychiatric",
+      "control_condition": "brain-implicated pathology, but NOT psychiatric",
+      "predictor_input_mode": "RAW_PASS_THROUGH",
+      "coverage": {
+        "summary": {
+          "all_feature_count": 36,
+          "processed_feature_count": 36,
+          "unprocessed_raw_feature_count": 0,
+          "processed_raw_low_priority_feature_count": 36,
+          "chunk_cited_feature_count": 0,
+          "represented_feature_count": 36,
+          "missing_feature_count": 0,
+          "missing_features": [],
+          "invariant_ok": true
+        },
+        "forced_raw_count": 0
+      },
+      "chunking": {
+        "predictor_chunk_count": 0,
+        "chunk_evidence_count": 0,
+        "chunked_two_pass_required": false,
+        "single_chunk_limit": 1900000,
+        "chunking_skipped": true,
+        "chunking_reason": "payload_fit_excluding_processed_raw"
+      },
+      "context_fill": {
+        "processed_raw_full_included": true,
+        "rag_added_count": null,
+        "predictor_payload_estimate": {
+          "baseline_tokens": 16803,
+          "final_tokens": 19235,
+          "processed_raw_tokens": 19172,
+          "single_chunk_limit": 1900000,
+          "threshold": 1800000,
+          "chunked_two_pass_required": false,
+          "strategy": "threshold_driven_no_loss_pass_through"
+        },
+        "coverage_snapshot": {
+          "processed_whole_domains": [
+            "BIOLOGICAL_ASSAY",
+            "COGNITION",
+            "DEMOGRAPHICS",
+            "LIFESTYLE_ENVIRONMENT"
+          ],
+          "processed_prefixes_by_domain": {},
+          "excluded_leaf_counts": {
+            "DEMOGRAPHICS": 6,
+            "LIFESTYLE_ENVIRONMENT": 13,
+            "COGNITION": 8,
+            "BIOLOGICAL_ASSAY": 9
+          },
+          "unprocessed_leaf_counts": {},
+          "all_feature_count": 36,
+          "unprocessed_feature_count": 0,
+          "processed_feature_count": 36,
+          "missing_feature_count": 0
+        },
+        "embedding_store": {
+          "path": "/Users/stijnvanseveren/Library/Caches/compass/embeddings.sqlite3",
+          "fallback_active": false,
+          "fallback_reason": null,
+          "in_memory": false
+        }
+      },
+      "assertions": {
+        "invariant_ok": true,
+        "missing_feature_count_zero": true,
+        "chunk_evidence_matches_count": true,
+        "processed_raw_flag_consistent": true
+      }
+    },
+    "tokens_used": 100912,
+    "domains_processed": [
+      "COGNITION",
+      "BIOLOGICAL_ASSAY",
+      "LIFESTYLE_ENVIRONMENT",
+      "DEMOGRAPHICS"
+    ],
+    "detailed_logs": []
+  },
+  "decision_trace": [
+    {
+      "decision_id": "D001",
+      "component": "Orchestrator",
+      "decision_type": "PLAN_GENERATION",
+      "input_summary": "Domains: COGNITION, BIOLOGICAL_ASSAY, LIFESTYLE_ENVIRONMENT, DEMOGRAPHICS",
+      "output_summary": "Generated 11-step plan",
+      "reasoning": "Given low total tokens (3010, FIT_FOR_RAW), aggressive compression is unnecessary but UnimodalCompressor is still used on all domains (>500 tokens) to leverage pattern detection for CASE vs CONTROL distinction in neuropsychiatric prediction; demographics included for completeness despite small size. Early parallel steps (1-3) provide phenotype context, deviation narrative, and feature ranks without dependencies. Mid parallel UnimodalCompressors (4-7) ensure COMPLETE coverage of all available dat",
+      "timestamp": "2026-02-16T21:40:35.715996",
+      "metadata": {}
+    },
+    {
+      "decision_id": "D002",
+      "component": "Predictor",
+      "decision_type": "CLASSIFICATION",
+      "input_summary": "Key findings: Elevated stress (z=0.7, 76th percentile, NEGLIGIBLE effect), Sleep issues (z=0.6, 73rd percentile, NEGLIGIBLE effect), Psychomotor speed deficit (z=-0.5, 31st percentile, NEGLIGIBLE effect)...",
+      "output_summary": "CONTROL (p=0.050)",
+      "reasoning": "This 33-year-old female, 6 months postpartum, presents with mild situational sleep disruption, stress, fatigue-related cognitive slowing, and subclinical iron/vitamin deficiencies (all |z|<1.0, negligible effects), fully attributable to physiological adaptation per clinical notes and tools. Absent psychiatric symptoms (no mood dysregulation, psychosis, anxiety) and normal neurologic exam rule out neuropsychiatric phenotype matching; aligns with control (non-psychiatric brain pathology absent). S",
+      "timestamp": "2026-02-16T21:41:55.577606",
+      "metadata": {
+        "probability": 0.05,
+        "classification": "CONTROL"
+      }
+    },
+    {
+      "decision_id": "D003",
+      "component": "Critic",
+      "decision_type": "EVALUATION",
+      "input_summary": "Checklist: 7/7 passed",
+      "output_summary": "SATISFACTORY",
+      "reasoning": "This prediction excels in all criteria: Binary CONTROL with valid 0.05 prob (high confidence justified by consistent negligible effects and no symptoms). 100% domain coverage (all 4 available: DEMOGRAPHICS, LIFESTYLE_ENVIRONMENT, COGNITION, BIOLOGICAL_ASSAY processed via UnimodalCompressor/MultimodalNarrative). Reasoning is evidence-based, citing exact matching z-scores from hierarchical profile/Predictor Input (e.g., stress z=0.7 76th%, sleep z=0.6 73rd%, etc.; sleep_variability z=1.1 noted in ",
+      "timestamp": "2026-02-16T21:42:08.195901",
+      "metadata": {}
+    }
+  ]
+}

@@ -70,7 +70,7 @@ __init__.py
 tests/
 
 # Outputs
-outputs/
+#outputs/
 
 # Local-only checks (do not commit)
 local_tests/

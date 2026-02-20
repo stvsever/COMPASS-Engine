@@ -1,0 +1,191 @@
+{
+  "report_id": "RPT_SUBJ_004_PSEUDO_20260216_213229",
+  "participant_id": "SUBJ_004_PSEUDO",
+  "generated_at": "2026-02-16T21:32:29.096095",
+  "prediction": {
+    "classification": "CONTROL",
+    "probability": 0.08,
+    "confidence": "HIGH",
+    "target_condition": "neuropsychiatric",
+    "control_condition": "brain-implicated pathology, but NOT psychiatric"
+  },
+  "evaluation": {
+    "verdict": "SATISFACTORY",
+    "confidence_in_verdict": 0.96,
+    "checklist_passed": 7,
+    "checklist_total": 7
+  },
+  "key_findings": [
+    {
+      "domain": "BRAIN_MRI",
+      "finding": "Vascular abnormalities elevated (z=2.0, 98th percentile, MODERATE effect)",
+      "direction": "ABNORMAL_HIGH"
+    },
+    {
+      "domain": "BRAIN_MRI",
+      "finding": "Structural volume reductions (z=-1.2, 11th percentile, SMALL effect)",
+      "direction": "ABNORMAL_LOW"
+    },
+    {
+      "domain": "COGNITION",
+      "finding": "Motor function deficit (z=-1.2, 11th percentile, SMALL effect)",
+      "direction": "ABNORMAL_LOW"
+    },
+    {
+      "domain": "BIOLOGICAL_ASSAY",
+      "finding": "Metabolic markers elevated (z=1.6, 95th percentile, MODERATE effect)",
+      "direction": "ABNORMAL_HIGH"
+    },
+    {
+      "domain": "non_numerical_data",
+      "finding": "No psychiatric symptoms or history reported",
+      "direction": "NORMAL"
+    },
+    {
+      "domain": "COGNITION",
+      "finding": "Processing speed slowed (z=-1.0, 16th percentile, SMALL effect)",
+      "direction": "ABNORMAL_LOW"
+    }
+  ],
+  "reasoning": [
+    "Step 1: Prioritize clinical notes - explicit NO psychiatric symptoms/diagnoses, PMH vascular risks only; mandates weight toward CONTROL per clinical gate.",
+    "Step 2: Assess hierarchical deviations - prominent vascular (z=2.0 MODERATE HIGH) and metabolic (z=1.6 MODERATE HIGH) with mild cognitive-motor lows (|z|<1.5); convergent on microvascular disease.",
+    "Step 3: Integrate multimodal narratives - all (9,10,11) HIGH confidence TOWARD_CONTROL; unified vascular etiology explaining deficits without psychiatric overlay.",
+    "Step 4: Phenotype mismatch - neuropsychiatric requires prominent psychosis/mood/anxiety (absent); matches control (brain vascular pathology).",
+    "Step 5: Calibrate probability low (0.08) given zero psychiatric evidence, high convergence, UKB healthy baseline; HIGH confidence from explicit notes + multi-domain consistency."
+  ],
+  "clinical_summary": "This 61-year-old male presents with progressive gait unsteadiness, motor slowing, and mild cognitive deficits driven by chronic microvascular brain disease (prominent WMH z=2.1-2.4, lacunes z=2.0, reduced tract FA z=-1.7), corroborated by vascular risks (T2DM z=1.7 HbA1c, LDL z=1.4) and lifestyle factors (low activity z=-1.2). Explicit absence of psychiatric symptoms, history, or domain signals (no mood/psychosis, mild cognition |z|<1.3) distinguishes from neuropsychiatric phenotype, aligning perfectly with control condition of brain-implicated non-psychiatric pathology.",
+  "execution": {
+    "iterations": 1,
+    "selected_iteration": 1,
+    "selection_reason": "Satisfactory verdict available; chose strongest satisfactory attempt (iteration 1).",
+    "coverage_summary": {
+      "all_feature_count": 49,
+      "processed_feature_count": 49,
+      "unprocessed_raw_feature_count": 6,
+      "processed_raw_low_priority_feature_count": 43,
+      "chunk_cited_feature_count": 0,
+      "represented_feature_count": 49,
+      "missing_feature_count": 0,
+      "missing_features": [],
+      "invariant_ok": true
+    },
+    "dataflow_summary": {
+      "iteration": 1,
+      "target_condition": "neuropsychiatric",
+      "control_condition": "brain-implicated pathology, but NOT psychiatric",
+      "predictor_input_mode": "RAW_PASS_THROUGH",
+      "coverage": {
+        "summary": {
+          "all_feature_count": 49,
+          "processed_feature_count": 49,
+          "unprocessed_raw_feature_count": 6,
+          "processed_raw_low_priority_feature_count": 43,
+          "chunk_cited_feature_count": 0,
+          "represented_feature_count": 49,
+          "missing_feature_count": 0,
+          "missing_features": [],
+          "invariant_ok": true
+        },
+        "forced_raw_count": 0
+      },
+      "chunking": {
+        "predictor_chunk_count": 0,
+        "chunk_evidence_count": 0,
+        "chunked_two_pass_required": false,
+        "single_chunk_limit": 1900000,
+        "chunking_skipped": true,
+        "chunking_reason": "payload_fit_excluding_processed_raw"
+      },
+      "context_fill": {
+        "processed_raw_full_included": true,
+        "rag_added_count": null,
+        "predictor_payload_estimate": {
+          "baseline_tokens": 18268,
+          "final_tokens": 21466,
+          "processed_raw_tokens": 21403,
+          "single_chunk_limit": 1900000,
+          "threshold": 1800000,
+          "chunked_two_pass_required": false,
+          "strategy": "threshold_driven_no_loss_pass_through"
+        },
+        "coverage_snapshot": {
+          "processed_whole_domains": [
+            "BIOLOGICAL_ASSAY",
+            "BRAIN_MRI",
+            "COGNITION",
+            "LIFESTYLE_ENVIRONMENT"
+          ],
+          "processed_prefixes_by_domain": {},
+          "excluded_leaf_counts": {
+            "BRAIN_MRI": 18,
+            "COGNITION": 8,
+            "BIOLOGICAL_ASSAY": 9,
+            "LIFESTYLE_ENVIRONMENT": 8
+          },
+          "unprocessed_leaf_counts": {
+            "DEMOGRAPHICS": 6
+          },
+          "all_feature_count": 49,
+          "unprocessed_feature_count": 6,
+          "processed_feature_count": 43,
+          "missing_feature_count": 0
+        },
+        "embedding_store": {
+          "path": "/Users/stijnvanseveren/Library/Caches/compass/embeddings.sqlite3",
+          "fallback_active": false,
+          "fallback_reason": null,
+          "in_memory": false
+        }
+      },
+      "assertions": {
+        "invariant_ok": true,
+        "missing_feature_count_zero": true,
+        "chunk_evidence_matches_count": true,
+        "processed_raw_flag_consistent": true
+      }
+    },
+    "tokens_used": 124426,
+    "domains_processed": [
+      "BRAIN_MRI",
+      "COGNITION",
+      "BIOLOGICAL_ASSAY"
+    ],
+    "detailed_logs": []
+  },
+  "decision_trace": [
+    {
+      "decision_id": "D001",
+      "component": "Orchestrator",
+      "decision_type": "PLAN_GENERATION",
+      "input_summary": "Domains: BRAIN_MRI, COGNITION, BIOLOGICAL_ASSAY",
+      "output_summary": "Generated 13-step plan",
+      "reasoning": "Total data is low-volume (4330 tokens, FIT_FOR_RAW), but UnimodalCompressor is used for all complex domains (BRAIN_MRI, COGNITION, BIOLOGICAL_ASSAY, LIFESTYLE_ENVIRONMENT) to leverage pattern detection for neuropsychiatric relevance despite small sizes. Early steps (1-3) run in parallel for foundation. Mid-stage compressions (4-7) parallel after early. Clinical ranking (8) after features. Fusions (9-11) hierarchical for efficiency and parallelism: brain-cognition first, then bio-group, then glob",
+      "timestamp": "2026-02-16T21:30:31.928779",
+      "metadata": {}
+    },
+    {
+      "decision_id": "D002",
+      "component": "Predictor",
+      "decision_type": "CLASSIFICATION",
+      "input_summary": "Key findings: Vascular abnormalities elevated (z=2.0, 98th percentile, MODERATE effect), Structural volume reductions (z=-1.2, 11th percentile, SMALL effect), Motor function deficit (z=-1.2, 11th percentile, SMALL effect)...",
+      "output_summary": "CONTROL (p=0.080)",
+      "reasoning": "This 61-year-old male presents with progressive gait unsteadiness, motor slowing, and mild cognitive deficits driven by chronic microvascular brain disease (prominent WMH z=2.1-2.4, lacunes z=2.0, reduced tract FA z=-1.7), corroborated by vascular risks (T2DM z=1.7 HbA1c, LDL z=1.4) and lifestyle factors (low activity z=-1.2). Explicit absence of psychiatric symptoms, history, or domain signals (no mood/psychosis, mild cognition |z|<1.3) distinguishes from neuropsychiatric phenotype, aligning pe",
+      "timestamp": "2026-02-16T21:32:18.608661",
+      "metadata": {
+        "probability": 0.08,
+        "classification": "CONTROL"
+      }
+    },
+    {
+      "decision_id": "D003",
+      "component": "Critic",
+      "decision_type": "EVALUATION",
+      "input_summary": "Checklist: 7/7 passed",
+      "output_summary": "SATISFACTORY",
+      "reasoning": "This prediction excels in all criteria: Binary outcome clear (CONTROL), probability valid and calibrated low given zero psychiatric evidence despite brain pathology. Sufficient coverage achieved (100% features processed across all 5 domains per ledger; critical domains BRAIN_MRI/COGNITION/BIOLOGICAL_ASSAY/non_numerical fully integrated via tools 9-11). Reasoning is evidence-based, citing exact z-scores from hierarchy (e.g., vascular z=2.0 MODERATE, matches 98th percentile claim), non_numerical '",
+      "timestamp": "2026-02-16T21:32:29.094803",
+      "metadata": {}
+    }
+  ]
+}

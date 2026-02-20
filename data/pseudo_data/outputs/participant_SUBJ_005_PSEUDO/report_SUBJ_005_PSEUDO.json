@@ -1,0 +1,193 @@
+{
+  "report_id": "RPT_SUBJ_005_PSEUDO_20260216_204909",
+  "participant_id": "SUBJ_005_PSEUDO",
+  "generated_at": "2026-02-16T20:49:09.603167",
+  "prediction": {
+    "classification": "CASE",
+    "probability": 0.82,
+    "confidence": "HIGH",
+    "target_condition": "neuropsychiatric",
+    "control_condition": "brain-implicated pathology, but NOT psychiatric"
+  },
+  "evaluation": {
+    "verdict": "SATISFACTORY",
+    "confidence_in_verdict": 0.95,
+    "checklist_passed": 7,
+    "checklist_total": 7
+  },
+  "key_findings": [
+    {
+      "domain": "BRAIN_MRI",
+      "finding": "Reduced social brain network connectivity (z=-1.5, 7th percentile, MODERATE effect)",
+      "direction": "ABNORMAL_LOW"
+    },
+    {
+      "domain": "COGNITION",
+      "finding": "Social cognition deficit (z=-1.5, 7th percentile, MODERATE effect); emotion recognition accuracy z=-1.6",
+      "direction": "ABNORMAL_LOW"
+    },
+    {
+      "domain": "COGNITION",
+      "finding": "Language pragmatics impairment (z=-1.2, 11th percentile, SMALL effect)",
+      "direction": "ABNORMAL_LOW"
+    },
+    {
+      "domain": "LIFESTYLE_ENVIRONMENT",
+      "finding": "Elevated sensory sensitivities (noise_sensitivity_index z=1.6, 95th percentile, MODERATE effect)",
+      "direction": "ABNORMAL_HIGH"
+    },
+    {
+      "domain": "GENOMICS",
+      "finding": "Elevated social_communication_prs and sensory_sensitivity_prs (z=1.4 and z=1.5, 92nd/93rd percentiles, MODERATE effects)",
+      "direction": "ABNORMAL_HIGH"
+    },
+    {
+      "domain": "BRAIN_MRI",
+      "finding": "Sensory network hyperconnectivity (z=1.1, 86th percentile, SMALL effect)",
+      "direction": "ABNORMAL_HIGH"
+    }
+  ],
+  "reasoning": [
+    "Step 1: Prioritize clinical notes - longstanding social communication difficulties, sensory overload, routine preference, early language delay, no mood/psychosis; matches ASD-like neuropsychiatric phenotype, not pure neurologic control.",
+    "Step 2: Assess multimodal convergence - strong cross-domain patterns in social brain (z=-1.5), social cognition (z=-1.5), sensory (z=1.1-1.6), genomics PRS (z=1.4-1.5); mean |z|~1.3-1.5 across key features.",
+    "Step 3: Evaluate against phenotype rep - fits neurocognitive/social cluster with moderate severity; hypotheses favor ASD vulnerability over schizophrenia prodrome.",
+    "Step 4: False positive check - explicit psychiatric-relevant symptoms (social/anxiety/sensory) with biomarkers; not isolated deficits or biomarker-only.",
+    "Step 5: Calibrate probability - strong clinical + convergent evidence elevates to moderately high risk (0.82), high confidence from multi-domain consistency; prevalence-adjusted avoiding overconfidence."
+  ],
+  "clinical_summary": "This 24-year-old female exhibits a cohesive neuropsychiatric phenotype characterized by longstanding social communication impairments, sensory processing sensitivities, and behavioral rigidity, supported by convergent multimodal evidence including reduced social brain network connectivity (z=-1.5), social cognition deficits (z=-1.5), elevated sensory sensitivities (z=1.6), and relevant genomic risks (PRS z=1.4-1.5). Clinical history lacks primary mood or psychotic features but aligns strongly with neurodevelopmental conditions like autism spectrum traits, distinguishing from non-psychiatric brain pathologies via prominent social-perceptual distortions. Biomarkers provide supportive but not originating evidence; recommendation for formal developmental assessment warranted.",
+  "execution": {
+    "iterations": 1,
+    "selected_iteration": 1,
+    "selection_reason": "Satisfactory verdict available; chose strongest satisfactory attempt (iteration 1).",
+    "coverage_summary": {
+      "all_feature_count": 39,
+      "processed_feature_count": 39,
+      "unprocessed_raw_feature_count": 6,
+      "processed_raw_low_priority_feature_count": 33,
+      "chunk_cited_feature_count": 0,
+      "represented_feature_count": 39,
+      "missing_feature_count": 0,
+      "missing_features": [],
+      "invariant_ok": true
+    },
+    "dataflow_summary": {
+      "iteration": 1,
+      "target_condition": "neuropsychiatric",
+      "control_condition": "brain-implicated pathology, but NOT psychiatric",
+      "predictor_input_mode": "RAW_PASS_THROUGH",
+      "coverage": {
+        "summary": {
+          "all_feature_count": 39,
+          "processed_feature_count": 39,
+          "unprocessed_raw_feature_count": 6,
+          "processed_raw_low_priority_feature_count": 33,
+          "chunk_cited_feature_count": 0,
+          "represented_feature_count": 39,
+          "missing_feature_count": 0,
+          "missing_features": [],
+          "invariant_ok": true
+        },
+        "forced_raw_count": 0
+      },
+      "chunking": {
+        "predictor_chunk_count": 0,
+        "chunk_evidence_count": 0,
+        "chunked_two_pass_required": false,
+        "single_chunk_limit": 1900000,
+        "chunking_skipped": true,
+        "chunking_reason": "payload_fit_excluding_processed_raw"
+      },
+      "context_fill": {
+        "processed_raw_full_included": true,
+        "rag_added_count": null,
+        "predictor_payload_estimate": {
+          "baseline_tokens": 12151,
+          "final_tokens": 14648,
+          "processed_raw_tokens": 14585,
+          "single_chunk_limit": 1900000,
+          "threshold": 1800000,
+          "chunked_two_pass_required": false,
+          "strategy": "threshold_driven_no_loss_pass_through"
+        },
+        "coverage_snapshot": {
+          "processed_whole_domains": [
+            "BRAIN_MRI",
+            "COGNITION",
+            "GENOMICS",
+            "LIFESTYLE_ENVIRONMENT"
+          ],
+          "processed_prefixes_by_domain": {},
+          "excluded_leaf_counts": {
+            "BRAIN_MRI": 8,
+            "COGNITION": 10,
+            "GENOMICS": 7,
+            "LIFESTYLE_ENVIRONMENT": 8
+          },
+          "unprocessed_leaf_counts": {
+            "DEMOGRAPHICS": 6
+          },
+          "all_feature_count": 39,
+          "unprocessed_feature_count": 6,
+          "processed_feature_count": 33,
+          "missing_feature_count": 0
+        },
+        "embedding_store": {
+          "path": "/Users/stijnvanseveren/Library/Caches/compass/embeddings.sqlite3",
+          "fallback_active": false,
+          "fallback_reason": null,
+          "in_memory": false
+        }
+      },
+      "assertions": {
+        "invariant_ok": true,
+        "missing_feature_count_zero": true,
+        "chunk_evidence_matches_count": true,
+        "processed_raw_flag_consistent": true
+      }
+    },
+    "tokens_used": 99242,
+    "domains_processed": [
+      "BRAIN_MRI",
+      "COGNITION",
+      "GENOMICS",
+      "LIFESTYLE_ENVIRONMENT",
+      "DEMOGRAPHICS"
+    ],
+    "detailed_logs": []
+  },
+  "decision_trace": [
+    {
+      "decision_id": "D001",
+      "component": "Orchestrator",
+      "decision_type": "PLAN_GENERATION",
+      "input_summary": "Domains: BRAIN_MRI, COGNITION, GENOMICS, LIFESTYLE_ENVIRONMENT, DEMOGRAPHICS",
+      "output_summary": "Generated 11-step plan",
+      "reasoning": "All domains have low token counts (<800 each, total 3270 << budget), FIT_FOR_RAW status allows high-fidelity processing; however, UnimodalCompressor is used for complex domains (BRAIN_MRI, COGNITION, GENOMICS, LIFESTYLE_ENVIRONMENT) to extract clinical patterns relevant to neuropsychiatric phenotypes despite small size. Early steps (1-3) run in parallel for efficiency; mid compressions (4-7) parallel after early; ClinicalRelevanceRanker (8) after FeatureSynthesizer; single fusion (9) integrates ",
+      "timestamp": "2026-02-16T20:47:02.299381",
+      "metadata": {}
+    },
+    {
+      "decision_id": "D002",
+      "component": "Predictor",
+      "decision_type": "CLASSIFICATION",
+      "input_summary": "Key findings: Reduced social brain network connectivity (z=-1.5, 7th percentile, MODERATE effect), Social cognition deficit (z=-1.5, 7th percentile, MODERATE effect); emotion recognition accuracy z=-1.6, Language pragmatics impairment (z=-1.2, 11th percentile, SMALL effect)...",
+      "output_summary": "CASE (p=0.820)",
+      "reasoning": "This 24-year-old female exhibits a cohesive neuropsychiatric phenotype characterized by longstanding social communication impairments, sensory processing sensitivities, and behavioral rigidity, supported by convergent multimodal evidence including reduced social brain network connectivity (z=-1.5), social cognition deficits (z=-1.5), elevated sensory sensitivities (z=1.6), and relevant genomic risks (PRS z=1.4-1.5). Clinical history lacks primary mood or psychotic features but aligns strongly wi",
+      "timestamp": "2026-02-16T20:48:54.969834",
+      "metadata": {
+        "probability": 0.82,
+        "classification": "CASE"
+      }
+    },
+    {
+      "decision_id": "D003",
+      "component": "Critic",
+      "decision_type": "EVALUATION",
+      "input_summary": "Checklist: 7/7 passed",
+      "output_summary": "SATISFACTORY",
+      "reasoning": "Prediction excels in all criteria: binary CASE with valid 0.82 probability aligned to evidence strength. 100% domain coverage (all 5 processed via tools like MultimodalNarrativeCreator). Reasoning chain is step-wise logical (prioritize notes \u2192 convergence \u2192 phenotype fit \u2192 FP check \u2192 calibrate), no contradictions, references verifiable specifics (z-scores match hierarchy/Predictor Input exactly, e.g., social_brain_network -1.5, emotion_recognition_accuracy -1.6, PRS values). Clinically sound for",
+      "timestamp": "2026-02-16T20:49:09.601840",
+      "metadata": {}
+    }
+  ]
+}
