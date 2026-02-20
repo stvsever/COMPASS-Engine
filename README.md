@@ -19,7 +19,7 @@
 
 ## 🧠 System Architecture
 
-COMPASS utilizes a sequential multi-agent workflow with iterative feedback loops.
+The COMPASS-engine utilizes a sequential multi-agent workflow with iterative feedback loops.
 
 <div align="center">
   <img src="overview/compass_engine/compass_flowchart_simplified.png" alt="COMPASS Flowchart" width="800" />
@@ -41,24 +41,50 @@ Through the dashboard, you can:
 
 ## 🛠️ Installation
 
-1. **Clone the repository**:
-   ```bash
-   git clone https://github.com/stvsever/COMPASS-Engine.git
-   cd COMPASS-Engine
-   ```
+### Docker (CPU/UI)
 
-2. **Install dependencies**:
-   ```bash
-   pip install -r requirements.txt
-   ```
+For a clean containerized UI/API workflow, see:
 
-3. **Configure Environment**:
-   Create a `.env` file with your API keys:
-   ```env
-   OPENROUTER_API_KEY=sk-...
-   ```
+- `docker/README.md`
+
+Short usage:
+
+```bash
+tar --exclude-from=docker/.dockerignore -cf - . | docker buildx build --platform linux/arm64 -f docker/Dockerfile -t compass-ui:local --load -
+export OPENROUTER_API_KEY="<your_openrouter_api_key>"
+docker run --rm -p 5005:5005 --name compass-ui -e OPENROUTER_API_KEY="${OPENROUTER_API_KEY}" compass-ui:local
+```
+
+For Intel Mac/Linux/Windows builds, use `--platform linux/amd64` (see `docker/README.md` for the full matrix and troubleshooting).
+
+> [!NOTE]
+> Optional variant: includes local-inference deps (`torch`/`transformers`/`bitsandbytes`) for people who really want them.
+> GPU acceleration is explicitly not here; use `hpc/`.
+
 
 ## ⚡ Usage
+
+### Expected Input-Output Structure
+
+Each participant folder must contain four core input files (see data/pseudo_data/inputs):
+```text
+- data_overview.json
+- hierarchical_deviation_map.json
+- multi_modal_data.json
+- non_numerical_data.txt
+```
+The first three JSON files are ontology-based structured feature maps created during pre-processing
+
+Pipeline outputs (per participant) include:
+```text
+- report_{participant_id}.md        (standard clinical report)
+- deep_phenotype.md                 (communicator deep phenotyping report, generated manually via UI or --generate_deep_phenotype)
+- execution_log_{participant_id}.json (structured execution log + dataflow summary/assertions)
+```
+
+Backend notes:
+- `Public API (OpenRouter)` is the default in UI/CLI.
+- Local runs can be configured in the Advanced Configuration panel (engine, dtype, quantization, context window, and role-specific overrides).
 
 ### Quick Start (CLI)
 Run the pipeline on a participant folder ('binary classification' by default):
@@ -113,46 +139,6 @@ python main.py data/pseudo_data/inputs/SUBJ_001_PSEUDO \
 ```
 
 Important: XAI currently supports only pure root-level binary classification. For multiclass/regression/hierarchical tasks, XAI is skipped with explicit status metadata.
-
-Each participant folder must contain four core input files (see data/pseudo_data/inputs):
-```text
-- data_overview.json
-- hierarchical_deviation_map.json
-- multi_modal_data.json
-- non_numerical_data.txt
-```
-The first three JSON files are ontology-based structured feature maps created during pre-processing
-
-Pipeline outputs (per participant) include:
-```text
-- report_{participant_id}.md        (standard clinical report)
-- deep_phenotype.md                 (communicator deep phenotyping report, generated manually via UI or --generate_deep_phenotype)
-- execution_log_{participant_id}.json (structured execution log + dataflow summary/assertions)
-```
-
-Backend notes:
-- `Public API (OpenRouter)` is the default in UI/CLI.
-- Local runs can be configured in the Advanced Configuration panel (engine, dtype, quantization, context window, and role-specific overrides).
-
-### Docker (CPU/UI)
-
-For a clean containerized UI/API workflow, see:
-
-- `docker/README.md`
-
-Short usage:
-
-```bash
-tar --exclude-from=docker/.dockerignore -cf - . | docker buildx build --platform linux/arm64 -f docker/Dockerfile -t compass-ui:local --load -
-export OPENROUTER_API_KEY="<your_openrouter_api_key>"
-docker run --rm -p 5005:5005 --name compass-ui -e OPENROUTER_API_KEY="${OPENROUTER_API_KEY}" compass-ui:local
-```
-
-For Intel Mac/Linux/Windows builds, use `--platform linux/amd64` (see `docker/README.md` for the full matrix and troubleshooting).
-
-> [!NOTE]
-> Optional variant: includes local-inference deps (`torch`/`transformers`/`bitsandbytes`) for people who really want them.
-> GPU acceleration is explicitly not here; use `hpc/`.
 
 ### HPC Example (Single GPU Setup)
 
