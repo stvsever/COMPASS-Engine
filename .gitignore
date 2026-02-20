@@ -46,10 +46,12 @@ logs/
 
 # Documentation & Diagrams - Strict Whitelist
 overview/*
+!overview/
 !overview/logo/
 !overview/logo/COMPASS_logo_2.png
 !overview/main.tex
 !overview/utils/uml_diagram.py
+!overview/compass_engine/
 !overview/compass_engine/compass_flowchart.png
 !overview/compass_engine/compass_flowchart_simplified.png
 !overview/user_interface/
