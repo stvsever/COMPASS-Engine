@@ -172,23 +172,26 @@ This includes step-by-step setup, single-participant validation, sequential batc
 
 If your cohort includes ground-truth annotations, COMPASS provides validation tooling for binary, multiclass, regression, and hierarchical analyses.
 
+For binary validation, `--targets_file` must be JSON (`binary_targets.json` style).
+
 ```bash
-# Run analysis manually after a batch completes:
-python utils/validation/with_annotated_dataset/compute_confusion_matrix.py \
+# Binary classification (targets file)
+python utils/validation/with_annotated_dataset/run_validation_metrics.py \
     --results_dir ../results/participant_runs \
-    --targets_file ../data/__TARGETS__/cases_controls_with_specific_subtypes.txt \
+    --prediction_type binary \
+    --targets_file ../data/__TARGETS__/binary_targets.json \
     --output_dir ../results/analysis/binary_confusion_matrix \
     --disorder_groups "MAJOR_DEPRESSIVE_DISORDER,ANXIETY_DISORDERS"
 
 python utils/validation/with_annotated_dataset/detailed_analysis.py \
     --results_dir ../results/participant_runs \
-    --targets_file ../data/__TARGETS__/cases_controls_with_specific_subtypes.txt \
+    --prediction_type binary \
+    --targets_file ../data/__TARGETS__/binary_targets.json \
     --output_dir ../results/analysis/details \
     --disorder_groups "MAJOR_DEPRESSIVE_DISORDER,ANXIETY_DISORDERS"
 ```
 
-For a detailed walkthrough, see `utils/validation/with_annotated_dataset/validation_guide.ipynb`.
-
+See notebook `[validation_guide.ipynb](utils%2Fvalidation%2Fwith_annotated_dataset%2Fvalidation_guide.ipynb) for a complete walkthrough of the automated validation process with annotations, including for multi-class, uni-/multi-variate regression and hierarchical/mixed prediction tasks.
 ### Notebook on General Usage 
 
 For a general hands-on walkthrough on how to use the COMPASS-engine, run the included Jupyter Notebook:

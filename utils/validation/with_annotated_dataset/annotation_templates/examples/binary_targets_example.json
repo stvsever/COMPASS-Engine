@@ -1,0 +1,18 @@
+{
+  "01": {
+    "label": "CASE",
+    "disorder": "MAJOR_DEPRESSIVE_DISORDER"
+  },
+  "02": {
+    "label": "CONTROL",
+    "disorder": "MAJOR_DEPRESSIVE_DISORDER"
+  },
+  "03": {
+    "label": "CASE",
+    "disorder": "ANXIETY_DISORDERS"
+  },
+  "04": {
+    "label": "CONTROL",
+    "disorder": "ANXIETY_DISORDERS"
+  }
+}

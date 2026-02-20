@@ -1,0 +1,14 @@
+{
+  "01": {
+    "label": "subtype_a",
+    "disorder": "GROUP_A"
+  },
+  "02": {
+    "label": "subtype_b",
+    "disorder": "GROUP_A"
+  },
+  "03": {
+    "label": "subtype_c",
+    "disorder": "GROUP_B"
+  }
+}

@@ -25,6 +25,11 @@
 #   # 5. Skip post-hoc analysis:
 #   RUN_ANALYSIS=0 bash hpc/05_submit_batch.sh
 #
+#   # 6. Non-binary validation with generalized annotations:
+#   PREDICTION_TYPE=regression_univariate \
+#   ANNOTATIONS_JSON=~/compass_pipeline/data/__TARGETS__/annotated_targets.json \
+#   bash hpc/05_submit_batch.sh
+#
 # =============================================================================
 
 #SBATCH --job-name=compass_batch
@@ -49,7 +54,10 @@ VENV_DIR="${HOME}/compass_venv"
 MODELS_DIR="${HOME}/compass_models"
 
 DATA_DIR="${PROJECT_DIR}/../data/__FEATURES__/HPC_data"
-TARGETS_FILE="${PROJECT_DIR}/../data/__TARGETS__/cases_controls_with_specific_subtypes.txt"
+DEFAULT_TARGETS_JSON="${PROJECT_DIR}/../data/__TARGETS__/binary_targets.json"
+: "${TARGETS_FILE:=${DEFAULT_TARGETS_JSON}}"
+# Required for non-binary post-hoc validation analysis.
+: "${ANNOTATIONS_JSON:=${PROJECT_DIR}/../data/__TARGETS__/annotated_targets.json}"
 RESULTS_DIR="${PROJECT_DIR}/../results"
 
 MODEL_NAME="${MODELS_DIR}/Qwen_Qwen3-14B-AWQ"
@@ -106,6 +114,112 @@ FIXED_CONTROL="${CONTROL_LABEL:-non-target comparator phenotype profile}"
 
 is_int() {
     [[ "$1" =~ ^[0-9]+$ ]]
+}
+
+normalize_targets_file() {
+    local source_file="$1"
+    local output_file="$2"
+
+    python3 - "${source_file}" "${output_file}" <<'PY'
+import json
+import re
+import sys
+from pathlib import Path
+
+source = Path(sys.argv[1])
+output = Path(sys.argv[2])
+
+def norm_label(value):
+    text = str(value or "").strip().upper()
+    if "CASE" in text and "CONTROL" not in text:
+        return "CASE"
+    if "CONTROL" in text:
+        return "CONTROL"
+    return None
+
+def infer_disorder(row, label_source):
+    if isinstance(row, dict):
+        for k in ("disorder", "group", "cohort", "phenotype_group"):
+            v = row.get(k)
+            if v is not None and str(v).strip():
+                return str(v).strip()
+    m = re.search(r"\(([^)]+)\)", str(label_source or ""))
+    return m.group(1).strip() if m else "UNKNOWN"
+
+def clean_target(value, disorder):
+    text = str(value or "")
+    text = re.sub(r"\bCASE\b", "", text, flags=re.IGNORECASE)
+    text = re.sub(r"\bCONTROL\b", "", text, flags=re.IGNORECASE)
+    text = text.replace("(", " ").replace(")", " ")
+    text = re.sub(r"\s+", " ", text).strip()
+    if text:
+        return text
+    if disorder and disorder != "UNKNOWN":
+        return disorder
+    return "target_phenotype"
+
+def append_row(rows, seen, eid_raw, label, disorder, target):
+    eid = str(eid_raw or "").strip()
+    if not eid:
+        return
+    if eid in seen:
+        return
+    seen.add(eid)
+    rows.append((eid, label, (disorder or "UNKNOWN"), (target or "target_phenotype")))
+
+rows = []
+seen = set()
+raw = source.read_text()
+try:
+    payload = json.loads(raw)
+except Exception as exc:
+    raise SystemExit(
+        "Binary targets must be valid JSON. Plain-text target files are not supported.\n"
+        "Use data/__TARGETS__/binary_targets.json (see annotation_templates/examples/binary_targets_example.json)."
+    ) from exc
+
+if isinstance(payload, dict) and isinstance(payload.get("annotations"), list):
+    payload = payload["annotations"]
+
+if isinstance(payload, dict):
+    for key, value in payload.items():
+        row = value if isinstance(value, dict) else {"label": value}
+        label_source = row.get("label") or row.get("classification") or row.get("class") or row.get("target") or row.get("value")
+        label = norm_label(label_source)
+        if label is None:
+            continue
+        disorder = infer_disorder(row, label_source)
+        target = row.get("target_label") or row.get("phenotype_label") or row.get("target_name") or clean_target(label_source, disorder)
+        append_row(rows, seen, key, label, disorder, target)
+elif isinstance(payload, list):
+    for row in payload:
+        if not isinstance(row, dict):
+            continue
+        eid = row.get("eid") or row.get("participant_id") or row.get("id")
+        if eid is None:
+            continue
+        label_source = row.get("label") or row.get("classification") or row.get("class") or row.get("target") or row.get("value")
+        label = norm_label(label_source)
+        if label is None:
+            continue
+        disorder = infer_disorder(row, label_source)
+        target = row.get("target_label") or row.get("phenotype_label") or row.get("target_name") or clean_target(label_source, disorder)
+        append_row(rows, seen, eid, label, disorder, target)
+else:
+    raise SystemExit(
+        "Unsupported binary targets JSON structure. "
+        "Expected dict/list or {'annotations':[...]}."
+    )
+
+if not rows:
+    raise SystemExit(f"No valid binary target rows parsed from: {source}")
+
+with output.open("w") as f:
+    for eid, label, disorder, target in rows:
+        f.write(f"{eid}|{label}|{disorder}|{target}\n")
+
+print(len(rows))
+PY
 }
 
 resolve_token_budgets() {
@@ -240,8 +354,13 @@ cd "${PROJECT_DIR}"
 # Results directory structure
 PARTICIPANT_RUNS_DIR="${RESULTS_DIR}/participant_runs"
 ANALYSIS_DIR="${RESULTS_DIR}/analysis"
-MATRIX_DIR="${ANALYSIS_DIR}/binary_confusion_matrix"
-DETAILS_DIR="${ANALYSIS_DIR}/details"
+if [[ "${PREDICTION_TYPE}" == "binary" ]]; then
+    MATRIX_DIR="${ANALYSIS_DIR}/binary_confusion_matrix"
+    DETAILS_DIR="${ANALYSIS_DIR}/details"
+else
+    MATRIX_DIR="${ANALYSIS_DIR}/${PREDICTION_TYPE}_metrics"
+    DETAILS_DIR="${ANALYSIS_DIR}/${PREDICTION_TYPE}_details"
+fi
 
 mkdir -p "${PARTICIPANT_RUNS_DIR}"
 mkdir -p "${MATRIX_DIR}"
@@ -258,6 +377,7 @@ echo "Per-Group Size: ${PER_GROUP_SIZE}"
 echo "Prediction Type:${PREDICTION_TYPE}"
 echo "Regression output: ${REGRESSION_OUTPUT:-<none>}"
 echo "Regression outputs: ${REGRESSION_OUTPUTS:-<none>}"
+echo "Annotations:    ${ANNOTATIONS_JSON}"
 echo "Requested ctx:  ${MAX_TOKENS} tokens"
 echo "Budget request: agent(in=${MAX_AGENT_INPUT}, out=${MAX_AGENT_OUTPUT}) tool(in=${MAX_TOOL_INPUT}, out=${MAX_TOOL_OUTPUT})"
 echo "Results Dir:    ${RESULTS_DIR}"
@@ -270,6 +390,11 @@ if [[ ! -f "${TARGETS_FILE}" ]]; then
     exit 1
 fi
 
+if [[ "${RUN_ANALYSIS}" == "1" && "${PREDICTION_TYPE}" != "binary" && ! -f "${ANNOTATIONS_JSON}" ]]; then
+    echo "⚠ WARNING: ANNOTATIONS_JSON not found at ${ANNOTATIONS_JSON}."
+    echo "  Non-binary post-hoc analysis requires --annotations_json; analysis step will be skipped."
+fi
+
 # ─── Build Global Participant Queue (per-disorder balanced) ────────────────
 echo "═══════════════════════════════════════════════════════════"
 echo " Building balanced participant queue"
@@ -278,11 +403,16 @@ echo "════════════════════════�
 TMP_QUEUE=$(mktemp)
 TMP_DISORDER_MAP=$(mktemp)  # Maps EID -> DISORDER_GROUP
 BATCH_MANIFEST=$(mktemp)
+TMP_TARGETS_NORMALIZED=$(mktemp)
 
 cleanup_tmp_files() {
-    rm -f "${TMP_QUEUE}" "${TMP_DISORDER_MAP}" "${BATCH_MANIFEST}"
+    rm -f "${TMP_QUEUE}" "${TMP_DISORDER_MAP}" "${BATCH_MANIFEST}" "${TMP_TARGETS_NORMALIZED}"
 }
 trap cleanup_tmp_files EXIT
+
+echo "Normalizing targets file for queue building..."
+NORMALIZED_COUNT="$(normalize_targets_file "${TARGETS_FILE}" "${TMP_TARGETS_NORMALIZED}")"
+echo "  ✓ Parsed ${NORMALIZED_COUNT} labeled entries"
 
 TOTAL_QUEUED=0
 IFS=',' read -ra DISORDER_ARRAY <<< "${DISORDER_GROUPS}"
@@ -296,10 +426,10 @@ for DISORDER in "${DISORDER_ARRAY[@]}"; do
     CTRL_TMP=$(mktemp)
 
     # Extract CASE and CONTROL IDs for this disorder
-    awk -v d="${DISORDER}" 'BEGIN{IGNORECASE=1}
-         $0 ~ d && /CASE/ {print $1}' "${TARGETS_FILE}" > "${CASE_TMP}"
-    awk -v d="${DISORDER}" 'BEGIN{IGNORECASE=1}
-         $0 ~ d && /CONTROL/ {print $1}' "${TARGETS_FILE}" > "${CTRL_TMP}"
+    awk -F'|' -v d="${DISORDER}" 'BEGIN{IGNORECASE=1}
+         tolower($3) ~ tolower(d) && toupper($2)=="CASE" {print $1}' "${TMP_TARGETS_NORMALIZED}" > "${CASE_TMP}"
+    awk -F'|' -v d="${DISORDER}" 'BEGIN{IGNORECASE=1}
+         tolower($3) ~ tolower(d) && toupper($2)=="CONTROL" {print $1}' "${TMP_TARGETS_NORMALIZED}" > "${CTRL_TMP}"
 
     AVAILABLE_CASES=$(wc -l < "${CASE_TMP}" | tr -d ' ')
     AVAILABLE_CONTROLS=$(wc -l < "${CTRL_TMP}" | tr -d ' ')
@@ -489,13 +619,24 @@ while read -r PARTICIPANT_ID; do
     fi
 
     # Determine target from file lookup
-    FULL_TARGET_LINE=$(grep "^${PARTICIPANT_ID}" "${TARGETS_FILE}" | head -1)
+    FULL_TARGET_LINE=$(grep "^${PARTICIPANT_ID}|" "${TMP_TARGETS_NORMALIZED}" | head -1)
+    if [[ -z "${FULL_TARGET_LINE}" ]]; then
+        echo "  ⚠ Missing target metadata for ${PARTICIPANT_ID} (Skipping)"
+        SKIPPED=$((SKIPPED + 1))
+        if (( FIRST_ENTRY == 0 )); then echo "," >> "${BATCH_MANIFEST}"; fi
+        FIRST_ENTRY=0
+        echo "  {\"eid\":\"${PARTICIPANT_ID}\",\"disorder\":\"${DISORDER_GROUP}\",\"status\":\"SKIPPED\",\"reason\":\"missing_target_metadata\"}" >> "${BATCH_MANIFEST}"
+        continue
+    fi
 
-    # Leak Protection: Strip CASE/CONTROL literals and parentheses
-    SPECIFIC_TARGET=$(echo "${FULL_TARGET_LINE}" | cut -d'|' -f2- | sed -E 's/\bCASE\b//g; s/\bCONTROL\b//g; s/[()]//g' | xargs)
+    GROUND_TRUTH=$(echo "${FULL_TARGET_LINE}" | cut -d'|' -f2)
+    SPECIFIC_TARGET=$(echo "${FULL_TARGET_LINE}" | cut -d'|' -f4- | xargs)
+    if [[ -z "${SPECIFIC_TARGET}" ]]; then
+        SPECIFIC_TARGET="${DISORDER_GROUP}"
+    fi
 
     echo "  Disorder:       ${DISORDER_GROUP}"
-    echo "  Ground truth:   $(echo "${FULL_TARGET_LINE}" | grep -oE "CASE|CONTROL")"
+    echo "  Ground truth:   ${GROUND_TRUTH}"
     echo "  Engine Target:  '${SPECIFIC_TARGET}'"
     echo "  Engine Control: '${FIXED_CONTROL}'"
 
@@ -693,42 +834,55 @@ if [[ "${RUN_ANALYSIS}" == "1" ]]; then
 
     VALIDATION_SCRIPT_DIR="${PROJECT_DIR}/utils/validation/with_annotated_dataset"
     DISORDER_GROUPS_ARG="${DISORDER_GROUPS}"
+    METRICS_SCRIPT="${VALIDATION_SCRIPT_DIR}/run_validation_metrics.py"
 
-    if [[ -f "${VALIDATION_SCRIPT_DIR}/compute_confusion_matrix.py" ]]; then
-        echo "─── Computing Confusion Matrices ───"
-        apptainer exec \
-            --nv \
-            --bind "${PROJECT_DIR}:${PROJECT_DIR}" \
-            --bind "${HOME}:${HOME}" \
-            "${CONTAINER_IMAGE}" \
-            bash -lc "
-                source '${VENV_DIR}/bin/activate'
-                cd '${PROJECT_DIR}'
-                python3 utils/validation/with_annotated_dataset/compute_confusion_matrix.py \
-                    --results_dir '${PARTICIPANT_RUNS_DIR}' \
-                    --targets_file '${TARGETS_FILE}' \
-                    --output_dir '${MATRIX_DIR}' \
-                    --disorder_groups '${DISORDER_GROUPS_ARG}'
-            " || echo "  ⚠ Confusion matrix computation failed"
+    if [[ -f "${METRICS_SCRIPT}" ]]; then
+        echo "─── Computing Validation Metrics + Visual Diagnostics ───"
+        if [[ "${PREDICTION_TYPE}" != "binary" && ! -f "${ANNOTATIONS_JSON}" ]]; then
+            echo "  ⚠ Skipped: non-binary analysis needs ANNOTATIONS_JSON file."
+        else
+            apptainer exec \
+                --nv \
+                --bind "${PROJECT_DIR}:${PROJECT_DIR}" \
+                --bind "${HOME}:${HOME}" \
+                "${CONTAINER_IMAGE}" \
+                bash -lc "
+                    source '${VENV_DIR}/bin/activate'
+                    cd '${PROJECT_DIR}'
+                    python3 '${METRICS_SCRIPT}' \
+                        --results_dir '${PARTICIPANT_RUNS_DIR}' \
+                        --prediction_type '${PREDICTION_TYPE}' \
+                        --targets_file '${TARGETS_FILE}' \
+                        ${ANNOTATIONS_JSON:+--annotations_json '${ANNOTATIONS_JSON}'} \
+                        --output_dir '${MATRIX_DIR}' \
+                        --disorder_groups '${DISORDER_GROUPS_ARG}'
+                " || echo "  ⚠ Validation metrics computation failed"
+        fi
         echo ""
     fi
 
     if [[ -f "${VALIDATION_SCRIPT_DIR}/detailed_analysis.py" ]]; then
         echo "─── Computing Detailed Analysis ───"
-        apptainer exec \
-            --nv \
-            --bind "${PROJECT_DIR}:${PROJECT_DIR}" \
-            --bind "${HOME}:${HOME}" \
-            "${CONTAINER_IMAGE}" \
-            bash -lc "
-                source '${VENV_DIR}/bin/activate'
-                cd '${PROJECT_DIR}'
-                python3 utils/validation/with_annotated_dataset/detailed_analysis.py \
-                    --results_dir '${PARTICIPANT_RUNS_DIR}' \
-                    --targets_file '${TARGETS_FILE}' \
-                    --output_dir '${DETAILS_DIR}' \
-                    --disorder_groups '${DISORDER_GROUPS_ARG}'
-            " || echo "  ⚠ Detailed analysis computation failed"
+        if [[ "${PREDICTION_TYPE}" != "binary" && ! -f "${ANNOTATIONS_JSON}" ]]; then
+            echo "  ⚠ Skipped: non-binary analysis needs ANNOTATIONS_JSON file."
+        else
+            apptainer exec \
+                --nv \
+                --bind "${PROJECT_DIR}:${PROJECT_DIR}" \
+                --bind "${HOME}:${HOME}" \
+                "${CONTAINER_IMAGE}" \
+                bash -lc "
+                    source '${VENV_DIR}/bin/activate'
+                    cd '${PROJECT_DIR}'
+                    python3 utils/validation/with_annotated_dataset/detailed_analysis.py \
+                        --results_dir '${PARTICIPANT_RUNS_DIR}' \
+                        --prediction_type '${PREDICTION_TYPE}' \
+                        --targets_file '${TARGETS_FILE}' \
+                        ${ANNOTATIONS_JSON:+--annotations_json '${ANNOTATIONS_JSON}'} \
+                        --output_dir '${DETAILS_DIR}' \
+                        --disorder_groups '${DISORDER_GROUPS_ARG}'
+                " || echo "  ⚠ Detailed analysis computation failed"
+        fi
         echo ""
     fi
 fi

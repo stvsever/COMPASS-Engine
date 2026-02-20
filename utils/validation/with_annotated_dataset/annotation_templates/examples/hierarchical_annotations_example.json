@@ -1,0 +1,48 @@
+{
+  "01": {
+    "disorder": "GROUP_A",
+    "nodes": {
+      "root": {
+        "mode": "multiclass_classification",
+        "label": "profile_a"
+      },
+      "trait_class": {
+        "mode": "binary_classification",
+        "label": "HIGH"
+      },
+      "trait_reg": {
+        "mode": "univariate_regression",
+        "values": {
+          "severity": 0.62
+        }
+      },
+      "facet_reg": {
+        "mode": "multivariate_regression",
+        "values": {
+          "facet_1": 0.11,
+          "facet_2": -0.23,
+          "facet_3": 0.44
+        }
+      }
+    }
+  },
+  "02": {
+    "disorder": "GROUP_B",
+    "nodes": {
+      "root": {
+        "mode": "multiclass_classification",
+        "label": "profile_b"
+      },
+      "trait_class": {
+        "mode": "binary_classification",
+        "label": "LOW"
+      },
+      "trait_reg": {
+        "mode": "univariate_regression",
+        "values": {
+          "severity": 0.21
+        }
+      }
+    }
+  }
+}

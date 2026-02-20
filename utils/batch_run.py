@@ -4,6 +4,7 @@ import subprocess
 import time
 from pathlib import Path
 from datetime import timedelta
+from typing import List, Optional
 
 # Config
 SCRIPT_DIR = Path(__file__).resolve().parent
@@ -18,7 +19,19 @@ DATA_ROOT = Path(os.getenv(
 ))
 
 MAIN_SCRIPT = PROJECT_ROOT / "main.py"
+VALIDATION_DIR = PROJECT_ROOT / "utils" / "validation" / "with_annotated_dataset"
+VALIDATION_METRICS_SCRIPT = VALIDATION_DIR / "run_validation_metrics.py"
+VALIDATION_DETAILED_SCRIPT = VALIDATION_DIR / "detailed_analysis.py"
+VALIDATION_TEMPLATE_EXAMPLES_DIR = VALIDATION_DIR / "annotation_templates" / "examples"
 RESULTS_DIR = PROJECT_ROOT.parent / "results"
+
+VALIDATION_TEMPLATE_BY_MODE = {
+    "binary": "binary_targets_example.json",
+    "multiclass": "multiclass_annotations_example.json",
+    "regression_univariate": "regression_univariate_annotations_example.json",
+    "regression_multivariate": "regression_multivariate_annotations_example.json",
+    "hierarchical": "hierarchical_annotations_example.json",
+}
 
 # ─── Participant Cohort ───────────────────────────────────────────────────
 # Example participant cohort (anonymized placeholders).
@@ -134,6 +147,141 @@ def run_participant(pid_info):
 
 BATCH_ARGS = {}
 
+
+def _resolve_validation_results_dir(explicit_path: str = "") -> Optional[Path]:
+    if explicit_path:
+        p = Path(explicit_path)
+        if p.exists():
+            return p
+        return None
+
+    candidates = [
+        RESULTS_DIR / "participant_runs",
+        RESULTS_DIR,
+    ]
+    for cand in candidates:
+        if cand.exists():
+            return cand
+    return None
+
+
+def _resolve_metrics_script() -> Optional[Path]:
+    if VALIDATION_METRICS_SCRIPT.exists():
+        return VALIDATION_METRICS_SCRIPT
+    return None
+
+
+def _validation_template_hint(prediction_type: str) -> Path:
+    name = VALIDATION_TEMPLATE_BY_MODE.get(str(prediction_type or "binary").strip().lower(), "binary_targets_example.json")
+    return VALIDATION_TEMPLATE_EXAMPLES_DIR / name
+
+
+def _run_validation_command(cmd: List[str], label: str) -> int:
+    print(f"\n  [{label}] {' '.join(cmd)}")
+    proc = subprocess.run(cmd)
+    if proc.returncode != 0:
+        print(f"  ✗ {label} failed (exit={proc.returncode})")
+    else:
+        print(f"  ✓ {label} complete")
+    return int(proc.returncode)
+
+
+def run_posthoc_validation(args) -> None:
+    if not args.run_validation:
+        return
+
+    print()
+    print("=" * 60)
+    print(" POST-HOC ANNOTATED VALIDATION")
+    print("=" * 60)
+
+    metrics_script = _resolve_metrics_script()
+    if metrics_script is None:
+        print("  ⚠ Skipped: no validation metrics script found.")
+        return
+    if not VALIDATION_DETAILED_SCRIPT.exists():
+        print("  ⚠ Skipped: detailed validation script not found.")
+        return
+
+    results_dir = _resolve_validation_results_dir(args.validation_results_dir)
+    if results_dir is None or not results_dir.exists():
+        print("  ⚠ Skipped: validation results directory not found.")
+        return
+
+    prediction_type = str(args.prediction_type or "binary").strip().lower()
+    needs_binary_targets = prediction_type == "binary"
+    targets_file = str(args.validation_targets_file or "").strip()
+    annotations_json = str(args.validation_annotations_json or "").strip()
+
+    if needs_binary_targets and not targets_file:
+        print("  ⚠ Skipped: binary validation requires --validation_targets_file.")
+        print(f"  ↳ Template example: {_validation_template_hint(prediction_type)}")
+        return
+    if (not needs_binary_targets) and not annotations_json:
+        print("  ⚠ Skipped: non-binary validation requires --validation_annotations_json.")
+        print(f"  ↳ Template example: {_validation_template_hint(prediction_type)}")
+        return
+    if needs_binary_targets and not Path(targets_file).exists():
+        print(f"  ⚠ Skipped: validation targets file not found: {targets_file}")
+        print(f"  ↳ Template example: {_validation_template_hint(prediction_type)}")
+        return
+    if needs_binary_targets and Path(targets_file).suffix.lower() != ".json":
+        print(f"  ⚠ Skipped: binary validation requires JSON --validation_targets_file, got: {targets_file}")
+        print("  ↳ Legacy txt targets are no longer supported.")
+        print(f"  ↳ Template example: {_validation_template_hint(prediction_type)}")
+        return
+    if (not needs_binary_targets) and not Path(annotations_json).exists():
+        print(f"  ⚠ Skipped: validation annotations file not found: {annotations_json}")
+        print(f"  ↳ Template example: {_validation_template_hint(prediction_type)}")
+        return
+
+    output_root = Path(args.validation_output_dir) if str(args.validation_output_dir or "").strip() else (RESULTS_DIR / "analysis")
+    if prediction_type == "binary":
+        metrics_out = output_root / "binary_confusion_matrix"
+        detailed_out = output_root / "details"
+    else:
+        metrics_out = output_root / f"{prediction_type}_metrics"
+        detailed_out = output_root / f"{prediction_type}_details"
+    metrics_out.mkdir(parents=True, exist_ok=True)
+    detailed_out.mkdir(parents=True, exist_ok=True)
+
+    common_args = [
+        "--results_dir", str(results_dir),
+        "--prediction_type", prediction_type,
+    ]
+    if needs_binary_targets:
+        common_args.extend(["--targets_file", targets_file])
+    else:
+        common_args.extend(["--annotations_json", annotations_json])
+    if str(args.validation_disorder_groups or "").strip():
+        common_args.extend(["--disorder_groups", str(args.validation_disorder_groups).strip()])
+
+    metrics_cmd = [
+        sys.executable,
+        str(metrics_script),
+        *common_args,
+        "--output_dir", str(metrics_out),
+    ]
+    detailed_cmd = [
+        sys.executable,
+        str(VALIDATION_DETAILED_SCRIPT),
+        *common_args,
+        "--output_dir", str(detailed_out),
+    ]
+
+    print(f"  Results dir:      {results_dir}")
+    print(f"  Metrics output:   {metrics_out}")
+    print(f"  Detailed output:  {detailed_out}")
+    print(f"  Template example: {_validation_template_hint(prediction_type)}")
+
+    rc_metrics = _run_validation_command(metrics_cmd, "validation-metrics")
+    rc_detailed = _run_validation_command(detailed_cmd, "validation-detailed")
+
+    if rc_metrics == 0 and rc_detailed == 0:
+        print("  ✓ Post-hoc annotated validation complete.")
+    else:
+        print("  ⚠ Post-hoc annotated validation completed with errors.")
+
 def main():
     import argparse
     parser = argparse.ArgumentParser(description="COMPASS Batch Runner — Sequential participant processing")
@@ -167,6 +315,41 @@ def main():
     parser.add_argument("--local_enforce_eager", action="store_true")
     parser.add_argument("--local_trust_remote_code", action="store_true")
     parser.add_argument("--local_attn", type=str, default="auto")
+    parser.add_argument(
+        "--run_validation",
+        action="store_true",
+        help="Run post-hoc annotated validation after batch completion.",
+    )
+    parser.add_argument(
+        "--validation_results_dir",
+        type=str,
+        default="",
+        help="Directory containing participant output folders for validation (default: auto-detect).",
+    )
+    parser.add_argument(
+        "--validation_output_dir",
+        type=str,
+        default="",
+        help="Output root for validation artifacts (default: ../results/analysis).",
+    )
+    parser.add_argument(
+        "--validation_targets_file",
+        type=str,
+        default="",
+        help="Binary ground-truth targets JSON file (required when --prediction_type=binary and --run_validation).",
+    )
+    parser.add_argument(
+        "--validation_annotations_json",
+        type=str,
+        default="",
+        help="Generalized annotations JSON (required for non-binary validation).",
+    )
+    parser.add_argument(
+        "--validation_disorder_groups",
+        type=str,
+        default="",
+        help="Optional comma-separated groups/disorders for subgroup validation artifacts.",
+    )
     args = parser.parse_args()
     regression_output = str(args.regression_output or "").strip()
     regression_outputs = str(args.regression_outputs or "").strip()
@@ -223,6 +406,14 @@ def main():
         f"quant={args.local_quant}, gpu_mem={args.local_gpu_mem_util}, "
         f"max_model_len={args.local_max_model_len}"
     )
+    print(f"  Validation:   {'ON' if args.run_validation else 'OFF'}")
+    if args.run_validation:
+        print(f"  Val results:  {args.validation_results_dir or '<auto>'}")
+        print(f"  Val output:   {args.validation_output_dir or str(RESULTS_DIR / 'analysis')}")
+        if args.prediction_type == "binary":
+            print(f"  Val targets:  {args.validation_targets_file or '<required>'}")
+        else:
+            print(f"  Val annjson:  {args.validation_annotations_json or '<required>'}")
     print(f"  Processing:   SEQUENTIAL (1 GPU)")
     print("=" * 60)
     print()
@@ -284,6 +475,7 @@ def main():
         print("  Binary confusion summary is skipped for non-binary prediction modes.")
         print("  Use annotated-dataset validation scripts for multiclass/regression/hierarchical metrics.")
         print(f"  Total wall time: {batch_td}")
+        run_posthoc_validation(args)
         return
 
     print()
@@ -330,6 +522,7 @@ def main():
     print(f"    FP: {confusion['FP']}  TN: {confusion['TN']}")
     print(f"\n  Accuracy: {correct}/{len(PARTICIPANTS)}")
     print(f"  Total wall time: {batch_td}")
+    run_posthoc_validation(args)
 
 if __name__ == "__main__":
     main()

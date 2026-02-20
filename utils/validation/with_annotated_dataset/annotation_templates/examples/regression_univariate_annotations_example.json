@@ -1,0 +1,14 @@
+{
+  "01": {
+    "regression": {
+      "total_iq": 103.5
+    },
+    "disorder": "GROUP_A"
+  },
+  "02": {
+    "regression": {
+      "total_iq": 95.0
+    },
+    "disorder": "GROUP_B"
+  }
+}

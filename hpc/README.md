@@ -93,7 +93,9 @@ cat logs/compass_batch_<JOBID>.err
 - Keeps execution **sequential** (single GPU) by design.
 - Passes local runtime, token budgets, and prediction task flags through to `main.py` per participant:
   - `PREDICTION_TYPE` (default `binary`)
+  - `TARGETS_FILE` must be JSON for binary queue construction (`binary_targets.json` style)
   - Optional `CLASS_LABELS`, `REGRESSION_OUTPUT` (univariate), `REGRESSION_OUTPUTS` (multivariate), `TASK_SPEC_FILE`, `TASK_SPEC_JSON`
+  - Optional `ANNOTATIONS_JSON` for non-binary post-hoc validation (`run_validation_metrics.py` / `detailed_analysis.py`)
   - Optional runtime guidance: `GLOBAL_INSTRUCTION`, `ORCHESTRATOR_INSTRUCTION`, `EXECUTOR_INSTRUCTION`, `TOOLS_INSTRUCTION`, `INTEGRATOR_INSTRUCTION`, `PREDICTOR_INSTRUCTION`, `CRITIC_INSTRUCTION`, `COMMUNICATOR_INSTRUCTION`
   - `--max_tokens`
   - `--max_agent_input`, `--max_agent_output`
@@ -107,6 +109,21 @@ cat logs/compass_batch_<JOBID>.err
 - You can override to multiclass/regression/hierarchical by exporting:
   - `PREDICTION_TYPE`
   - optional `CLASS_LABELS`, `REGRESSION_OUTPUT` (univariate), `REGRESSION_OUTPUTS` (multivariate), `TASK_SPEC_FILE`, `TASK_SPEC_JSON`
+
+For non-binary post-hoc validation in Step 05, also export:
+
+```bash
+ANNOTATIONS_JSON=/path/to/annotated_targets.json
+```
+
+Post-hoc analysis output directories are mode-aware:
+- binary: `results/analysis/binary_confusion_matrix/` and `results/analysis/details/`
+- non-binary: `results/analysis/<prediction_type>_metrics/` and `results/analysis/<prediction_type>_details/`
+
+Non-binary detailed outputs include:
+- annotation contract reports (`detailed_annotation_contract_<prediction_type>.json/.txt`)
+- row-level evaluation payloads (`detailed_rows_<prediction_type>.json`)
+- mode-specific plots (for example multiclass top-confusions, regression residual diagnostics, hierarchical coverage)
 
 ## Participant cohort definition
 
