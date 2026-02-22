@@ -196,7 +196,7 @@ A client-side knowledge graph creator (GitNexus) was used to generate  a compreh
   <img src="overview/codebase/GitNexus_codebase.png" alt="COMPASS Dashboard" width="800" />
 </div>
 
-The main root folders are listed above, with a brief description of their contents. 
+The main root folders are listed below, with a brief description of their contents. 
 
 ```text
 multi_agent_system/
