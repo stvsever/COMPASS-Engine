@@ -221,6 +221,30 @@ The research is being conducted at the **Computational Neuroimaging Lab** of **[
 
 COMPASS is being developed and tested on large multimodal phenotype cohorts to evaluate robustness, scalability, and generalization in real-world population settings.
 
+## 📚 Project Credits
+
+**Author**: Stijn Van Severen (email: stijn.vanseveren@ugent.be)
+
+**Supervisors**: 
+- **Ibai Díez Palacio** (Computational Neuroimaging Lab at IIS Biobizkaia and Massachusetts General Hospital, and more)
+- **Jesús M. Cortés** (Computational Neuroimaging Lab at IIS Biobizkaia, and more)
+
+**Research Lab**: [Computational Neuroimaging Lab](https://compneurobilbao.eus)
+
+## 📝 Internship Blogpost
+
+As part of the internship dissemination, a Dutch blogpost was created and is available on GitHub Pages:
+
+**Blogpost**: https://stvsever.github.io/COMPASS-Engine/
+
+## ☕ Support This Project
+
+The COMPASS-engine is being developed as an open-source software (see LICENCE) within a broader aim of creating a cost-effective digital infrastructure for optimizing any self-defined sense of multivariate well-being.
+
+If you would like to support it's continued open-source development:
+
+👉 https://buymeacoffee.com/stijnvanseveren
+
 ## 📈 Future Work
 
 Key future development directions include:
@@ -236,31 +260,6 @@ Key future development directions include:
   A major next step is the implementation of a specialized **Data Loader Agent** that automatically prepares raw neuroimaging, deviation-map, and electronic health inputs into a standardized `ParticipantData` container, ensuring seamless delivery to the **Orchestrator Agent** and reducing manual preprocessing overhead.
 
 Together, these developments aim to strengthen the COMPASS-engine as a scalable, interpretable, and clinician-oriented framework for next-generation deep phenotyping and decision support.
-
-## ☕ Support This Project
-
-The COMPASS-engine is being developed as an open-source software (see LICENCE) within a broader aim of creating a cost-effective digital infrastructure for optimizing any self-defined sense of multivariate well-being.
-
-If you would like to support it's continued open-source development:
-
-👉 https://buymeacoffee.com/stijnvanseveren
-
-## 📚 Project Credits
-
-**Author**: Stijn Van Severen (email: stijn.vanseveren@ugent.be)
-
-**Supervisors**: 
-- **Ibai Díez Palacio** (Computational Neuroimaging Lab at IIS Biobizkaia and Massachusetts General Hospital, and more)
-- **Jesús M. Cortés** (Computational Neuroimaging Lab at IIS Biobizkaia, and more)
-
-**Research Lab**: [Computational Neuroimaging Lab](https://compneurobilbao.eus)
-
-
-## 📝 Internship Blogpost
-
-As part of the internship dissemination, a Dutch blogpost was created and is available on GitHub Pages:
-
-**Blogpost**: https://stvsever.github.io/COMPASS-Engine/
 
 > [!CAUTION]
 > **EU MDR / PRE-CLINICAL DISCLAIMER**
