@@ -56,6 +56,8 @@ overview/*
 !overview/compass_engine/compass_flowchart_simplified.png
 !overview/user_interface/
 !overview/user_interface/COMPASS_UI_1.png
+!overview/codebase/
+!overview/codebase/GitNexus_codebase.png
 
 # Ignore data by default but whitelist specific folders
 data/*

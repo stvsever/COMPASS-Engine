@@ -115,30 +115,14 @@ python main.py data/pseudo_data/inputs/SUBJ_001_PSEUDO \
 # Multivariate regression
 python main.py data/pseudo_data/inputs/SUBJ_001_PSEUDO \
   --prediction_type regression_multivariate \
-  --target_label trait_profile \
-  --regression_outputs openness,conscientiousness,extraversion,agreeableness,neuroticism
+  --target_label phenotype_profile \
+  --regression_outputs phenotype_p1,phenotype_p2,phenotype_p3
 
 # Hierarchical mixed tree
 python main.py data/pseudo_data/inputs/SUBJ_001_PSEUDO \
   --prediction_type hierarchical \
   --task_spec_file /path/to/task_spec.json
 ```
-
-Use `--regression_output` for univariate regression (single output) and `--regression_outputs` for multivariate regression (comma-separated list).
-
-### Explainability CLI (Backend-only)
-Run explainability methods on the selected final attempt:
-
-```bash
-python main.py data/pseudo_data/inputs/SUBJ_001_PSEUDO \
-  --prediction_type binary \
-  --target_label target_phenotype \
-  --control_label non_target_comparator \
-  --backend openrouter \
-  --xai_methods external,internal,hybrid
-```
-
-Important: XAI currently supports only pure root-level binary classification. For multiclass/regression/hierarchical tasks, XAI is skipped with explicit status metadata.
 
 ### HPC Example (Single GPU Setup)
 
@@ -153,6 +137,20 @@ This includes step-by-step setup, single-participant validation, sequential batc
 > **Batch Configuration**
 > Step 05 supports multi-disorder balanced cohorts via `DISORDER_GROUPS` and `PER_GROUP_SIZE` environment variables.
 > Results, including confusion matrices and detailed analysis, are saved to the `results/` directory.
+
+### Explainability CLI (Backend-only)
+Run explainability methods on the selected final attempt:
+
+```bash
+python main.py data/pseudo_data/inputs/SUBJ_001_PSEUDO \
+  --prediction_type binary \
+  --target_label target_phenotype \
+  --control_label non_target_comparator \
+  --backend openrouter \
+  --xai_methods external,internal,hybrid
+```
+
+Important: XAI currently supports only pure root-level binary classification. For multiclass/regression/hierarchical tasks, XAI is skipped with explicit status metadata.
 
 ### Clinical Validation with Annotated Datasets
 
@@ -191,6 +189,14 @@ The notebook includes separate backend controls for:
 - Local backend mode (model path/name + local runtime settings)
 
 ## 📁 Project Structure
+
+A client-side knowledge graph creator (GitNexus) was used to generate  a comprehensive knowledge graph of the entire codebase architecture and component interactions is provided below:
+
+<div align="center">
+  <img src="overview/codebase/GitNexus_codebase.png" alt="COMPASS Dashboard" width="800" />
+</div>
+
+The main root folders are listed above, with a brief description of their contents. 
 
 ```text
 multi_agent_system/
