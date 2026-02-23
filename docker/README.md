@@ -44,7 +44,7 @@ Both are valid:
 **1. Clone the repository and prepare the context:**
 ```bash
 git clone https://github.com/stvsever/COMPASS-Engine.git
-cd COMPASS-Engine/multi_agent_system
+cd COMPASS-Engine
 ```
 
 On Windows, run these commands in WSL or Git Bash (recommended) so the `tar | docker buildx` pipeline works as written.
