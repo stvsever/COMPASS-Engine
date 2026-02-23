@@ -43,7 +43,7 @@ Both are valid:
 
 **1. Clone the repository and prepare the context:**
 ```bash
-git clone https://github.com/MultiAgentAI/COMPASS-Engine.git
+git clone https://github.com/stvsever/COMPASS-Engine.git
 cd COMPASS-Engine/multi_agent_system
 ```
 
