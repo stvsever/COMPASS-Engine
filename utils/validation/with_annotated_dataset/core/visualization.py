@@ -36,22 +36,117 @@ except Exception:  # pragma: no cover
     HAS_SCIPY = False
 
 
+
+# ── Global matplotlib theme (applied once at module load) ──────────────────
+# This ensures all figures – including multi-panel subplots – inherit a clean
+# white background suitable for journal / conference publication figures.
+plt.rcParams.update({
+    # Background
+    "figure.facecolor": BG_COLOR,
+    "axes.facecolor": BG_COLOR,
+    "savefig.facecolor": BG_COLOR,
+    # Text and labels
+    "text.color": TEXT_PRIMARY,
+    "axes.labelcolor": TEXT_PRIMARY,
+    "xtick.color": TEXT_SECONDARY,
+    "ytick.color": TEXT_SECONDARY,
+    # Grid
+    "axes.grid": True,
+    "grid.color": GRID_COLOR,
+    "grid.linewidth": 0.6,
+    "grid.alpha": 0.5,
+    # Spines
+    "axes.spines.top": False,
+    "axes.spines.right": False,
+    "axes.edgecolor": GRID_COLOR,
+    "axes.linewidth": 0.8,
+    # Font
+    "font.family": "sans-serif",
+    "font.sans-serif": ["Helvetica Neue", "Arial", "DejaVu Sans"],
+    "axes.titlesize": 13,
+    "axes.labelsize": 11,
+    "xtick.labelsize": 10,
+    "ytick.labelsize": 10,
+    # Figure DPI
+    "figure.dpi": 120,
+    "savefig.dpi": 220,
+})
+
+
 def _style_ax(ax, title: str = "") -> None:
-    ax.set_facecolor(CARD_COLOR)
-    ax.tick_params(colors=TEXT_SECONDARY, labelsize=10)
-    for spine in ax.spines.values():
-        spine.set_color(GRID_COLOR)
-    ax.grid(True, color=GRID_COLOR, alpha=0.18, linewidth=0.7)
-    ax.xaxis.label.set_color(TEXT_SECONDARY)
-    ax.yaxis.label.set_color(TEXT_SECONDARY)
+    """Apply global white-background, research-grade styling to an Axes object."""
+    ax.set_facecolor(BG_COLOR)
+    # Tick colours
+    ax.tick_params(colors=TEXT_SECONDARY, labelsize=10, length=3, width=0.7)
+    # Spines – keep only left and bottom, colour them subtly
+    for side, spine in ax.spines.items():
+        if side in ("top", "right"):
+            spine.set_visible(False)
+        else:
+            spine.set_color(GRID_COLOR)
+            spine.set_linewidth(0.8)
+    # Grid
+    ax.grid(True, color=GRID_COLOR, alpha=0.45, linewidth=0.6, zorder=0)
+    # Axis labels
+    ax.xaxis.label.set_color(TEXT_PRIMARY)
+    ax.yaxis.label.set_color(TEXT_PRIMARY)
+    # Title
     if title:
-        ax.set_title(title, fontsize=13, color=ACCENT_BLUE, fontweight="bold", pad=10)
+        ax.set_title(title, fontsize=13, color=TEXT_PRIMARY, fontweight="bold", pad=12)
 
 
 def _save_fig(fig, output_path: str) -> None:
     fig.patch.set_facecolor(BG_COLOR)
     fig.savefig(output_path, dpi=220, bbox_inches="tight", facecolor=BG_COLOR, edgecolor="none")
     plt.close(fig)
+
+
+
+def _add_stat_annotation(ax, x1: float, x2: float, y: float, h: float, p_value: float, color: str = TEXT_PRIMARY) -> None:
+    """Draw a significance bracket between positions x1 and x2 at y-height y."""
+    if p_value < 0.001:
+        text = "***"
+    elif p_value < 0.01:
+        text = "**"
+    elif p_value < 0.05:
+        text = "*"
+    else:
+        text = "ns"
+    ax.plot([x1, x1, x2, x2], [y, y + h, y + h, y], lw=1.4, color=color)
+    ax.text((x1 + x2) * 0.5, y + h + 0.005, text, ha="center", va="bottom", color=color, fontsize=12, fontweight="bold")
+
+
+def _compute_pairwise_pvalue(a: np.ndarray, b: np.ndarray) -> Optional[float]:
+    """Choose Welch t-test or Mann-Whitney U based on Shapiro-Wilk normality.
+    
+    - Run Shapiro-Wilk on both groups (only possible for n >= 3).
+    - If BOTH are deemed normal (p > 0.05), use Welch's t-test (unequal vars).
+    - Otherwise, fall back to non-parametric Mann-Whitney U test.
+    - Returns the p-value float, or None if the test cannot be performed.
+    """
+    if not HAS_SCIPY:
+        return None
+    if len(a) < 3 or len(b) < 3:
+        return None
+    try:
+        both_normal = True
+        for arr in (a, b):
+            if len(arr) >= 3:
+                _, sw_p = scipy_stats.shapiro(arr)
+                if float(sw_p) <= 0.05:
+                    both_normal = False
+                    break
+            else:
+                both_normal = False
+                break
+
+        if both_normal:
+            _, p_val = scipy_stats.ttest_ind(a, b, equal_var=False)  # Welch
+        else:
+            _, p_val = scipy_stats.mannwhitneyu(a, b, alternative="two-sided")  # Mann-Whitney U
+        return float(p_val)
+    except Exception:
+        return None
 
 
 def _point_density_values(x: np.ndarray, y: np.ndarray) -> np.ndarray:
@@ -122,38 +217,44 @@ def plot_binary_confusion_matrix(metrics: Dict[str, Any], title: str, output_pat
     matrix = np.array([[tp, fn], [fp, tn]], dtype=float)
     n = int(np.sum(matrix))
 
-    fig, ax = plt.subplots(figsize=(7.5, 6.2))
-    _style_ax(ax, title)
-
+    # Professional white-to-indigo colormap
     cmap = mcolors.LinearSegmentedColormap.from_list(
-        "compass_binary", ["#0D1117", "#0E4429", "#26A641", "#39D353"]
+        "compass_cm", ["#FFFFFF", "#C6DBEF", "#4292C6", "#08306B"]
     )
+
+    fig, ax = plt.subplots(figsize=(6.5, 5.8))
+    _style_ax(ax, title)
+    ax.grid(False)  # no grid inside confusion matrix
+
     im = ax.imshow(matrix, cmap=cmap, vmin=0, vmax=max(1.0, float(np.max(matrix))))
 
     labels = ["CASE", "CONTROL"]
     ax.set_xticks([0, 1])
     ax.set_yticks([0, 1])
-    ax.set_xticklabels([f"Pred\n{x}" for x in labels], color=TEXT_PRIMARY, fontweight="bold")
-    ax.set_yticklabels([f"Actual\n{x}" for x in labels], color=TEXT_PRIMARY, fontweight="bold")
+    ax.set_xticklabels([f"Pred {x}" for x in labels], color=TEXT_PRIMARY, fontweight="bold", fontsize=11)
+    ax.set_yticklabels([f"Actual {x}" for x in labels], color=TEXT_PRIMARY, fontweight="bold", fontsize=11)
+    ax.set_xlabel("Predicted label", fontsize=11)
+    ax.set_ylabel("True label", fontsize=11)
 
+    # Auto-contrast text: dark on light cells, white on dark cells
+    vmax = max(1.0, float(np.max(matrix)))
     for i in range(2):
         for j in range(2):
             count = int(matrix[i, j])
             pct = (100.0 * count / n) if n > 0 else 0.0
+            brightness = float(matrix[i, j]) / vmax
+            text_color = "white" if brightness > 0.55 else TEXT_PRIMARY
             ax.text(
-                j,
-                i,
-                f"{count}\n({pct:.1f}%)",
-                ha="center",
-                va="center",
-                color=TEXT_PRIMARY,
-                fontsize=12,
-                fontweight="bold",
+                j, i,
+                f"{count}\n{pct:.1f}%",
+                ha="center", va="center",
+                color=text_color, fontsize=13, fontweight="bold",
             )
 
-    cbar = fig.colorbar(im, ax=ax, fraction=0.045, pad=0.04)
-    cbar.ax.yaxis.set_tick_params(color=TEXT_SECONDARY)
-    plt.setp(cbar.ax.get_yticklabels(), color=TEXT_SECONDARY)
+    # Colorbar
+    cbar = fig.colorbar(im, ax=ax, fraction=0.04, pad=0.03)
+    cbar.ax.tick_params(colors=TEXT_SECONDARY, labelsize=9)
+    cbar.outline.set_visible(False)
 
     _save_fig(fig, output_path)
 
@@ -164,33 +265,43 @@ def plot_multiclass_confusion_matrix(metrics: Dict[str, Any], title: str, output
     if matrix.size == 0 or len(labels) == 0:
         return
 
-    fig, ax = plt.subplots(figsize=(max(7.5, 0.9 * len(labels) + 4), max(6.5, 0.7 * len(labels) + 3)))
-    _style_ax(ax, title)
-
+    # Professional white-to-indigo colormap
     cmap = mcolors.LinearSegmentedColormap.from_list(
-        "compass_multi", ["#0D1117", "#1F6FEB", "#2EA043", "#39D353"]
+        "compass_cm", ["#FFFFFF", "#C6DBEF", "#4292C6", "#08306B"]
     )
-    im = ax.imshow(matrix, cmap=cmap, vmin=0, vmax=max(1.0, float(np.max(matrix))))
 
-    ax.set_xticks(np.arange(len(labels)))
-    ax.set_yticks(np.arange(len(labels)))
-    ax.set_xticklabels(labels, rotation=35, ha="right", color=TEXT_PRIMARY, fontsize=9)
+    n_cls = len(labels)
+    fig, ax = plt.subplots(figsize=(max(7.5, 0.9 * n_cls + 4), max(6.5, 0.7 * n_cls + 3)))
+    _style_ax(ax, title)
+    ax.grid(False)  # no grid inside confusion matrix
+
+    vmax = max(1.0, float(np.max(matrix)))
+    im = ax.imshow(matrix, cmap=cmap, vmin=0, vmax=vmax)
+
+    ax.set_xticks(np.arange(n_cls))
+    ax.set_yticks(np.arange(n_cls))
+    ax.set_xticklabels(labels, rotation=40, ha="right", color=TEXT_PRIMARY, fontsize=9)
     ax.set_yticklabels(labels, color=TEXT_PRIMARY, fontsize=9)
-    ax.set_xlabel("Predicted label")
-    ax.set_ylabel("True label")
+    ax.set_xlabel("Predicted label", fontsize=11)
+    ax.set_ylabel("True label", fontsize=11)
 
-    n = float(np.sum(matrix))
-    for i in range(matrix.shape[0]):
-        for j in range(matrix.shape[1]):
+    # Auto-contrast text
+    n_total = float(np.sum(matrix))
+    for i in range(n_cls):
+        for j in range(n_cls):
             count = int(matrix[i, j])
             if count == 0:
                 continue
-            pct = 100.0 * count / n if n > 0 else 0.0
-            ax.text(j, i, f"{count}\n{pct:.1f}%", ha="center", va="center", color=TEXT_PRIMARY, fontsize=8)
+            pct = 100.0 * count / n_total if n_total > 0 else 0.0
+            brightness = float(matrix[i, j]) / vmax
+            text_color = "white" if brightness > 0.55 else TEXT_PRIMARY
+            ax.text(j, i, f"{count}\n{pct:.1f}%", ha="center", va="center",
+                    color=text_color, fontsize=max(7, 11 - n_cls // 3), fontweight="bold")
 
-    cbar = fig.colorbar(im, ax=ax, fraction=0.045, pad=0.04)
-    cbar.ax.yaxis.set_tick_params(color=TEXT_SECONDARY)
-    plt.setp(cbar.ax.get_yticklabels(), color=TEXT_SECONDARY)
+    # Colorbar
+    cbar = fig.colorbar(im, ax=ax, fraction=0.04, pad=0.03)
+    cbar.ax.tick_params(colors=TEXT_SECONDARY, labelsize=9)
+    cbar.outline.set_visible(False)
 
     _save_fig(fig, output_path)
 
@@ -454,52 +565,116 @@ def plot_binary_probability_calibration(rows: Sequence[Dict[str, Any]], title: s
     _save_fig(fig, output_path)
 
 
-def plot_binary_iteration_improvement(rows: Sequence[Dict[str, Any]], title: str, output_path: str) -> None:
-    iter_data: Dict[int, List[float]] = {}
+def plot_binary_iteration_improvement(
+    rows: Sequence[Dict[str, Any]],
+    title: str,
+    output_path: str,
+    ignore_perfect_initial: bool = False
+) -> None:
+    """Plot a paired Before-vs-After Critic violin chart.
+
+    Only includes participants whose first Critic evaluation was unsatisfactory
+    (composite score < 1.0). Shows:
+      - Left violin: baseline composite score (1st iteration)
+      - Right violin: post-Critic composite score (final/last iteration)
+    Paired lines connect each participant across violins, and a significance
+    bracket is drawn between the two using the appropriate statistical test.
+    """
+    baseline: List[float] = []
+    post_critic: List[float] = []
+
     for r in rows:
         comps = r.get("iter_composites") if isinstance(r.get("iter_composites"), list) else []
-        for idx, value in enumerate(comps):
-            fv = float(value)
-            iter_data.setdefault(idx + 1, []).append(fv)
+        if len(comps) < 2:
+            # Only one score = satisfied immediately; skip if that's 1.0
+            if len(comps) == 1 and float(comps[0]) >= 1.0 and not ignore_perfect_initial:
+                continue
+            else:
+                continue  # Need at least 2 data points for a "before/after"
 
-    if not iter_data:
+        first = float(comps[0])
+        if first >= 1.0:
+            # Already satisfied on first go — exclude from "failed baseline" cohort
+            continue
+
+        last = float(comps[-1])
+        baseline.append(first)
+        post_critic.append(last)
+
+    if len(baseline) < 2:
         return
 
-    order = sorted(iter_data.keys())
-    arrays = [np.array(iter_data[i], dtype=float) for i in order]
+    arr_base = np.array(baseline, dtype=float)
+    arr_post = np.array(post_critic, dtype=float)
+    arrays = [arr_base, arr_post]
+    positions = [1.0, 2.0]
+    labels = ["Baseline\n(1st attempt)", "Post-Critic\n(final verdict)"]
+    colors = [ACCENT_BLUE, ACCENT_GREEN]
 
-    fig, ax = plt.subplots(figsize=(8.8, 6.2))
+    fig, ax = plt.subplots(figsize=(8.0, 6.5))
     _style_ax(ax, title)
 
-    positions = list(range(1, len(order) + 1))
-    colors = [ACCENT_BLUE, ACCENT_GREEN, ACCENT_ORANGE, ACCENT_RED, ACCENT_PURPLE]
+    # Violin bodies
+    parts = ax.violinplot(arrays, positions=positions, showmeans=False, showmedians=False, showextrema=False)
+    for i, body in enumerate(parts.get("bodies", [])):
+        body.set_facecolor(colors[i])
+        body.set_edgecolor(colors[i])
+        body.set_alpha(0.25)
 
-    if all(len(a) >= 2 for a in arrays):
-        parts = ax.violinplot(arrays, positions=positions, showmeans=False, showmedians=False, showextrema=False)
-        for i, body in enumerate(parts.get("bodies", [])):
-            body.set_facecolor(colors[i % len(colors)])
-            body.set_edgecolor(colors[i % len(colors)])
-            body.set_alpha(0.22)
-
-    bp = ax.boxplot(arrays, positions=positions, widths=0.18, patch_artist=True, showfliers=False)
+    # Boxplot with mean line (no median)
+    bp = ax.boxplot(
+        arrays, positions=positions, widths=0.16, patch_artist=True,
+        showfliers=False, showmeans=True, meanline=True,
+        medianprops={"visible": False},
+    )
     for i, box in enumerate(bp["boxes"]):
-        box.set_facecolor(colors[i % len(colors)])
-        box.set_edgecolor(colors[i % len(colors)])
-        box.set_alpha(0.45)
-    for median in bp["medians"]:
-        median.set_color(TEXT_PRIMARY)
-        median.set_linewidth(1.8)
+        box.set_facecolor(colors[i])
+        box.set_edgecolor(colors[i])
+        box.set_alpha(0.5)
+    for mean_line in bp["means"]:
+        mean_line.set_color(TEXT_PRIMARY)
+        mean_line.set_linewidth(2.5)
+        mean_line.set_linestyle("-")
 
-    rng = np.random.default_rng(7)
-    for i, arr in enumerate(arrays):
-        jitter = rng.normal(0.0, 0.05, size=len(arr))
-        ax.scatter(np.full_like(arr, positions[i], dtype=float) + jitter, arr, color=colors[i % len(colors)], alpha=0.6, s=24)
+    # Jittered scatter + paired connecting lines
+    rng = np.random.default_rng(42)
+    jitter_base = rng.normal(0.0, 0.03, size=len(arr_base))
+    jitter_post = rng.normal(0.0, 0.03, size=len(arr_post))
+    x_base = 1.0 + jitter_base
+    x_post = 2.0 + jitter_post
+
+    # Draw paired lines (thin, subtle)
+    for xb, xp, yb, yp in zip(x_base, x_post, arr_base, arr_post):
+        color_line = ACCENT_GREEN if yp > yb else (ACCENT_RED if yp < yb else TEXT_SECONDARY)
+        ax.plot([xb, xp], [yb, yp], color=color_line, alpha=0.18, linewidth=0.9)
+
+    ax.scatter(x_base, arr_base, color=colors[0], alpha=0.75, s=28, zorder=3, edgecolors="white", linewidth=0.4)
+    ax.scatter(x_post, arr_post, color=colors[1], alpha=0.75, s=28, zorder=3, edgecolors="white", linewidth=0.4)
 
     ax.set_xticks(positions)
-    ax.set_xticklabels([f"Iteration {i}" for i in order], color=TEXT_PRIMARY)
-    ax.set_ylabel("Composite score")
+    ax.set_xticklabels(labels, color=TEXT_PRIMARY, fontsize=11)
+    ax.set_ylabel("Multi-composite critic score (normalised)")
+    ax.set_xlim(0.4, 2.6)
+
+    # Annotate means
+    for pos, arr, color in zip(positions, arrays, colors):
+        mu = float(np.mean(arr))
+        ax.text(pos, mu + 0.008, f"μ={mu:.2f}", ha="center", va="bottom", color=color, fontsize=9, fontweight="bold")
+
+
+    # Significance bracket
+    data_max = max(float(np.max(arr_base)), float(np.max(arr_post)))
+    bracket_y = data_max + 0.04
+    bracket_h = 0.025
+    ax.set_ylim(top=bracket_y + bracket_h + 0.06)
+
+    p_val = _compute_pairwise_pvalue(arr_base, arr_post)
+    if p_val is not None:
+        _add_stat_annotation(ax, 1.0, 2.0, bracket_y, bracket_h, p_val)
 
     _save_fig(fig, output_path)
+
+
 
 
 def plot_binary_verdict_accuracy(rows: Sequence[Dict[str, Any]], title: str, output_path: str) -> None:
@@ -544,6 +719,35 @@ def plot_binary_verdict_accuracy(rows: Sequence[Dict[str, Any]], title: str, out
             fontsize=10,
             fontweight="bold",
         )
+
+    if "SATISFACTORY" in groups and "UNSATISFACTORY" in groups:
+        sat = groups["SATISFACTORY"]
+        unsat = groups["UNSATISFACTORY"]
+        if sat["total"] > 0 and unsat["total"] > 0:
+            # Build binary correctness arrays for the non-parametric test
+            sat_arr = np.array([1.0] * sat["correct"] + [0.0] * (sat["total"] - sat["correct"]), dtype=float)
+            unsat_arr = np.array([1.0] * unsat["correct"] + [0.0] * (unsat["total"] - unsat["correct"]), dtype=float)
+            p_val = _compute_pairwise_pvalue(sat_arr, unsat_arr)
+            if p_val is None and HAS_SCIPY:
+                # Fallback: Fisher's exact for small samples
+                try:
+                    table = [
+                        [sat["correct"], sat["total"] - sat["correct"]],
+                        [unsat["correct"], unsat["total"] - unsat["correct"]]
+                    ]
+                    _, p_val = scipy_stats.fisher_exact(table)
+                    p_val = float(p_val)
+                except Exception:
+                    p_val = None
+            if p_val is not None:
+                i1 = cats.index("SATISFACTORY")
+                i2 = cats.index("UNSATISFACTORY")
+                y_max = max(acc)
+                # Lowered slightly to 0.18 to be closer to bars while clearing n-count text
+                bracket_y = y_max + 0.18
+                bracket_h = 0.03
+                ax.set_ylim(top=bracket_y + bracket_h + 0.08)
+                _add_stat_annotation(ax, float(min(i1, i2)), float(max(i1, i2)), bracket_y, bracket_h, p_val)
 
     _save_fig(fig, output_path)
 

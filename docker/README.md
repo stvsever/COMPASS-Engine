@@ -41,10 +41,16 @@ Both are valid:
 
 ## Quickstart (recommended default image)
 
-Run these commands from the repo root (`multi_agent_system/`).
-On Windows, run them in WSL or Git Bash (recommended) so the `tar | docker buildx` pipeline works as written.
+**1. Clone the repository and prepare the context:**
+```bash
+git clone https://github.com/MultiAgentAI/COMPASS-Engine.git
+cd COMPASS-Engine/multi_agent_system
+```
 
-1. Build image (choose platform):
+On Windows, run these commands in WSL or Git Bash (recommended) so the `tar | docker buildx` pipeline works as written.
+
+**2. Build image (choose platform):**
+
 
 Apple Silicon Mac (M-series):
 ```bash

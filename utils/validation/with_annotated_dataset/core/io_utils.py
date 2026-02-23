@@ -320,6 +320,24 @@ def _extract_iteration_composites(report: Optional[Dict[str, Any]]) -> List[floa
 
     out: List[float] = []
 
+    trace = report.get("decision_trace")
+    if isinstance(trace, list):
+        for step in trace:
+            if isinstance(step, dict) and step.get("component") == "Critic" and step.get("decision_type") == "EVALUATION":
+                summary = str(step.get("input_summary") or "")
+                if "Checklist:" in summary and "passed" in summary:
+                    try:
+                        parts = summary.split("Checklist:")[1].split("passed")[0].strip().split("/")
+                        passed = float(parts[0].strip())
+                        total = float(parts[1].strip())
+                        if total > 0:
+                            out.append(passed / total)
+                    except Exception:
+                        pass
+
+    if out:
+        return out
+
     exec_block = report.get("execution")
     if isinstance(exec_block, dict):
         detailed = exec_block.get("detailed_logs")

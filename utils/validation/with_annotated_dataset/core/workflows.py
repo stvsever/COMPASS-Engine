@@ -546,12 +546,14 @@ def run_detailed_workflow(
         write_binary_text_report(rows=rows, metrics=metrics, output_path=txt_path, title="Integrated Binary Detailed Analysis")
         summary["outputs"].append(txt_path)
 
+        plot_binary_confusion_matrix(metrics, "Binary Classification Confusion Matrix", os.path.join(output_dir, "confusion_matrix.png"))
         plot_binary_composite_vs_accuracy(rows, "Composite score vs prediction correctness", os.path.join(output_dir, "composite_vs_accuracy.png"))
         plot_binary_probability_calibration(rows, "Binary probability calibration", os.path.join(output_dir, "probability_calibration.png"))
-        plot_binary_iteration_improvement(rows, "Composite improvement across iterations", os.path.join(output_dir, "iteration_improvement.png"))
+        plot_binary_iteration_improvement(rows, "Effectivity of Critic-Actor Feedback Loop", os.path.join(output_dir, "iteration_improvement.png"), ignore_perfect_initial=False)
         plot_binary_verdict_accuracy(rows, "Prediction accuracy by critic verdict", os.path.join(output_dir, "verdict_accuracy.png"))
         summary["outputs"].extend(
             [
+                os.path.join(output_dir, "confusion_matrix.png"),
                 os.path.join(output_dir, "composite_vs_accuracy.png"),
                 os.path.join(output_dir, "probability_calibration.png"),
                 os.path.join(output_dir, "iteration_improvement.png"),

@@ -237,14 +237,6 @@ As part of the internship dissemination, a Dutch blogpost was created and is ava
 
 **Blogpost**: https://stvsever.github.io/COMPASS-Engine/
 
-## ☕ Support This Project
-
-The COMPASS-engine is being developed as an open-source software (see LICENCE) within a broader aim of creating a cost-effective digital infrastructure for optimizing any self-defined sense of multivariate well-being.
-
-If you would like to support it's continued open-source development:
-
-👉 https://buymeacoffee.com/stijnvanseveren
-
 ## 📈 Future Work
 
 Key future development directions include:
