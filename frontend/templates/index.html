@@ -1181,289 +1181,296 @@
             <!-- STEP 1: Engine Setup -->
             <div id="wiz-1" class="wizard-step active">
                 <i class="fas fa-satellite-dish launch-icon"></i>
-                <h2 style="font-size: 1.5rem; text-align: center; margin-bottom: 0.5rem;">Configure Inference Run</h2>
+                <h2 style="font-size: 1.5rem; text-align: center; margin-bottom: 0.5rem;">Configure Inference Set Up
+                </h2>
                 <div id="engine-config-block">
-                <div style="display:flex; align-items:center; gap:8px; margin-bottom:8px; color:#9ca3af; font-size:0.78rem;">
-                    <i class="fas fa-cogs"></i>
-                    <span>Step 1 of 2 • Engine Configuration</span>
-                </div>
-                <div class="advanced-subtle" style="margin-bottom: 1rem;">
-                    Configure runtime and models first.
-                </div>
-                <div style="margin-bottom: 1.5rem;">
-                    <label class="form-label">PARTICIPANT IDENTIFIER (or path)</label>
-                    <input type="text" id="input-pid" class="form-input"
-                        placeholder="e.g. participant_ID6015951 or 6015951" value="">
-                </div>
+                    <div
+                        style="display:flex; align-items:center; gap:8px; margin-bottom:8px; color:#9ca3af; font-size:0.78rem;">
+                        <i class="fas fa-cogs"></i>
+                        <span>Step 1 of 2 • Engine Configuration</span>
+                    </div>
+                    <div class="advanced-subtle" style="margin-bottom: 1rem;">
+                        Configure runtime and models first.
+                    </div>
+                    <div style="margin-bottom: 1.5rem;">
+                        <label class="form-label">PARTICIPANT IDENTIFIER (or path)</label>
+                        <input type="text" id="input-pid" class="form-input"
+                            placeholder="e.g. participant_ID6015951 or 6015951" value="">
+                    </div>
 
-                <!-- ADVANCED SETTINGS TOGGLE -->
-                <div style="margin-bottom: 1.5rem;">
-                    <button onclick="toggleAdvanced()"
-                        style="background:none; border:none; color:var(--primary); font-size:0.8rem; cursor:pointer;">
-                        <i id="adv-caret" class="fas fa-caret-right"></i> Advanced Configuration
-                    </button>
-                    <div id="advanced-opts"
-                        style="display:none; margin-top:10px; padding:10px; background:#18181b; border-radius:8px; max-height:56vh; overflow-y:auto;">
-                        <div class="advanced-section">
-                            <div class="advanced-header">
-                                <div class="advanced-title">Backend</div>
-                            </div>
-                            <label class="form-label">Inference Backend</label>
-                            <select id="input-backend" class="form-input" onchange="toggleModelInput()"
-                                style="padding:0.6rem;">
-                                <option value="openrouter" selected>Public API (OpenRouter)</option>
-                                <option value="local">Local Hosting (Huggingface)</option>
-                            </select>
-                            <div class="advanced-subtle">
-                                Select your runtime backend. Public API uses OpenRouter routing; Local uses Hugging Face
-                                models on this machine.
-                            </div>
-                        </div>
-
-                        <div id="group-openrouter" class="advanced-section" style="display:block;">
-                            <div class="advanced-header">
-                                <div class="advanced-title">Public API (OpenRouter)</div>
-                                <button type="button" onclick="loadOpenRouterModels()"
-                                    style="height:28px; border:1px solid #2b3445; border-radius:8px; padding:0 10px; background:#0f141d; color:#9fb6ff; cursor:pointer; font-size:0.75rem;">
-                                    Reload catalog
-                                </button>
-                            </div>
-                            <div class="advanced-grid">
-                                <div>
-                                    <label class="form-label">Large Language Model</label>
-                                    <input type="text" id="input-public-model" class="form-input"
-                                        placeholder="gpt-5-nano (recommended)" value="gpt-5-nano"
-                                        list="openrouter-models-list" oninput="onPublicModelInput()">
-                                    <datalist id="openrouter-models-list"></datalist>
+                    <!-- ADVANCED SETTINGS TOGGLE -->
+                    <div style="margin-bottom: 1.5rem;">
+                        <button onclick="toggleAdvanced()"
+                            style="background:none; border:none; color:var(--primary); font-size:0.8rem; cursor:pointer;">
+                            <i id="adv-caret" class="fas fa-caret-right"></i> Advanced Configuration
+                        </button>
+                        <div id="advanced-opts"
+                            style="display:none; margin-top:10px; padding:10px; background:#18181b; border-radius:8px; max-height:56vh; overflow-y:auto;">
+                            <div class="advanced-section">
+                                <div class="advanced-header">
+                                    <div class="advanced-title">Backend</div>
                                 </div>
-                                <div>
-                                    <label class="form-label">Model Context Window</label>
-                                    <input type="number" id="input-public-max-context" class="form-input"
-                                        placeholder="Auto from model catalog (default 128000)" value="128000">
-                                </div>
-                                <div>
-                                    <label class="form-label">Embedding Model</label>
-                                    <input type="text" id="input-embedding-model" class="form-input"
-                                        placeholder="text-embedding-3-large" value="text-embedding-3-large"
-                                        list="openrouter-embedding-list" oninput="onEmbeddingModelInput()">
-                                    <datalist id="openrouter-embedding-list"></datalist>
-                                </div>
-                            </div>
-                            <div class="advanced-meta" id="openrouter-model-meta"></div>
-                            <div class="advanced-meta" id="openrouter-embedding-meta"></div>
-                        </div>
-
-                        <div id="group-model" class="advanced-section" style="display:none;">
-                            <div class="advanced-header">
-                                <div class="advanced-title">Local Hosting (Hugging Face)</div>
-                                <button type="button" onclick="loadHfModels()"
-                                    style="height:28px; border:1px solid #2b3445; border-radius:8px; padding:0 10px; background:#0f141d; color:#9fb6ff; cursor:pointer; font-size:0.75rem;">
-                                    Reload catalog
-                                </button>
-                            </div>
-                            <div class="advanced-grid">
-                                <div>
-                                    <label class="form-label">Local Large Language Model</label>
-                                    <input type="text" id="input-model" class="form-input"
-                                        placeholder="e.g. Qwen/Qwen2.5-7B" value="Qwen/Qwen2.5-0.5B-Instruct"
-                                        list="hf-models-list" oninput="onLocalModelInput()">
-                                    <datalist id="hf-models-list"></datalist>
-                                </div>
-                                <div>
-                                    <label class="form-label">Local Context Window</label>
-                                    <input type="number" id="input-max-tokens" class="form-input" placeholder="32768"
-                                        value="32768">
-                                </div>
-                                <div>
-                                    <label class="form-label">Local Embedding Model</label>
-                                    <input type="text" id="input-local-embedding-model" class="form-input"
-                                        placeholder="e.g. BAAI/bge-base-en-v1.5" value="BAAI/bge-base-en-v1.5"
-                                        list="hf-embedding-list" oninput="onLocalEmbeddingInput()">
-                                    <datalist id="hf-embedding-list"></datalist>
-                                </div>
-                            </div>
-                            <div class="advanced-meta" id="hf-model-meta"></div>
-                            <div class="advanced-meta" id="hf-embedding-meta"></div>
-                        </div>
-
-                        <div id="group-local-advanced" class="advanced-section" style="display:none;">
-                            <div class="advanced-header">
-                                <div class="advanced-title">Local Runtime Settings</div>
-                            </div>
-                            <label class="form-label">Local Engine</label>
-                            <select id="input-local-engine" class="form-input" style="padding:0.6rem;">
-                                <option value="auto" selected>Auto</option>
-                                <option value="vllm">vLLM</option>
-                                <option value="transformers">Transformers</option>
-                            </select>
-
-                            <div style="display:grid; grid-template-columns: 1fr 1fr; gap:10px; margin-top:10px;">
-                                <div>
-                                    <label class="form-label">Local Dtype</label>
-                                    <select id="input-local-dtype" class="form-input" style="padding:0.6rem;">
-                                        <option value="auto" selected>Auto</option>
-                                        <option value="float16">float16</option>
-                                        <option value="bfloat16">bfloat16</option>
-                                        <option value="float32">float32</option>
-                                        <option value="fp8">fp8</option>
-                                    </select>
-                                </div>
-                                <div>
-                                    <label class="form-label">Quantization</label>
-                                    <select id="input-local-quant" class="form-input" style="padding:0.6rem;">
-                                        <option value="" selected>None</option>
-                                        <option value="awq">AWQ</option>
-                                        <option value="gptq">GPTQ</option>
-                                        <option value="4bit">4-bit (bnb)</option>
-                                        <option value="8bit">8-bit (bnb)</option>
-                                        <option value="fp8">FP8</option>
-                                    </select>
+                                <label class="form-label">Inference Backend</label>
+                                <select id="input-backend" class="form-input" onchange="toggleModelInput()"
+                                    style="padding:0.6rem;">
+                                    <option value="openrouter" selected>Public API (OpenRouter)</option>
+                                    <option value="local">Local Hosting (Huggingface)</option>
+                                </select>
+                                <div class="advanced-subtle">
+                                    Select your runtime backend. Public API uses OpenRouter routing; Local uses Hugging
+                                    Face
+                                    models on this machine.
                                 </div>
                             </div>
 
-                            <div style="display:grid; grid-template-columns: 1fr 1fr; gap:10px; margin-top:10px;">
-                                <div>
-                                    <label class="form-label">KV Cache Dtype</label>
-                                    <select id="input-local-kv" class="form-input" style="padding:0.6rem;">
-                                        <option value="" selected>Auto</option>
-                                        <option value="fp8_e4m3">fp8_e4m3 (L40S)</option>
-                                        <option value="fp8_e5m2">fp8_e5m2</option>
-                                    </select>
+                            <div id="group-openrouter" class="advanced-section" style="display:block;">
+                                <div class="advanced-header">
+                                    <div class="advanced-title">Public API (OpenRouter)</div>
+                                    <button type="button" onclick="loadOpenRouterModels()"
+                                        style="height:28px; border:1px solid #2b3445; border-radius:8px; padding:0 10px; background:#0f141d; color:#9fb6ff; cursor:pointer; font-size:0.75rem;">
+                                        Reload catalog
+                                    </button>
                                 </div>
-                                <div>
-                                    <label class="form-label">Attention Impl</label>
-                                    <select id="input-local-attn" class="form-input" style="padding:0.6rem;">
-                                        <option value="auto" selected>Auto</option>
-                                        <option value="flash_attention_2">FlashAttention2</option>
-                                        <option value="sdpa">SDPA</option>
-                                        <option value="eager">Eager</option>
-                                    </select>
+                                <div class="advanced-grid">
+                                    <div>
+                                        <label class="form-label">Large Language Model</label>
+                                        <input type="text" id="input-public-model" class="form-input"
+                                            placeholder="gpt-5-nano (recommended)" value="gpt-5-nano"
+                                            list="openrouter-models-list" oninput="onPublicModelInput()">
+                                        <datalist id="openrouter-models-list"></datalist>
+                                    </div>
+                                    <div>
+                                        <label class="form-label">Model Context Window</label>
+                                        <input type="number" id="input-public-max-context" class="form-input"
+                                            placeholder="Auto from model catalog (default 128000)" value="128000">
+                                    </div>
+                                    <div>
+                                        <label class="form-label">Embedding Model</label>
+                                        <input type="text" id="input-embedding-model" class="form-input"
+                                            placeholder="text-embedding-3-large" value="text-embedding-3-large"
+                                            list="openrouter-embedding-list" oninput="onEmbeddingModelInput()">
+                                        <datalist id="openrouter-embedding-list"></datalist>
+                                    </div>
+                                </div>
+                                <div class="advanced-meta" id="openrouter-model-meta"></div>
+                                <div class="advanced-meta" id="openrouter-embedding-meta"></div>
+                            </div>
+
+                            <div id="group-model" class="advanced-section" style="display:none;">
+                                <div class="advanced-header">
+                                    <div class="advanced-title">Local Hosting (Hugging Face)</div>
+                                    <button type="button" onclick="loadHfModels()"
+                                        style="height:28px; border:1px solid #2b3445; border-radius:8px; padding:0 10px; background:#0f141d; color:#9fb6ff; cursor:pointer; font-size:0.75rem;">
+                                        Reload catalog
+                                    </button>
+                                </div>
+                                <div class="advanced-grid">
+                                    <div>
+                                        <label class="form-label">Local Large Language Model</label>
+                                        <input type="text" id="input-model" class="form-input"
+                                            placeholder="e.g. Qwen/Qwen2.5-7B" value="Qwen/Qwen2.5-0.5B-Instruct"
+                                            list="hf-models-list" oninput="onLocalModelInput()">
+                                        <datalist id="hf-models-list"></datalist>
+                                    </div>
+                                    <div>
+                                        <label class="form-label">Local Context Window</label>
+                                        <input type="number" id="input-max-tokens" class="form-input"
+                                            placeholder="32768" value="32768">
+                                    </div>
+                                    <div>
+                                        <label class="form-label">Local Embedding Model</label>
+                                        <input type="text" id="input-local-embedding-model" class="form-input"
+                                            placeholder="e.g. BAAI/bge-base-en-v1.5" value="BAAI/bge-base-en-v1.5"
+                                            list="hf-embedding-list" oninput="onLocalEmbeddingInput()">
+                                        <datalist id="hf-embedding-list"></datalist>
+                                    </div>
+                                </div>
+                                <div class="advanced-meta" id="hf-model-meta"></div>
+                                <div class="advanced-meta" id="hf-embedding-meta"></div>
+                            </div>
+
+                            <div id="group-local-advanced" class="advanced-section" style="display:none;">
+                                <div class="advanced-header">
+                                    <div class="advanced-title">Local Runtime Settings</div>
+                                </div>
+                                <label class="form-label">Local Engine</label>
+                                <select id="input-local-engine" class="form-input" style="padding:0.6rem;">
+                                    <option value="auto" selected>Auto</option>
+                                    <option value="vllm">vLLM</option>
+                                    <option value="transformers">Transformers</option>
+                                </select>
+
+                                <div style="display:grid; grid-template-columns: 1fr 1fr; gap:10px; margin-top:10px;">
+                                    <div>
+                                        <label class="form-label">Local Dtype</label>
+                                        <select id="input-local-dtype" class="form-input" style="padding:0.6rem;">
+                                            <option value="auto" selected>Auto</option>
+                                            <option value="float16">float16</option>
+                                            <option value="bfloat16">bfloat16</option>
+                                            <option value="float32">float32</option>
+                                            <option value="fp8">fp8</option>
+                                        </select>
+                                    </div>
+                                    <div>
+                                        <label class="form-label">Quantization</label>
+                                        <select id="input-local-quant" class="form-input" style="padding:0.6rem;">
+                                            <option value="" selected>None</option>
+                                            <option value="awq">AWQ</option>
+                                            <option value="gptq">GPTQ</option>
+                                            <option value="4bit">4-bit (bnb)</option>
+                                            <option value="8bit">8-bit (bnb)</option>
+                                            <option value="fp8">FP8</option>
+                                        </select>
+                                    </div>
+                                </div>
+
+                                <div style="display:grid; grid-template-columns: 1fr 1fr; gap:10px; margin-top:10px;">
+                                    <div>
+                                        <label class="form-label">KV Cache Dtype</label>
+                                        <select id="input-local-kv" class="form-input" style="padding:0.6rem;">
+                                            <option value="" selected>Auto</option>
+                                            <option value="fp8_e4m3">fp8_e4m3 (L40S)</option>
+                                            <option value="fp8_e5m2">fp8_e5m2</option>
+                                        </select>
+                                    </div>
+                                    <div>
+                                        <label class="form-label">Attention Impl</label>
+                                        <select id="input-local-attn" class="form-input" style="padding:0.6rem;">
+                                            <option value="auto" selected>Auto</option>
+                                            <option value="flash_attention_2">FlashAttention2</option>
+                                            <option value="sdpa">SDPA</option>
+                                            <option value="eager">Eager</option>
+                                        </select>
+                                    </div>
+                                </div>
+
+                                <div style="display:grid; grid-template-columns: 1fr 1fr; gap:10px; margin-top:10px;">
+                                    <div>
+                                        <label class="form-label">Tensor Parallel</label>
+                                        <input type="number" id="input-local-tp" class="form-input" placeholder="1"
+                                            value="1" style="padding:0.6rem;">
+                                    </div>
+                                    <div>
+                                        <label class="form-label">Pipeline Parallel</label>
+                                        <input type="number" id="input-local-pp" class="form-input" placeholder="1"
+                                            value="1" style="padding:0.6rem;">
+                                    </div>
+                                </div>
+
+                                <div style="display:grid; grid-template-columns: 1fr 1fr; gap:10px; margin-top:10px;">
+                                    <div>
+                                        <label class="form-label">GPU Memory Utilization</label>
+                                        <input type="number" id="input-local-mem" class="form-input" placeholder="0.9"
+                                            value="0.9" step="0.01" min="0.1" max="1.0" style="padding:0.6rem;">
+                                    </div>
+                                    <div>
+                                        <label class="form-label">Max Model Length</label>
+                                        <input type="number" id="input-local-maxlen" class="form-input"
+                                            placeholder="auto" style="padding:0.6rem;">
+                                    </div>
+                                </div>
+
+                                <div style="display:flex; gap:12px; margin-top:10px; align-items:center;">
+                                    <label
+                                        style="display:flex; align-items:center; gap:6px; font-size:0.8rem; color:#cbd5f5;">
+                                        <input type="checkbox" id="input-local-eager"> Enforce eager
+                                    </label>
+                                    <label
+                                        style="display:flex; align-items:center; gap:6px; font-size:0.8rem; color:#cbd5f5;">
+                                        <input type="checkbox" id="input-local-trust" checked> Trust remote code
+                                    </label>
                                 </div>
                             </div>
 
-                            <div style="display:grid; grid-template-columns: 1fr 1fr; gap:10px; margin-top:10px;">
-                                <div>
-                                    <label class="form-label">Tensor Parallel</label>
-                                    <input type="number" id="input-local-tp" class="form-input" placeholder="1"
-                                        value="1" style="padding:0.6rem;">
+                            <div class="advanced-section">
+                                <div class="advanced-header">
+                                    <div class="advanced-title">Model and Token Routing</div>
+                                    <button type="button" onclick="toggleRoleRouting()"
+                                        style="height:28px; border:1px solid #2b3445; border-radius:8px; padding:0 10px; background:#0f141d; color:#9fb6ff; cursor:pointer; font-size:0.75rem;">
+                                        More Details
+                                    </button>
                                 </div>
-                                <div>
-                                    <label class="form-label">Pipeline Parallel</label>
-                                    <input type="number" id="input-local-pp" class="form-input" placeholder="1"
-                                        value="1" style="padding:0.6rem;">
+                                <div id="role-routing-opts" style="display:none; margin-top:8px;">
+                                    <div style="display:grid; grid-template-columns: 1fr 1fr; gap:8px;">
+                                        <input id="input-model-orchestrator" class="form-input"
+                                            placeholder="Orchestrator model">
+                                        <input id="input-model-critic" class="form-input" placeholder="Critic model">
+                                        <input id="input-model-integrator" class="form-input"
+                                            placeholder="Integrator model">
+                                        <input id="input-model-predictor" class="form-input"
+                                            placeholder="Predictor model">
+                                        <input id="input-model-communicator" class="form-input"
+                                            placeholder="Communicator model">
+                                        <input id="input-model-tool" class="form-input" placeholder="Tool model">
+                                    </div>
+                                    <label class="form-label" style="margin-top:8px;">Per-role Max Completion Tokens
+                                        (optional)</label>
+                                    <div style="display:grid; grid-template-columns: 1fr 1fr; gap:8px;">
+                                        <input id="input-max-orchestrator" type="number" class="form-input"
+                                            placeholder="Orchestrator max tokens">
+                                        <input id="input-max-critic" type="number" class="form-input"
+                                            placeholder="Critic max tokens">
+                                        <input id="input-max-integrator" type="number" class="form-input"
+                                            placeholder="Integrator max tokens">
+                                        <input id="input-max-predictor" type="number" class="form-input"
+                                            placeholder="Predictor max tokens">
+                                        <input id="input-max-communicator" type="number" class="form-input"
+                                            placeholder="Communicator max tokens">
+                                        <input id="input-max-tool-role" type="number" class="form-input"
+                                            placeholder="Tool max tokens">
+                                    </div>
                                 </div>
                             </div>
 
-                            <div style="display:grid; grid-template-columns: 1fr 1fr; gap:10px; margin-top:10px;">
-                                <div>
-                                    <label class="form-label">GPU Memory Utilization</label>
-                                    <input type="number" id="input-local-mem" class="form-input" placeholder="0.9"
-                                        value="0.9" step="0.01" min="0.1" max="1.0" style="padding:0.6rem;">
+                            <div class="advanced-section">
+                                <div class="advanced-header">
+                                    <div class="advanced-title">Token Budgets</div>
                                 </div>
-                                <div>
-                                    <label class="form-label">Max Model Length</label>
-                                    <input type="number" id="input-local-maxlen" class="form-input" placeholder="auto"
-                                        style="padding:0.6rem;">
-                                </div>
-                            </div>
-
-                            <div style="display:flex; gap:12px; margin-top:10px; align-items:center;">
-                                <label
-                                    style="display:flex; align-items:center; gap:6px; font-size:0.8rem; color:#cbd5f5;">
-                                    <input type="checkbox" id="input-local-eager"> Enforce eager
-                                </label>
-                                <label
-                                    style="display:flex; align-items:center; gap:6px; font-size:0.8rem; color:#cbd5f5;">
-                                    <input type="checkbox" id="input-local-trust" checked> Trust remote code
-                                </label>
-                            </div>
-                        </div>
-
-                        <div class="advanced-section">
-                            <div class="advanced-header">
-                                <div class="advanced-title">Model and Token Routing</div>
-                                <button type="button" onclick="toggleRoleRouting()"
-                                    style="height:28px; border:1px solid #2b3445; border-radius:8px; padding:0 10px; background:#0f141d; color:#9fb6ff; cursor:pointer; font-size:0.75rem;">
-                                    More Details
-                                </button>
-                            </div>
-                            <div id="role-routing-opts" style="display:none; margin-top:8px;">
-                                <div style="display:grid; grid-template-columns: 1fr 1fr; gap:8px;">
-                                    <input id="input-model-orchestrator" class="form-input"
-                                        placeholder="Orchestrator model">
-                                    <input id="input-model-critic" class="form-input" placeholder="Critic model">
-                                    <input id="input-model-integrator" class="form-input"
-                                        placeholder="Integrator model">
-                                    <input id="input-model-predictor" class="form-input" placeholder="Predictor model">
-                                    <input id="input-model-communicator" class="form-input"
-                                        placeholder="Communicator model">
-                                    <input id="input-model-tool" class="form-input" placeholder="Tool model">
-                                </div>
-                                <label class="form-label" style="margin-top:8px;">Per-role Max Completion Tokens
-                                    (optional)</label>
-                                <div style="display:grid; grid-template-columns: 1fr 1fr; gap:8px;">
-                                    <input id="input-max-orchestrator" type="number" class="form-input"
-                                        placeholder="Orchestrator max tokens">
-                                    <input id="input-max-critic" type="number" class="form-input"
-                                        placeholder="Critic max tokens">
-                                    <input id="input-max-integrator" type="number" class="form-input"
-                                        placeholder="Integrator max tokens">
-                                    <input id="input-max-predictor" type="number" class="form-input"
-                                        placeholder="Predictor max tokens">
-                                    <input id="input-max-communicator" type="number" class="form-input"
-                                        placeholder="Communicator max tokens">
-                                    <input id="input-max-tool-role" type="number" class="form-input"
-                                        placeholder="Tool max tokens">
-                                </div>
-                            </div>
-                        </div>
-
-                        <div class="advanced-section">
-                            <div class="advanced-header">
-                                <div class="advanced-title">Token Budgets</div>
-                            </div>
-                            <div class="advanced-grid">
-                                <div>
-                                    <label class="form-label">Total Token Budget</label>
-                                    <input type="number" id="input-budget" class="form-input"
-                                        placeholder="Default: 1500000" style="padding:0.6rem;">
-                                </div>
-                                <div>
-                                    <label class="form-label">Max Agent Input</label>
-                                    <input type="number" id="input-max-agent" class="form-input" placeholder="Auto"
-                                        style="padding:0.6rem;">
-                                </div>
-                                <div>
-                                    <label class="form-label">Max Agent Output</label>
-                                    <input type="number" id="input-max-agent-output" class="form-input"
-                                        placeholder="Auto" style="padding:0.6rem;">
-                                </div>
-                                <div>
-                                    <label class="form-label">Max Tool Input</label>
-                                    <input type="number" id="input-max-tool-input" class="form-input"
-                                        placeholder="Auto" style="padding:0.6rem;">
-                                </div>
-                                <div>
-                                    <label class="form-label">Max Tool Output</label>
-                                    <input type="number" id="input-max-tool" class="form-input" placeholder="Auto"
-                                        style="padding:0.6rem;">
+                                <div class="advanced-grid">
+                                    <div>
+                                        <label class="form-label">Total Token Budget</label>
+                                        <input type="number" id="input-budget" class="form-input"
+                                            placeholder="Default: 1500000" style="padding:0.6rem;">
+                                    </div>
+                                    <div>
+                                        <label class="form-label">Max Agent Input</label>
+                                        <input type="number" id="input-max-agent" class="form-input" placeholder="Auto"
+                                            style="padding:0.6rem;">
+                                    </div>
+                                    <div>
+                                        <label class="form-label">Max Agent Output</label>
+                                        <input type="number" id="input-max-agent-output" class="form-input"
+                                            placeholder="Auto" style="padding:0.6rem;">
+                                    </div>
+                                    <div>
+                                        <label class="form-label">Max Tool Input</label>
+                                        <input type="number" id="input-max-tool-input" class="form-input"
+                                            placeholder="Auto" style="padding:0.6rem;">
+                                    </div>
+                                    <div>
+                                        <label class="form-label">Max Tool Output</label>
+                                        <input type="number" id="input-max-tool" class="form-input" placeholder="Auto"
+                                            style="padding:0.6rem;">
+                                    </div>
                                 </div>
                             </div>
                         </div>
                     </div>
                 </div>
-                </div>
 
                 <div id="prediction-config-block" style="display:none; margin-bottom: 1rem;">
-                    <div style="display:flex; align-items:center; gap:8px; margin-bottom:8px; color:#9ca3af; font-size:0.78rem;">
-                        <button id="btn-setup-back-inline" class="step-back-inline" onclick="gotoEngineSetup()" title="Back to Step 1" aria-label="Back to Step 1">
+                    <div
+                        style="display:flex; align-items:center; gap:8px; margin-bottom:8px; color:#9ca3af; font-size:0.78rem;">
+                        <button id="btn-setup-back-inline" class="step-back-inline" onclick="gotoEngineSetup()"
+                            title="Back to Step 1" aria-label="Back to Step 1">
                             <i class="fas fa-arrow-left"></i>
                         </button>
                         <i class="fas fa-diagram-project"></i>
                         <span>Step 2 of 2 • Prediction Task Configuration</span>
                     </div>
                     <div class="advanced-subtle" id="prediction-mode-hint" style="margin-bottom:10px;">
-                        Engine setup is complete. Configure the prediction task here; only fields relevant to the selected mode are shown.
+                        Engine setup is complete. Configure the prediction task here; only fields relevant to the
+                        selected mode are shown.
                     </div>
                     <div>
                         <label class="form-label">PREDICTION TYPE</label>
@@ -1477,24 +1484,28 @@
                     </div>
                     <div id="group-target-label">
                         <label class="form-label" id="label-target-input">PHENOTYPE LABEL</label>
-                        <input type="text" id="input-target" class="form-input" placeholder="e.g. target_phenotype" value="">
+                        <input type="text" id="input-target" class="form-input" placeholder="e.g. target_phenotype"
+                            value="">
                     </div>
                     <div id="group-control-label" style="margin-top:0.9rem;">
                         <label class="form-label" id="label-control-input">CONTROL / COMPARATOR LABEL</label>
                         <input type="text" id="input-control" class="form-input"
-                            placeholder="e.g. non-target comparator phenotype profile"
-                            value="">
+                            placeholder="e.g. non-target comparator phenotype profile" value="">
                     </div>
                     <div id="group-class-labels" style="margin-top:0.9rem; display:none;">
                         <label class="form-label">CLASS LABELS (comma separated)</label>
-                        <input type="text" id="input-class-labels" class="form-input" placeholder="e.g. class_a,class_b,class_c">
+                        <input type="text" id="input-class-labels" class="form-input"
+                            placeholder="e.g. class_a,class_b,class_c">
                     </div>
                     <div id="group-regression-outputs" style="margin-top:0.9rem; display:none;">
-                        <label class="form-label" id="label-regression-outputs">REGRESSION OUTPUTS (comma separated)</label>
-                        <input type="text" id="input-regression-outputs" class="form-input" placeholder="e.g. openness,conscientiousness,extraversion">
+                        <label class="form-label" id="label-regression-outputs">REGRESSION OUTPUTS (comma
+                            separated)</label>
+                        <input type="text" id="input-regression-outputs" class="form-input"
+                            placeholder="e.g. target_score_a,target_score_b">
                     </div>
                     <div id="group-task-spec-json" style="margin-top:0.9rem; display:none;">
-                        <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:4px;">
+                        <div
+                            style="display:flex; justify-content:space-between; align-items:center; margin-bottom:4px;">
                             <label class="form-label" style="margin-bottom:0;">HIERARCHICAL TASK SPEC (JSON)</label>
                             <button type="button" onclick="insertHierarchicalExample(true)"
                                 style="height:28px; border:1px solid #2b3445; border-radius:8px; padding:0 10px; background:#0f141d; color:#9fb6ff; cursor:pointer; font-size:0.75rem;">
@@ -1502,7 +1513,9 @@
                             </button>
                         </div>
                         <div class="advanced-subtle" id="hierarchical-json-help" style="margin-bottom:6px;">
-                            Provide canonical JSON with `schema_version` and recursive `root` nodes. Each node must define `node_id`, `display_name`, `mode`, and mode-specific outputs (`class_labels` or `regression_outputs`).
+                            Provide canonical JSON with `schema_version` and recursive `root` nodes. Each node must
+                            define `node_id`, `display_name`, `mode`, and mode-specific outputs (`class_labels` or
+                            `regression_outputs`).
                         </div>
                         <textarea id="input-task-spec-json" class="form-input" rows="8"
                             placeholder='Paste task specification JSON here...'></textarea>
@@ -1515,7 +1528,8 @@
                         <div id="prediction-guidance-opts"
                             style="display:none; margin-top:10px; padding:10px; background:#18181b; border-radius:8px; max-height:48vh; overflow-y:auto;">
                             <div class="advanced-subtle" style="margin-bottom:8px;">
-                                Optional runtime guidance for this run. Global guidance is applied to every agent and tool call across all iterations.
+                                Optional runtime guidance for this run. Global guidance is applied to every agent and
+                                tool call across all iterations.
                             </div>
                             <label class="form-label">GLOBAL SYSTEM GUIDANCE</label>
                             <textarea id="input-instr-global" class="form-input" rows="2"
@@ -1767,7 +1781,8 @@
                     <div class="verdict-card">
                         <div class="verdict-title">Prediction Output</div>
                         <div class="verdict-value" id="prediction-label">--</div>
-                        <div class="verdict-sub"><span id="prediction-prob-label">Probability</span>: <strong id="prediction-prob">--</strong></div>
+                        <div class="verdict-sub"><span id="prediction-prob-label">Probability</span>: <strong
+                                id="prediction-prob">--</strong></div>
                         <div class="verdict-sub">Primary: <strong id="prediction-primary-output-value">--</strong></div>
                         <div class="verdict-sub">Confidence: <strong id="prediction-conf">--</strong></div>
                     </div>
@@ -1832,32 +1847,30 @@
         const HIERARCHICAL_SPEC_EXAMPLE = JSON.stringify(
             {
                 schema_version: "1.0",
-                task_id: "personality_hierarchy_demo",
+                task_id: "phenotype_hierarchy_demo",
                 root: {
-                    node_id: "big_five",
-                    display_name: "Big Five Trait Profile",
+                    node_id: "phenotype_profile",
+                    display_name: "Phenotype Profile",
                     mode: "multivariate_regression",
-                    regression_outputs: ["openness", "conscientiousness", "extraversion", "agreeableness", "neuroticism"],
+                    regression_outputs: ["dimension_a", "dimension_b", "dimension_c"],
                     unit_by_output: {
-                        openness: "z_score",
-                        conscientiousness: "z_score",
-                        extraversion: "z_score",
-                        agreeableness: "z_score",
-                        neuroticism: "z_score"
+                        dimension_a: "z_score",
+                        dimension_b: "z_score",
+                        dimension_c: "z_score"
                     },
                     required: true,
                     children: [
                         {
-                            node_id: "extraversion_facets",
-                            display_name: "Extraversion Subfacets",
+                            node_id: "phenotype_subgroups",
+                            display_name: "Phenotype Subgroups",
                             mode: "multivariate_regression",
-                            regression_outputs: ["sociability", "assertiveness", "activity_level"],
+                            regression_outputs: ["sub_score_1", "sub_score_2"],
                             required: true,
                             children: []
                         },
                         {
-                            node_id: "trait_risk_band",
-                            display_name: "Risk Band",
+                            node_id: "phenotype_risk_band",
+                            display_name: "Phenotype Risk Band",
                             mode: "multiclass_classification",
                             class_labels: ["low_risk", "moderate_risk", "high_risk"],
                             required: true,
@@ -1877,22 +1890,22 @@
                 regressionOutputs: ""
             },
             multiclass: {
-                target: "phenotype_subtype",
+                target: "phenotype",
                 control: "",
                 classLabels: "subtype_a,subtype_b,subtype_c",
                 regressionOutputs: ""
             },
             regression_univariate: {
-                target: "total_iq",
+                target: "phenotype",
                 control: "",
                 classLabels: "",
-                regressionOutputs: "total_iq"
+                regressionOutputs: "phenotype"
             },
             regression_multivariate: {
-                target: "trait_profile",
+                target: "target_phenotype",
                 control: "",
                 classLabels: "",
-                regressionOutputs: "trait_a,trait_b,trait_c"
+                regressionOutputs: "dimension_a,dimension_b,dimension_c"
             }
         };
         const AUTO_TARGET_VALUES = new Set(
@@ -2400,9 +2413,9 @@
                 setVisible(groupRegression, true);
                 setVisible(groupTaskJson, false);
                 if (targetLabelEl) targetLabelEl.textContent = 'PHENOTYPE LABEL';
-                if (targetInput) targetInput.placeholder = 'e.g. cognition_profile';
+                if (targetInput) targetInput.placeholder = 'e.g. phenotype';
                 if (regressionLabelEl) regressionLabelEl.textContent = 'REGRESSION OUTPUT';
-                if (regressionInput) regressionInput.placeholder = 'e.g. total_iq';
+                if (regressionInput) regressionInput.placeholder = 'e.g. target_score';
                 if (modeHint) modeHint.textContent = 'Univariate regression: provide phenotype label and exactly one numeric output.';
                 return;
             }
@@ -2415,9 +2428,9 @@
                 setVisible(groupRegression, true);
                 setVisible(groupTaskJson, false);
                 if (targetLabelEl) targetLabelEl.textContent = 'PHENOTYPE LABEL';
-                if (targetInput) targetInput.placeholder = 'e.g. trait_profile';
+                if (targetInput) targetInput.placeholder = 'e.g. phenotype_profile';
                 if (regressionLabelEl) regressionLabelEl.textContent = 'REGRESSION OUTPUTS (comma separated)';
-                if (regressionInput) regressionInput.placeholder = 'e.g. openness,conscientiousness,extraversion';
+                if (regressionInput) regressionInput.placeholder = 'e.g. dimension_a,dimension_b,dimension_c';
                 if (modeHint) modeHint.textContent = 'Multivariate regression: provide phenotype label and two or more numeric outputs.';
                 return;
             }
@@ -2510,7 +2523,7 @@
                 labels = classLabels;
             } else if (predictionType === 'regression_univariate') {
                 mode = 'univariate_regression';
-                targetLabel = targetLabelRaw || 'total_iq';
+                targetLabel = targetLabelRaw || 'target_phenotype';
                 controlLabel = '';
                 if (regressionOutputs.length === 0) {
                     regressionOutputs = [targetLabel];
@@ -2780,16 +2793,16 @@
                             meta.textContent = 'Selected model is an embedding model; choose it in Local Embedding Model.';
                             return;
                         }
-                const ctxVal = parseInt(data.context_length || 0, 10);
-                if (ctxVal && maxCtx) {
-                    maxCtx.value = ctxVal;
-                }
-                applyTokenBudgetDefaults();
-                const downloads = data.downloads ? data.downloads.toLocaleString() : 'N/A';
-                const likes = data.likes ? data.likes.toLocaleString() : 'N/A';
-                meta.innerHTML = [
-                    `Catalog info retrieved for ${data.id || input.value}.`,
-                    `Context window: ${ctxVal ? ctxVal.toLocaleString() : 'Unknown'} tokens`,
+                        const ctxVal = parseInt(data.context_length || 0, 10);
+                        if (ctxVal && maxCtx) {
+                            maxCtx.value = ctxVal;
+                        }
+                        applyTokenBudgetDefaults();
+                        const downloads = data.downloads ? data.downloads.toLocaleString() : 'N/A';
+                        const likes = data.likes ? data.likes.toLocaleString() : 'N/A';
+                        meta.innerHTML = [
+                            `Catalog info retrieved for ${data.id || input.value}.`,
+                            `Context window: ${ctxVal ? ctxVal.toLocaleString() : 'Unknown'} tokens`,
                             `Downloads: ${downloads}`,
                             `Likes: ${likes}`
                         ].map(line => `<div>${line}</div>`).join('');
@@ -2805,16 +2818,16 @@
                     meta.textContent = 'Selected model is an embedding model; choose it in Local Embedding Model.';
                     return;
                 }
-            const ctxVal = parseInt(data.context_length || 0, 10);
-            if (ctxVal && maxCtx) {
-                maxCtx.value = ctxVal;
-            }
-            applyTokenBudgetDefaults();
-            const downloads = data.downloads ? data.downloads.toLocaleString() : 'N/A';
-            const likes = data.likes ? data.likes.toLocaleString() : 'N/A';
-            meta.innerHTML = [
-                `Catalog info retrieved for ${data.id || exact.id}.`,
-                `Context window: ${ctxVal ? ctxVal.toLocaleString() : 'Unknown'} tokens`,
+                const ctxVal = parseInt(data.context_length || 0, 10);
+                if (ctxVal && maxCtx) {
+                    maxCtx.value = ctxVal;
+                }
+                applyTokenBudgetDefaults();
+                const downloads = data.downloads ? data.downloads.toLocaleString() : 'N/A';
+                const likes = data.likes ? data.likes.toLocaleString() : 'N/A';
+                meta.innerHTML = [
+                    `Catalog info retrieved for ${data.id || exact.id}.`,
+                    `Context window: ${ctxVal ? ctxVal.toLocaleString() : 'Unknown'} tokens`,
                     `Downloads: ${downloads}`,
                     `Likes: ${likes}`
                 ].map(line => `<div>${line}</div>`).join('');
