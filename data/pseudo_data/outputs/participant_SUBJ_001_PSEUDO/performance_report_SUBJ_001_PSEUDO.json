@@ -1,25 +1,30 @@
 {
   "participant_id": "SUBJ_001_PSEUDO",
-  "target_condition": "MORTALITY",
+  "target_condition": "DEPRESSION SUBTYPING",
   "control_condition": "",
   "prediction_task_spec": {
     "schema_version": "1.0",
     "task_id": null,
     "root": {
       "node_id": "root",
-      "display_name": "MORTALITY",
-      "mode": "univariate_regression",
-      "class_labels": [],
-      "regression_outputs": [
-        "expected age of death"
+      "display_name": "DEPRESSION SUBTYPING",
+      "mode": "multiclass_classification",
+      "class_labels": [
+        "Default Mode Network Depression",
+        "Salience Network Depression",
+        "Attention Circuit Depression",
+        "Mood Regulation Network Depression",
+        "Cognitive Control Depression",
+        "Mixed Network Depression"
       ],
+      "regression_outputs": [],
       "unit_by_output": {},
       "required": true,
       "children": []
     }
   },
   "agent_instructions": {
-    "global": "ALL MUST BE IN FRENCH!",
+    "global": "which subtype does this individual most likely have; only pick 1!",
     "orchestrator": "",
     "executor": "",
     "tools": "",
@@ -28,8 +33,8 @@
     "critic": "",
     "communicator": ""
   },
-  "execution_timestamp": "2026-02-20T20:27:09.923164",
-  "total_duration_seconds": 178.98,
+  "execution_timestamp": "2026-02-23T16:04:23.480761",
+  "total_duration_seconds": 241.45,
   "iterations": 1,
   "selected_iteration": 1,
   "selection_reason": "Satisfactory verdict available; chose strongest satisfactory attempt (iteration 1).",
@@ -46,9 +51,9 @@
   },
   "dataflow_summary": {
     "iteration": 1,
-    "target_condition": "MORTALITY",
+    "target_condition": "DEPRESSION SUBTYPING",
     "control_condition": "",
-    "prediction_task_root_mode": "univariate_regression",
+    "prediction_task_root_mode": "multiclass_classification",
     "agent_instruction_flags": {
       "global": true,
       "orchestrator": false,
@@ -86,9 +91,9 @@
       "processed_raw_full_included": true,
       "rag_added_count": null,
       "predictor_payload_estimate": {
-        "baseline_tokens": 37856,
-        "final_tokens": 45187,
-        "processed_raw_tokens": 45126,
+        "baseline_tokens": 38068,
+        "final_tokens": 45466,
+        "processed_raw_tokens": 45403,
         "single_chunk_limit": 1900000,
         "threshold": 1800000,
         "chunked_two_pass_required": false,
@@ -132,168 +137,192 @@
     }
   },
   "prediction_result": {
-    "classification": "expected age of death: 76.000",
+    "classification": "Default Mode Network Depression",
     "probability": null,
-    "root_confidence": 0.65,
-    "confidence": "MEDIUM",
-    "primary_output_kind": "regression",
+    "root_confidence": 0.5,
+    "confidence": "HIGH",
+    "primary_output_kind": "classification",
     "root_prediction": {
       "node_id": "root",
       "path": "root",
-      "mode": "univariate_regression",
-      "classification": null,
-      "regression": {
-        "values": {
-          "expected age of death": 76.0
+      "mode": "multiclass_classification",
+      "classification": {
+        "predicted_label": "Default Mode Network Depression",
+        "probabilities": {
+          "Default Mode Network Depression": 0.5,
+          "Salience Network Depression": 0.1,
+          "Attention Circuit Depression": 0.08,
+          "Mood Regulation Network Depression": 0.12,
+          "Cognitive Control Depression": 0.15,
+          "Mixed Network Depression": 0.05
         }
       },
-      "confidence_level": "MEDIUM",
-      "confidence_score": 0.65,
+      "regression": null,
+      "confidence_level": "HIGH",
+      "confidence_score": 0.85,
       "key_findings": [],
       "reasoning_chain": [],
       "supporting_evidence_for": [
-        "Anomalies convergentes inflammatoires/neurod\u00e9g\u00e9n\u00e9ratives pr\u00e9dictives de LE r\u00e9duite (litt\u00e9rature : -5-10 ans)",
-        "\u00c2ge biologique acc\u00e9l\u00e9r\u00e9 malgr\u00e9 45 ans chronologiques"
+        "Profound DMN hyperconnectivity z=2.5 with rumination convergence.",
+        "High-effect melancholic anchors (hippocampus/BDNF z=-2.0).",
+        "Clinical anhedonia/flat affect + tool melancholic consensus."
       ],
       "supporting_evidence_against": [
-        "Pas de signes terminaux (Glasgow, asystolie, |z|>5 vitaux)",
-        "Profils lifestyle mod\u00e9r\u00e9ment alt\u00e9r\u00e9s sans extr\u00eames"
+        "Hypoconnectivity in salience/frontoparietal (z=-0.6 to -1.0).",
+        "Milder cognitive/attention signals insufficient for alternatives."
       ],
       "uncertainty_factors": [
-        "Manque suivi temporel",
-        "Absence scores pronostiques (SOFA/APACHE)"
+        "Subtype boundary ambiguity from mixed mild deviations.",
+        "Limited domain coverage (e.g., 13-26%)."
       ],
       "children": []
     }
   },
   "critic_verdict": "SATISFACTORY",
   "token_usage": {
-    "total_tokens": 118154,
-    "prompt_tokens": 84304,
-    "completion_tokens": 33850,
+    "total_tokens": 137178,
+    "prompt_tokens": 96856,
+    "completion_tokens": 40322,
     "calls": [
       {
         "component": "orchestrator",
-        "prompt_tokens": 4433,
-        "completion_tokens": 6348,
-        "total": 10781,
+        "prompt_tokens": 4442,
+        "completion_tokens": 6233,
+        "total": 10675,
         "step_tool": null,
         "step_reasoning": null
       },
       {
         "component": "executor",
-        "prompt_tokens": 1236,
-        "completion_tokens": 2005,
-        "total": 3241,
+        "prompt_tokens": 3415,
+        "completion_tokens": 1746,
+        "total": 5161,
+        "step_tool": "FeatureSynthesizer",
+        "step_reasoning": "Hierarchically ranks deviations for efficient resource allocation to depression-relevant signals."
+      },
+      {
+        "component": "executor",
+        "prompt_tokens": 5402,
+        "completion_tokens": 2965,
+        "total": 8367,
+        "step_tool": "UnimodalCompressor",
+        "step_reasoning": "Largest domain (3780 tokens); compression extracts biomarker patterns (e.g., inflammation) without token overload."
+      },
+      {
+        "component": "executor",
+        "prompt_tokens": 1246,
+        "completion_tokens": 2371,
+        "total": 3617,
         "step_tool": "PhenotypeRepresentation",
-        "step_reasoning": "Fournit les crit\u00e8res ph\u00e9notypiques essentiels (biomarqueurs, exclusions) pour guider l'\u00e9valuation des donn\u00e9es patient vers la pr\u00e9diction de mortalit\u00e9."
+        "step_reasoning": "Establishes the clinical 'gold standard' template for matching patient data against depression subtypes."
+      },
+      {
+        "component": "executor",
+        "prompt_tokens": 3286,
+        "completion_tokens": 2557,
+        "total": 5843,
+        "step_tool": "UnimodalCompressor",
+        "step_reasoning": "Medium-high volume (1710 tokens); detects neuroimaging abnormalities like atrophy or connectivity issues."
+      },
+      {
+        "component": "executor",
+        "prompt_tokens": 2642,
+        "completion_tokens": 2746,
+        "total": 5388,
+        "step_tool": "UnimodalCompressor",
+        "step_reasoning": "Medium volume (1120 tokens); critical for cognitive symptom profiling in subtypes."
+      },
+      {
+        "component": "executor",
+        "prompt_tokens": 3091,
+        "completion_tokens": 2831,
+        "total": 5922,
+        "step_tool": "UnimodalCompressor",
+        "step_reasoning": "Medium volume (1260 tokens); captures modifiable factors influencing subtypes."
       },
       {
         "component": "executor",
         "prompt_tokens": 5134,
-        "completion_tokens": 2240,
-        "total": 7374,
+        "completion_tokens": 2549,
+        "total": 7683,
         "step_tool": "AnomalyNarrativeBuilder",
-        "step_reasoning": "Permet un screening rapide des anomalies hi\u00e9rarchiques pour prioriser les domaines cliniquement impactants sur la mortalit\u00e9."
+        "step_reasoning": "Provides rapid overview of abnormalities to guide prioritization in depression context."
       },
       {
         "component": "executor",
-        "prompt_tokens": 3409,
-        "completion_tokens": 1561,
-        "total": 4970,
-        "step_tool": "FeatureSynthesizer",
-        "step_reasoning": "Produit un ranking hi\u00e9rarchique des features pour optimiser l'allocation des ressources de raisonnement vers les signaux pr\u00e9dictifs de mortalit\u00e9."
-      },
-      {
-        "component": "executor",
-        "prompt_tokens": 2632,
-        "completion_tokens": 2181,
-        "total": 4813,
-        "step_tool": "UnimodalCompressor",
-        "step_reasoning": "Volume moyen (1120 tokens) ; patterns cognitifs informatifs pour comorbidit\u00e9s pr\u00e9dictives de mortalit\u00e9."
-      },
-      {
-        "component": "executor",
-        "prompt_tokens": 5392,
-        "completion_tokens": 2505,
-        "total": 7897,
-        "step_tool": "UnimodalCompressor",
-        "step_reasoning": "Domaine volumineux (3780 tokens) ; compression leverage d\u00e9tecteur de patterns pour discrimination quantitative de risque mortalit\u00e9."
-      },
-      {
-        "component": "executor",
-        "prompt_tokens": 1826,
-        "completion_tokens": 1925,
-        "total": 3751,
-        "step_tool": "ClinicalRelevanceRanker",
-        "step_reasoning": "Priorise features synth\u00e9tis\u00e9es par rapport au ph\u00e9notype mortalit\u00e9 pour raffiner l'analyse."
-      },
-      {
-        "component": "executor",
-        "prompt_tokens": 3276,
-        "completion_tokens": 2727,
-        "total": 6003,
-        "step_tool": "UnimodalCompressor",
-        "step_reasoning": "Volume moyen-\u00e9lev\u00e9 (1710 tokens) ; extraction de patterns neuro-imagerie cruciaux pour pr\u00e9diction r\u00e9gression mortalit\u00e9."
-      },
-      {
-        "component": "executor",
-        "prompt_tokens": 3081,
-        "completion_tokens": 3498,
-        "total": 6579,
-        "step_tool": "UnimodalCompressor",
-        "step_reasoning": "Volume moyen (1260 tokens) ; patterns comportementaux/environnementaux essentiels pour estimation r\u00e9gression mortalit\u00e9."
-      },
-      {
-        "component": "executor",
-        "prompt_tokens": 8637,
-        "completion_tokens": 2347,
-        "total": 10984,
+        "prompt_tokens": 4319,
+        "completion_tokens": 2697,
+        "total": 7016,
         "step_tool": "MultimodalNarrativeCreator",
-        "step_reasoning": "Fusionne preuves cross-modales (bio, neuro, cog, lifestyle) pour identifier interactions pr\u00e9dictives de mortalit\u00e9."
+        "step_reasoning": "Fuses brain-cognition interactions key to depression phenotypes."
       },
       {
         "component": "executor",
-        "prompt_tokens": 1237,
-        "completion_tokens": 1406,
-        "total": 2643,
+        "prompt_tokens": 5790,
+        "completion_tokens": 2221,
+        "total": 8011,
+        "step_tool": "MultimodalNarrativeCreator",
+        "step_reasoning": "Highlights peripheral biology and environmental interactions in subtyping."
+      },
+      {
+        "component": "executor",
+        "prompt_tokens": 1810,
+        "completion_tokens": 1775,
+        "total": 3585,
+        "step_tool": "ClinicalRelevanceRanker",
+        "step_reasoning": "Refines hierarchical importance scores for subtype discrimination."
+      },
+      {
+        "component": "executor",
+        "prompt_tokens": 9176,
+        "completion_tokens": 3015,
+        "total": 12191,
+        "step_tool": "MultimodalNarrativeCreator",
+        "step_reasoning": "Creates comprehensive multimodal profile for final synthesis."
+      },
+      {
+        "component": "executor",
+        "prompt_tokens": 1232,
+        "completion_tokens": 1324,
+        "total": 2556,
         "step_tool": "HypothesisGenerator",
-        "step_reasoning": "Produit explications m\u00e9canistiques des d\u00e9viations pour soutenir l'estimation quantitative de risque."
+        "step_reasoning": "Provides mechanistic links between data and subtypes."
       },
       {
         "component": "executor",
-        "prompt_tokens": 3694,
-        "completion_tokens": 2625,
-        "total": 6319,
+        "prompt_tokens": 3179,
+        "completion_tokens": 2497,
+        "total": 5676,
         "step_tool": "DifferentialDiagnosis",
-        "step_reasoning": "Synth\u00e8se finale int\u00e9grant tous \u00e9l\u00e9ments pour pr\u00e9diction r\u00e9gression univari\u00e9e de mortalit\u00e9, avec fichiers core pass\u00e9s."
+        "step_reasoning": "Synthesizes everything into multiclass subtyping prediction."
       },
       {
         "component": "predictor",
-        "prompt_tokens": 39994,
-        "completion_tokens": 2128,
-        "total": 42122,
+        "prompt_tokens": 42368,
+        "completion_tokens": 2418,
+        "total": 44786,
         "step_tool": null,
         "step_reasoning": null
       },
       {
         "component": "critic",
-        "prompt_tokens": 323,
-        "completion_tokens": 354,
-        "total": 677,
+        "prompt_tokens": 324,
+        "completion_tokens": 377,
+        "total": 701,
         "step_tool": null,
         "step_reasoning": null
       }
     ]
   },
   "plan_summary": {
-    "plan_id": "plan_mortalite_SUBJ_001_PSEUDO",
-    "total_steps": 11,
+    "plan_id": "depression_subtyping_SUBJ_001_PSEUDO_v1",
+    "total_steps": 13,
     "priority_domains": [
       "BIOLOGICAL_ASSAY",
       "BRAIN_MRI",
       "COGNITION",
-      "LIFESTYLE_ENVIRONMENT"
+      "LIFESTYLE_ENVIRONMENT",
+      "DEMOGRAPHICS"
     ]
   },
   "explainability": {

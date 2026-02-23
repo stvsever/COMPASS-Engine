@@ -1,38 +1,38 @@
 # Patient Report: SUBJ_001_PSEUDO
 
-**Generated**: 2026-02-20T20:30:08.901791
+**Generated**: 2026-02-23T16:08:24.931430
 
 ## Prediction
-- **Prediction Type**: univariate_regression
-- **Primary Output**: expected age of death: 76.000
+- **Prediction Type**: multiclass_classification
+- **Primary Output**: Default Mode Network Depression
 - **Probability / Root Confidence**: N/A
-- **Confidence**: MEDIUM
-- **Target Label Context**: MORTALITY
+- **Confidence**: HIGH
+- **Target Label Context**: DEPRESSION SUBTYPING
 
 ## Evaluation
 - **Verdict**: SATISFACTORY
 - **Checklist**: 8/8 passed
 
 ## Key Findings
-1. **[BIOLOGICAL_ASSAY]** Élévation marquée des sphingolipides (z=1.7, 95e percentile, effet MODÉRÉ)
-2. **[BIOLOGICAL_ASSAY]** Déficit sévère en BDNF (z=-2.0, 2e percentile, effet MODÉRÉ)
-3. **[BRAIN_MRI]** Atrophie hippocampique gauche sévère (z=-2.0, 2e percentile, effet MODÉRÉ)
-4. **[BIOLOGICAL_ASSAY]** Inflammation systémique (CRP z=1.7, effet MODÉRÉ)
-5. **[LIFESTYLE_ENVIRONMENT]** Stress chronique élevé (z=1.4, 92e percentile, effet MODÉRÉ)
+1. **[BRAIN_MRI]** Default mode network hyperconnectivity (mpfc-pcc z=2.5, 99th percentile, LARGE effect)
+2. **[BRAIN_MRI]** Left hippocampal volume reduction (z=-2.0, 2nd percentile, LARGE effect)
+3. **[BIOLOGICAL_ASSAY]** Neurotrophic factors suppression, e.g., BDNF (z=-2.0, 2nd percentile, LARGE effect)
+4. **[BIOLOGICAL_ASSAY]** Sphingolipids elevation (z=1.7, 96th percentile, MODERATE effect)
+5. **[COGNITION]** Executive function deficit (z=-1.1, 13th percentile, SMALL effect)
 
 ## Clinical Summary
-Cette patiente de 45 ans présente un profil multimodal à risque modéré-élevé de mortalité prématurée, dominé par une convergence d'anomalies inflammatoires (sphingolipides z=1.7, CRP z=1.7), neurotrophiques (BDNF z=-2.0), structurales (hippocampe z=-2.0) et psychosociales (stress z=1.4), cohérent avec une neurodégénérescence inflammatoire accélérée et inflammaging. Symptômes dépressifs chroniques et facteurs de mode de vie aggravants renforcent cette vulnérabilité, sans preuves d'imminence aiguë. Âge de décès attendu estimé à 76 ans (réduction de ~9 ans vs. norme), nécessitant surveillance longitudinale.
+This 45-year-old female presents with classic melancholic depression features including persistent anhedonia, early morning awakening, weight loss, psychomotor slowing, and concentration deficits amid high stress/caregiving burden. Multimodal data reveal profound DMN hyperconnectivity (z=2.5), severe left hippocampal atrophy (z=-2.0), BDNF suppression (z=-2.0), ceramide elevation (z up to 2.4), and HPA/inflammatory activation (z=1.2-1.7), yielding a cohesive Default Mode Network Depression subtype profile characterized by ruminative bias, neuroplasticity compromise, and inflammatory-metabolic dysregulation. Mild executive slowing and insomnia reinforce without diluting signal; targeted interventions may include anti-inflammatories or DMN-modulating therapies.
 
 ## Reasoning Chain
-1. Évaluation des features prioritaires (BIOLOGICAL_ASSAY et BRAIN_MRI) montrant convergence d'anomalies modérées à sévères (|z|>1.5) indiquant inflammaging et neurodégénérescence.
-2. Intégration des notes cliniques : dépression persistante, stress psychosocial, antécédents familiaux (suicide tante à 50 ans), sans signes aigus de mortalité imminente.
-3. Estimation quantitative : espérance de vie standard ~85 ans pour femme de 45 ans ; soustraction conservatrice de 9 ans basée sur risques cumulés (inflammation + BDNF bas + atrophie + stress, cf. littérature sur réduction LE par dépression/inflammation).
-4. Âge attendu de décès estimé à 76 ans, avec incertitude due à absence de données longitudinales et vitals.
-5. Calibration : probabilité risque prématuré ~65% (cf. DifferentialDiagnosis), traduite en régression conservatrice.
+1. Prioritize clinical notes: persistent anhedonia, early awakening, psychomotor slowing, concentration impairment align with melancholic features; DMN hyperconnectivity noted in imaging summary.
+2. Integrate hierarchical deviations: dominant signals in DMN (z=2.5), hippocampus (z=-2.0), BDNF (z=-2.0), inflammation/HPA (z=1.2-1.7), stress (z=1.4) per FeatureSynthesizer and ClinicalRelevanceRanker guidance emphasizing BIOLOGICAL_ASSAY/BRAIN_MRI.
+3. Cross-reference tool outputs: DifferentialDiagnosis (melancholic 80%, anxious-ruminative 50%), MultimodalNarratives (DMN hyperconnectivity, ruminative bias, inflammatory-melancholic), HypothesisGenerator (melancholic-inflammatory via DMN/hippocampal).
+4. Map to subtypes: DMN hyperconnectivity (z=2.5, profound rumination/self-reference) with hippocampal/BDNF deficits and mild executive slowing discriminate Default Mode Network Depression over salience (low ai-dacc z=-0.6), attention (mild), or pure cognitive control.
+5. Calibrate probabilities: High convergence (4+ domains, multiple z>2.0) yields 0.50 for DMN, residuals to mixed/cognitive; prevalence-aware (subtypes ~equal in cohorts).
 
 ## Execution Details
 - **Iterations**: 1
 - **Selected Iteration**: 1
 - **Selection Reason**: Satisfactory verdict available; chose strongest satisfactory attempt (iteration 1).
-- **Tokens Used**: 118,154
-- **Domains Processed**: BIOLOGICAL_ASSAY, BRAIN_MRI, COGNITION, LIFESTYLE_ENVIRONMENT
+- **Tokens Used**: 137,178
+- **Domains Processed**: BIOLOGICAL_ASSAY, BRAIN_MRI, COGNITION, LIFESTYLE_ENVIRONMENT, DEMOGRAPHICS

@@ -41,15 +41,16 @@ Both are valid:
 
 ## Quickstart (recommended default image)
 
-**1. Clone the repository and prepare the context:**
+### 1. Clone the repository and prepare the context
+
 ```bash
 git clone https://github.com/stvsever/COMPASS-Engine.git
 cd COMPASS-Engine
 ```
 
-On Windows, run these commands in WSL or Git Bash (recommended) so the `tar | docker buildx` pipeline works as written.
+On Windows, run these commands in WSL or Git Bash (recommended) so the tar | docker buildx pipeline works as written.
 
-**2. Build image (choose platform):**
+### 2. Build image (choose platform):
 
 
 Apple Silicon Mac (M-series):
@@ -72,7 +73,7 @@ tar --exclude-from=docker/.dockerignore -cf - . | docker buildx build \
   -
 ```
 
-2. Run container:
+### 3. Run the container:
 ```bash
 export OPENROUTER_API_KEY="<your_openrouter_api_key>"
 docker run --rm \
@@ -82,7 +83,7 @@ docker run --rm \
   compass-ui:local
 ```
 
-3. Open UI:
+### 4. Open the user interface:
 - `http://localhost:5005`
 
 ## Prediction Task Setup in UI
