@@ -1,119 +1,187 @@
 {
-  "report_id": "RPT_SUBJ_001_PSEUDO_20260223_160824",
+  "report_id": "RPT_SUBJ_001_PSEUDO_20260224_183224",
   "participant_id": "SUBJ_001_PSEUDO",
-  "generated_at": "2026-02-23T16:08:24.931430",
+  "generated_at": "2026-02-24T18:32:24.898810",
   "prediction": {
-    "prediction_type": "multiclass_classification",
-    "classification": "Default Mode Network Depression",
-    "primary_output": "Default Mode Network Depression",
-    "probability": null,
-    "confidence": "HIGH",
-    "target_condition": "DEPRESSION SUBTYPING",
+    "prediction_type": "hierarchical",
+    "root_mode": "multivariate_regression",
+    "classification": null,
+    "primary_output": "VERBAL: -0.700, SPATIAL: -0.500, CREATIVITY: -0.600 | nodes: 3",
+    "probability": 0.75,
+    "binary_probability": null,
+    "root_confidence": 0.75,
+    "confidence": "MEDIUM",
+    "target_condition": "Phenotype Profile",
     "control_condition": "",
     "prediction_task_spec": {
       "schema_version": "1.0",
-      "task_id": null,
+      "task_id": "INTELLECTUAL DISABILITY",
       "root": {
-        "node_id": "root",
-        "display_name": "DEPRESSION SUBTYPING",
-        "mode": "multiclass_classification",
-        "class_labels": [
-          "Default Mode Network Depression",
-          "Salience Network Depression",
-          "Attention Circuit Depression",
-          "Mood Regulation Network Depression",
-          "Cognitive Control Depression",
-          "Mixed Network Depression"
+        "node_id": "phenotype_profile",
+        "display_name": "Phenotype Profile",
+        "mode": "multivariate_regression",
+        "class_labels": [],
+        "regression_outputs": [
+          "VERBAL",
+          "SPATIAL",
+          "CREATIVITY"
         ],
-        "regression_outputs": [],
-        "unit_by_output": {},
+        "unit_by_output": {
+          "dimension_a": "z_score",
+          "dimension_b": "z_score",
+          "dimension_c": "z_score"
+        },
         "required": true,
-        "children": []
+        "children": [
+          {
+            "node_id": "phenotype_subgroups",
+            "display_name": "Phenotype Subgroups",
+            "mode": "multivariate_regression",
+            "class_labels": [],
+            "regression_outputs": [
+              "sub_score_1",
+              "sub_score_2"
+            ],
+            "unit_by_output": {},
+            "required": true,
+            "children": []
+          },
+          {
+            "node_id": "phenotype_risk_band",
+            "display_name": "Phenotype Risk Band",
+            "mode": "multiclass_classification",
+            "class_labels": [
+              "low_risk",
+              "moderate_risk",
+              "high_risk"
+            ],
+            "regression_outputs": [],
+            "unit_by_output": {},
+            "required": true,
+            "children": []
+          }
+        ]
       }
     },
     "root_prediction": {
-      "node_id": "root",
-      "path": "root",
-      "mode": "multiclass_classification",
-      "classification": {
-        "predicted_label": "Default Mode Network Depression",
-        "probabilities": {
-          "Default Mode Network Depression": 0.5,
-          "Salience Network Depression": 0.1,
-          "Attention Circuit Depression": 0.08,
-          "Mood Regulation Network Depression": 0.12,
-          "Cognitive Control Depression": 0.15,
-          "Mixed Network Depression": 0.05
+      "node_id": "phenotype_profile",
+      "path": "phenotype_profile",
+      "mode": "multivariate_regression",
+      "classification": null,
+      "regression": {
+        "values": {
+          "VERBAL": -0.7,
+          "SPATIAL": -0.5,
+          "CREATIVITY": -0.6
         }
       },
-      "regression": null,
-      "confidence_level": "HIGH",
-      "confidence_score": 0.85,
+      "confidence_level": "MEDIUM",
+      "confidence_score": 0.75,
       "key_findings": [],
       "reasoning_chain": [],
       "supporting_evidence_for": [
-        "Profound DMN hyperconnectivity z=2.5 with rumination convergence.",
-        "High-effect melancholic anchors (hippocampus/BDNF z=-2.0).",
-        "Clinical anhedonia/flat affect + tool melancholic consensus."
+        "Verbal_learning z=-0.7, verbal_fluency z=-0.7 pour VERBAL ; visual_memory z=-0.4 pour SPATIAL ; executive fluency pour CREATIVITY."
       ],
       "supporting_evidence_against": [
-        "Hypoconnectivity in salience/frontoparietal (z=-0.6 to -1.0).",
-        "Milder cognitive/attention signals insufficient for alternatives."
+        "\u00c9ducation z=0.0, absence d\u00e9ficits s\u00e9v\u00e8res ; impacts d\u00e9pressifs dominants."
       ],
       "uncertainty_factors": [
-        "Subtype boundary ambiguity from mixed mild deviations.",
-        "Limited domain coverage (e.g., 13-26%)."
+        "Proxies indirects ; couverture COGNITION 14%."
       ],
-      "children": []
+      "children": [
+        {
+          "node_id": "phenotype_subgroups",
+          "path": "phenotype_profile.phenotype_subgroups",
+          "mode": "multivariate_regression",
+          "classification": null,
+          "regression": {
+            "values": {
+              "sub_score_1": -0.4,
+              "sub_score_2": -0.3
+            }
+          },
+          "confidence_level": "MEDIUM",
+          "confidence_score": 0.7,
+          "key_findings": [],
+          "reasoning_chain": [],
+          "supporting_evidence_for": [
+            "Moyennes agr\u00e9g\u00e9es cognition l\u00e9g\u00e8re."
+          ],
+          "supporting_evidence_against": [
+            "Pas de sous-groupes s\u00e9v\u00e8res identifi\u00e9s."
+          ],
+          "uncertainty_factors": [
+            "D\u00e9finition sub_scores non sp\u00e9cifi\u00e9e."
+          ],
+          "children": []
+        },
+        {
+          "node_id": "phenotype_risk_band",
+          "path": "phenotype_profile.phenotype_risk_band",
+          "mode": "multiclass_classification",
+          "classification": {
+            "predicted_label": "low_risk",
+            "probabilities": {
+              "low_risk": 0.8,
+              "moderate_risk": 0.15,
+              "high_risk": 0.05
+            }
+          },
+          "regression": null,
+          "confidence_level": "HIGH",
+          "confidence_score": 0.85,
+          "key_findings": [],
+          "reasoning_chain": [],
+          "supporting_evidence_for": [
+            "Profils cognitifs subcliniques, \u00e9ducation \u00e9lev\u00e9e, absence signes d\u00e9veloppementaux."
+          ],
+          "supporting_evidence_against": [
+            "D\u00e9ficits l\u00e9gers ex\u00e9cutifs/mn\u00e9siques."
+          ],
+          "uncertainty_factors": [
+            "Pas de QI direct."
+          ],
+          "children": []
+        }
+      ]
     }
   },
   "evaluation": {
     "verdict": "SATISFACTORY",
     "confidence_in_verdict": 0.95,
-    "checklist_passed": 8,
-    "checklist_total": 8
+    "checklist_passed": 10,
+    "checklist_total": 10
   },
   "key_findings": [
     {
-      "domain": "BRAIN_MRI",
-      "finding": "Default mode network hyperconnectivity (mpfc-pcc z=2.5, 99th percentile, LARGE effect)",
-      "direction": "ABNORMAL_HIGH"
-    },
-    {
-      "domain": "BRAIN_MRI",
-      "finding": "Left hippocampal volume reduction (z=-2.0, 2nd percentile, LARGE effect)",
-      "direction": "ABNORMAL_LOW"
-    },
-    {
-      "domain": "BIOLOGICAL_ASSAY",
-      "finding": "Neurotrophic factors suppression, e.g., BDNF (z=-2.0, 2nd percentile, LARGE effect)",
-      "direction": "ABNORMAL_LOW"
-    },
-    {
-      "domain": "BIOLOGICAL_ASSAY",
-      "finding": "Sphingolipids elevation (z=1.7, 96th percentile, MODERATE effect)",
-      "direction": "ABNORMAL_HIGH"
-    },
-    {
       "domain": "COGNITION",
-      "finding": "Executive function deficit (z=-1.1, 13th percentile, SMALL effect)",
+      "finding": "D\u00e9ficits l\u00e9gers en m\u00e9moire \u00e9pisodique (rappel diff\u00e9r\u00e9 z=-1.0, 16e percentile, effet petit) et fonction ex\u00e9cutive (TMT_B z=-1.3, 10e percentile, effet petit)",
       "direction": "ABNORMAL_LOW"
+    },
+    {
+      "domain": "BRAIN_MRI",
+      "finding": "Atrophie hippocampique bilat\u00e9rale mod\u00e9r\u00e9e (gauche z=-2.0, droite z=-1.7, moyenne |z|=1.85, effet mod\u00e9r\u00e9)",
+      "direction": "ABNORMAL_LOW"
+    },
+    {
+      "domain": "BIOLOGICAL_ASSAY",
+      "finding": "D\u00e9ficit neurotrophique (BDNF z=-2.0, 2e percentile, effet mod\u00e9r\u00e9) et \u00e9l\u00e9vation inflammatoire (CRP z=1.7)",
+      "direction": "MIXED"
     },
     {
       "domain": "LIFESTYLE_ENVIRONMENT",
-      "finding": "Stress elevation (z=1.4, 92nd percentile, MODERATE effect)",
+      "finding": "Stress per\u00e7u \u00e9lev\u00e9 (z=1.4) et insomnie (z=1.6), avec isolement social (z=1.3)",
       "direction": "ABNORMAL_HIGH"
     }
   ],
   "reasoning": [
-    "Prioritize clinical notes: persistent anhedonia, early awakening, psychomotor slowing, concentration impairment align with melancholic features; DMN hyperconnectivity noted in imaging summary.",
-    "Integrate hierarchical deviations: dominant signals in DMN (z=2.5), hippocampus (z=-2.0), BDNF (z=-2.0), inflammation/HPA (z=1.2-1.7), stress (z=1.4) per FeatureSynthesizer and ClinicalRelevanceRanker guidance emphasizing BIOLOGICAL_ASSAY/BRAIN_MRI.",
-    "Cross-reference tool outputs: DifferentialDiagnosis (melancholic 80%, anxious-ruminative 50%), MultimodalNarratives (DMN hyperconnectivity, ruminative bias, inflammatory-melancholic), HypothesisGenerator (melancholic-inflammatory via DMN/hippocampal).",
-    "Map to subtypes: DMN hyperconnectivity (z=2.5, profound rumination/self-reference) with hippocampal/BDNF deficits and mild executive slowing discriminate Default Mode Network Depression over salience (low ai-dacc z=-0.6), attention (mild), or pure cognitive control.",
-    "Calibrate probabilities: High convergence (4+ domains, multiple z>2.0) yields 0.50 for DMN, residuals to mixed/cognitive; prevalence-aware (subtypes ~equal in cohorts).",
-    "Confidence HIGH due to multimodal coherence, quantified anchors; no major confounders (e.g., no hypersomnia for atypical)."
+    "\u00c9valuation prioritaire des notes cliniques : absence de signes de d\u00e9ficience intellectuelle (\u00e9ducation 16 ans, profession enseignante, MMSE 28/30) ; sympt\u00f4mes domin\u00e9s par humeur basse et fatigue d\u00e9pressive.",
+    "Int\u00e9gration hi\u00e9rarchique : d\u00e9viations mod\u00e9r\u00e9es en cognition (moyenne |z|~1.0, petits effets) sans d\u00e9ficits verbaux/spatiaux/cr\u00e9atifs s\u00e9v\u00e8res ; priorisation BIOLOGICAL_ASSAY/BRAIN_MRI per FeatureSynthesizer.",
+    "Estimation r\u00e9gressive : z-scores verbaux/spatiaux/cr\u00e9atifs n\u00e9gatifs l\u00e9gers (-0.5 \u00e0 -0.7) bas\u00e9s sur verbal_learning (-0.7), visual_memory (-0.4), fluency (-0.7).",
+    "Classification risque : faible risque (low_risk) car profils cognitifs subcliniques, convergence vers ph\u00e9notype thymique (80% per DifferentialDiagnosis).",
+    "Incertitude mod\u00e9r\u00e9e due \u00e0 couverture incompl\u00e8te (19-46% par domaine) et absence de tests IQ directs."
   ],
-  "clinical_summary": "This 45-year-old female presents with classic melancholic depression features including persistent anhedonia, early morning awakening, weight loss, psychomotor slowing, and concentration deficits amid high stress/caregiving burden. Multimodal data reveal profound DMN hyperconnectivity (z=2.5), severe left hippocampal atrophy (z=-2.0), BDNF suppression (z=-2.0), ceramide elevation (z up to 2.4), and HPA/inflammatory activation (z=1.2-1.7), yielding a cohesive Default Mode Network Depression subtype profile characterized by ruminative bias, neuroplasticity compromise, and inflammatory-metabolic dysregulation. Mild executive slowing and insomnia reinforce without diluting signal; targeted interventions may include anti-inflammatories or DMN-modulating therapies.",
+  "clinical_summary": "Chez cette patiente de 45 ans pr\u00e9sentant un \u00e9pisode thymique persistant avec sympt\u00f4mes d\u00e9pressifs (humeur basse, anhedonie, insomnie, fatigue), les donn\u00e9es multimodales r\u00e9v\u00e8lent des alt\u00e9rations cognitives l\u00e9g\u00e8res (d\u00e9ficits ex\u00e9cutifs et mn\u00e9siques z\u2248-1.0 \u00e0 -1.3), une atrophie hippocampique mod\u00e9r\u00e9e et des marqueurs neuroinflammatoires (BDNF bas z=-2.0, CRP \u00e9lev\u00e9 z=1.7), sans \u00e9vidence d'un ph\u00e9notype de d\u00e9ficience intellectuelle. Le profil sugg\u00e8re des impacts fonctionnels secondaires \u00e0 un trouble thymique neuroinflammatoire, avec z-scores cognitifs sp\u00e9cifiques proches de la normale (VERBAL/SPATIAL/CREATIVITY \u2248 -0.6). Risque ph\u00e9notypique faible ; surveillance et interventions multimodales recommand\u00e9es.",
   "execution": {
     "iterations": 1,
     "selected_iteration": 1,
@@ -131,9 +199,9 @@
     },
     "dataflow_summary": {
       "iteration": 1,
-      "target_condition": "DEPRESSION SUBTYPING",
+      "target_condition": "Phenotype Profile",
       "control_condition": "",
-      "prediction_task_root_mode": "multiclass_classification",
+      "prediction_task_root_mode": "multivariate_regression",
       "agent_instruction_flags": {
         "global": true,
         "orchestrator": false,
@@ -171,9 +239,9 @@
         "processed_raw_full_included": true,
         "rag_added_count": null,
         "predictor_payload_estimate": {
-          "baseline_tokens": 38068,
-          "final_tokens": 45466,
-          "processed_raw_tokens": 45403,
+          "baseline_tokens": 46036,
+          "final_tokens": 53434,
+          "processed_raw_tokens": 53371,
           "single_chunk_limit": 1900000,
           "threshold": 1800000,
           "chunked_two_pass_required": false,
@@ -216,11 +284,11 @@
         "processed_raw_flag_consistent": true
       }
     },
-    "tokens_used": 137178,
+    "tokens_used": 141413,
     "domains_processed": [
-      "BIOLOGICAL_ASSAY",
-      "BRAIN_MRI",
       "COGNITION",
+      "BRAIN_MRI",
+      "BIOLOGICAL_ASSAY",
       "LIFESTYLE_ENVIRONMENT",
       "DEMOGRAPHICS"
     ],
@@ -231,33 +299,33 @@
       "decision_id": "D001",
       "component": "Orchestrator",
       "decision_type": "PLAN_GENERATION",
-      "input_summary": "Domains: BIOLOGICAL_ASSAY, BRAIN_MRI, COGNITION, LIFESTYLE_ENVIRONMENT, DEMOGRAPHICS",
+      "input_summary": "Domains: COGNITION, BRAIN_MRI, BIOLOGICAL_ASSAY, LIFESTYLE_ENVIRONMENT, DEMOGRAPHICS",
       "output_summary": "Generated 13-step plan",
-      "reasoning": "Total raw data (8680 tokens) fits budget (1.5M) and is FIT_FOR_RAW, but UnimodalCompressor is applied to all >1k token domains for clinical pattern detection optimized for depression subtyping (e.g., neuroinflammation, cognitive deficits, structural changes). Early steps (1-3) parallelized; mid-stage compressions (4-7) parallel; ClinicalRelevanceRanker (8) after FeatureSynthesizer; staged fusions (9-11) build hierarchical insights with parallelism where possible; late steps sequential for synthe",
-      "timestamp": "2026-02-23T16:05:34.941105",
+      "reasoning": "Le plan commence par des \u00e9tapes pr\u00e9coces parall\u00e9lisables (repr\u00e9sentation ph\u00e9notypique, r\u00e9cit d'anomalies et synth\u00e8se de features) pour contextualiser rapidement les d\u00e9viations hi\u00e9rarchiques et le ph\u00e9notype cible. Les compressions unimodales parall\u00e8les ciblent les domaines >1000 tokens (BIOLOGICAL_ASSAY, BRAIN_MRI, COGNITION, LIFESTYLE_ENVIRONMENT) pour extraire des patterns cliniques pertinents \u00e0 la d\u00e9ficience intellectuelle tout en g\u00e9rant les tokens efficacement, malgr\u00e9 le statut FIT_FOR_RAW. L",
+      "timestamp": "2026-02-24T18:29:55.657271",
       "metadata": {}
     },
     {
       "decision_id": "D002",
       "component": "Predictor",
       "decision_type": "PREDICTION_OUTPUT",
-      "input_summary": "Key findings: Default mode network hyperconnectivity (mpfc-pcc z=2.5, 99th percentile, LARGE effect), Left hippocampal volume reduction (z=-2.0, 2nd percentile, LARGE effect), Neurotrophic factors suppression, e.g., BDNF (z=-2.0, 2nd percentile, LARGE effect)...",
-      "output_summary": "Default Mode Network Depression (confidence=0.500)",
-      "reasoning": "This 45-year-old female presents with classic melancholic depression features including persistent anhedonia, early morning awakening, weight loss, psychomotor slowing, and concentration deficits amid high stress/caregiving burden. Multimodal data reveal profound DMN hyperconnectivity (z=2.5), severe left hippocampal atrophy (z=-2.0), BDNF suppression (z=-2.0), ceramide elevation (z up to 2.4), and HPA/inflammatory activation (z=1.2-1.7), yielding a cohesive Default Mode Network Depression subty",
-      "timestamp": "2026-02-23T16:08:20.814539",
+      "input_summary": "Key findings: D\u00e9ficits l\u00e9gers en m\u00e9moire \u00e9pisodique (rappel diff\u00e9r\u00e9 z=-1.0, 16e percentile, effet petit) et fonction ex\u00e9cutive (TMT_B z=-1.3, 10e percentile, effet petit), Atrophie hippocampique bilat\u00e9rale mod\u00e9r\u00e9e (gauche z=-2.0, droite z=-1.7, moyenne |z|=1.85, effet mod\u00e9r\u00e9), D\u00e9ficit neurotrophique (BDNF z=-2.0, 2e percentile, effet mod\u00e9r\u00e9) et \u00e9l\u00e9vation inflammatoire (CRP z=1.7)...",
+      "output_summary": "VERBAL: -0.700; SPATIAL: -0.500; CREATIVITY: -0.600 (confidence=0.750)",
+      "reasoning": "Chez cette patiente de 45 ans pr\u00e9sentant un \u00e9pisode thymique persistant avec sympt\u00f4mes d\u00e9pressifs (humeur basse, anhedonie, insomnie, fatigue), les donn\u00e9es multimodales r\u00e9v\u00e8lent des alt\u00e9rations cognitives l\u00e9g\u00e8res (d\u00e9ficits ex\u00e9cutifs et mn\u00e9siques z\u2248-1.0 \u00e0 -1.3), une atrophie hippocampique mod\u00e9r\u00e9e et des marqueurs neuroinflammatoires (BDNF bas z=-2.0, CRP \u00e9lev\u00e9 z=1.7), sans \u00e9vidence d'un ph\u00e9notype de d\u00e9ficience intellectuelle. Le profil sugg\u00e8re des impacts fonctionnels secondaires \u00e0 un trouble thy",
+      "timestamp": "2026-02-24T18:32:19.686731",
       "metadata": {
-        "probability": 0.5,
-        "classification": "Default Mode Network Depression"
+        "probability": 0.75,
+        "classification": "VERBAL: -0.700; SPATIAL: -0.500; CREATIVITY: -0.600"
       }
     },
     {
       "decision_id": "D003",
       "component": "Critic",
       "decision_type": "EVALUATION",
-      "input_summary": "Checklist: 8/8 passed",
+      "input_summary": "Checklist: 10/10 passed",
       "output_summary": "SATISFACTORY",
-      "reasoning": "Required nodes present=True; output schema valid=True; classification probabilities valid=True; regression values valid=n/a; hierarchy consistent=n/a; coverage ratio=1.00; fallback_used=False.",
-      "timestamp": "2026-02-23T16:08:24.929520",
+      "reasoning": "Required nodes present=True; output schema valid=True; classification probabilities valid=True; regression values valid=True; hierarchy consistent=True; coverage ratio=1.00; fallback_used=False.",
+      "timestamp": "2026-02-24T18:32:24.897613",
       "metadata": {}
     }
   ]

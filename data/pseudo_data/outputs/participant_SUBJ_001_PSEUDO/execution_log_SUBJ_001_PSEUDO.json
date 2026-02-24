@@ -1,25 +1,25 @@
 [
   {
     "type": "PIPELINE_START",
-    "timestamp": "2026-02-23T16:04:23.494145",
+    "timestamp": "2026-02-24T18:29:07.527247",
     "data": {
       "participant_id": "SUBJ_001_PSEUDO",
-      "target_condition": "DEPRESSION SUBTYPING",
+      "target_condition": "Phenotype Profile",
       "control_condition": "",
-      "prediction_task_mode": "multiclass_classification",
-      "timestamp": "2026-02-23T16:04:23.494138"
+      "prediction_task_mode": "multivariate_regression",
+      "timestamp": "2026-02-24T18:29:07.527244"
     }
   },
   {
     "type": "ORCHESTRATOR",
-    "timestamp": "2026-02-23T16:05:34.940570",
+    "timestamp": "2026-02-24T18:29:55.656706",
     "data": {
-      "plan_id": "depression_subtyping_SUBJ_001_PSEUDO_v1",
+      "plan_id": "plan_SUBJ_001_PSEUDO_INTELLECTUAL_DISABILITY_v1",
       "total_steps": 13,
       "priority_domains": [
-        "BIOLOGICAL_ASSAY",
-        "BRAIN_MRI",
         "COGNITION",
+        "BRAIN_MRI",
+        "BIOLOGICAL_ASSAY",
         "LIFESTYLE_ENVIRONMENT",
         "DEMOGRAPHICS"
       ]
@@ -27,12 +27,12 @@
   },
   {
     "type": "DATAFLOW_SUMMARY",
-    "timestamp": "2026-02-23T16:08:20.811983",
+    "timestamp": "2026-02-24T18:32:19.684930",
     "data": {
       "iteration": 1,
-      "target_condition": "DEPRESSION SUBTYPING",
+      "target_condition": "Phenotype Profile",
       "control_condition": "",
-      "prediction_task_root_mode": "multiclass_classification",
+      "prediction_task_root_mode": "multivariate_regression",
       "agent_instruction_flags": {
         "global": true,
         "orchestrator": false,
@@ -70,9 +70,9 @@
         "processed_raw_full_included": true,
         "rag_added_count": null,
         "predictor_payload_estimate": {
-          "baseline_tokens": 38068,
-          "final_tokens": 45466,
-          "processed_raw_tokens": 45403,
+          "baseline_tokens": 46036,
+          "final_tokens": 53434,
+          "processed_raw_tokens": 53371,
           "single_chunk_limit": 1900000,
           "threshold": 1800000,
           "chunked_two_pass_required": false,
@@ -118,16 +118,16 @@
   },
   {
     "type": "PREDICTOR",
-    "timestamp": "2026-02-23T16:08:20.813624",
+    "timestamp": "2026-02-24T18:32:19.686177",
     "data": {
-      "classification": "Default Mode Network Depression",
-      "probability": 0.5,
-      "prediction_task_mode": "multiclass_classification"
+      "classification": "VERBAL: -0.700; SPATIAL: -0.500; CREATIVITY: -0.600",
+      "probability": 0.75,
+      "prediction_task_mode": "multivariate_regression"
     }
   },
   {
     "type": "CRITIC",
-    "timestamp": "2026-02-23T16:08:24.929284",
+    "timestamp": "2026-02-24T18:32:24.897235",
     "data": {
       "verdict": "SATISFACTORY",
       "confidence": 0.95

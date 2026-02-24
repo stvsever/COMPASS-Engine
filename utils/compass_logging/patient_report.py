@@ -41,16 +41,27 @@ class PatientReportGenerator:
         Returns:
             Report as dictionary
         """
+        prediction_type = self._prediction_type_from_prediction(prediction)
+        root_mode = self._root_mode_from_prediction(prediction)
+        probability_or_root_conf = self._probability_or_root_confidence_from_prediction(prediction)
+        primary_output = self._primary_output_from_prediction(prediction)
+        node_count = self._prediction_node_count(prediction)
+        if prediction_type == "hierarchical" and node_count > 1:
+            primary_output = f"{primary_output} | nodes: {node_count}"
+
         report = {
             "report_id": f"RPT_{participant_id}_{datetime.now().strftime('%Y%m%d_%H%M%S')}",
             "participant_id": participant_id,
             "generated_at": datetime.now().isoformat(),
             
             "prediction": {
-                "prediction_type": self._prediction_type_from_prediction(prediction),
+                "prediction_type": prediction_type,
+                "root_mode": root_mode,
                 "classification": self._classification_label_from_prediction(prediction),
-                "primary_output": self._primary_output_from_prediction(prediction),
-                "probability": prediction.probability_score,
+                "primary_output": primary_output,
+                "probability": probability_or_root_conf,
+                "binary_probability": prediction.probability_score,
+                "root_confidence": self._root_confidence_from_prediction(prediction),
                 "confidence": prediction.confidence_level.value,
                 "target_condition": prediction.target_condition,
                 "control_condition": prediction.control_condition,
@@ -130,14 +141,33 @@ class PatientReportGenerator:
         
         classification = pred.get('classification', 'N/A')
         prediction_type = pred.get('prediction_type', 'unknown')
+        root_payload = pred.get("root_prediction") if isinstance(pred.get("root_prediction"), dict) else {}
+        root_mode = str(pred.get("root_mode") or root_payload.get("mode") or "").strip()
         target = pred.get('target_condition', 'N/A')
         control = pred.get('control_condition', 'N/A')
         primary_output = pred.get("primary_output", "N/A")
-        is_classification_mode = str(prediction_type).endswith("classification")
+        report_node_count = self._prediction_node_count_from_report_payload(pred)
+        if str(prediction_type) != "hierarchical" and report_node_count > 1:
+            prediction_type = "hierarchical"
+        if str(prediction_type) == "hierarchical" and report_node_count > 1 and "nodes:" not in str(primary_output):
+            primary_output = f"{primary_output} | nodes: {report_node_count}"
+        is_classification_mode = (
+            root_mode.endswith("classification")
+            if root_mode
+            else str(prediction_type).endswith("classification")
+        )
         
         display_prediction = primary_output
-        if is_classification_mode:
+        if is_classification_mode and str(classification or "").strip():
             display_prediction = classification
+
+        probability_or_root_conf = pred.get("probability")
+        if not isinstance(probability_or_root_conf, (int, float)):
+            probability_or_root_conf = pred.get("root_confidence")
+        if not isinstance(probability_or_root_conf, (int, float)):
+            legacy_score = root_payload.get("confidence_score")
+            if isinstance(legacy_score, (int, float)):
+                probability_or_root_conf = max(0.0, min(1.0, float(legacy_score)))
 
         lines = [
             f"# Patient Report: {report.get('participant_id', 'Unknown')}",
@@ -146,8 +176,8 @@ class PatientReportGenerator:
             f"- **Prediction Type**: {prediction_type}",
             f"- **Primary Output**: {display_prediction}",
             (
-                f"- **Probability / Root Confidence**: {pred.get('probability', 0):.1%}"
-                if isinstance(pred.get("probability"), (int, float))
+                f"- **Probability / Root Confidence**: {float(probability_or_root_conf):.1%}"
+                if isinstance(probability_or_root_conf, (int, float))
                 else "- **Probability / Root Confidence**: N/A"
             ),
             f"- **Confidence**: {pred.get('confidence', 'N/A')}",
@@ -239,12 +269,80 @@ class PatientReportGenerator:
         return "NON_BINARY"
 
     def _prediction_type_from_prediction(self, prediction: PredictionResult) -> str:
+        if self._is_hierarchical_prediction(prediction):
+            return "hierarchical"
         root = prediction.root_prediction
         if root is not None and getattr(root, "mode", None) is not None:
             return str(root.mode.value)
         if prediction.binary_classification is not None:
             return "binary_classification"
         return "unknown"
+
+    def _root_mode_from_prediction(self, prediction: PredictionResult) -> str:
+        root = prediction.root_prediction
+        if root is not None and getattr(root, "mode", None) is not None:
+            return str(root.mode.value)
+        task_spec = prediction.prediction_task_spec
+        if task_spec is not None and getattr(task_spec, "root", None) is not None:
+            mode = getattr(task_spec.root, "mode", None)
+            if mode is not None and getattr(mode, "value", None) is not None:
+                return str(mode.value)
+        return ""
+
+    def _prediction_node_count(self, prediction: PredictionResult) -> int:
+        task_spec = prediction.prediction_task_spec
+        if task_spec is not None and hasattr(task_spec, "node_index"):
+            try:
+                return int(len(task_spec.node_index()))
+            except Exception:
+                pass
+        root = prediction.root_prediction
+        if root is not None and hasattr(root, "walk"):
+            try:
+                return int(len(root.walk()))
+            except Exception:
+                pass
+        return 1 if prediction.root_prediction is not None else 0
+
+    def _is_hierarchical_prediction(self, prediction: PredictionResult) -> bool:
+        return self._prediction_node_count(prediction) > 1
+
+    def _root_confidence_from_prediction(self, prediction: PredictionResult) -> Optional[float]:
+        root = prediction.root_prediction
+        if root is None:
+            return None
+        score = getattr(root, "confidence_score", None)
+        if isinstance(score, (int, float)):
+            return max(0.0, min(1.0, float(score)))
+        return None
+
+    def _probability_or_root_confidence_from_prediction(self, prediction: PredictionResult) -> Optional[float]:
+        score = prediction.probability_score
+        if isinstance(score, (int, float)):
+            return max(0.0, min(1.0, float(score)))
+        return self._root_confidence_from_prediction(prediction)
+
+    def _prediction_node_count_from_report_payload(self, pred: Dict[str, Any]) -> int:
+        task_spec = pred.get("prediction_task_spec")
+        if isinstance(task_spec, dict):
+            root = task_spec.get("root")
+            task_count = self._payload_tree_node_count(root)
+            if task_count > 0:
+                return task_count
+        root_payload = pred.get("root_prediction")
+        if isinstance(root_payload, dict):
+            return self._payload_tree_node_count(root_payload)
+        return 0
+
+    def _payload_tree_node_count(self, node_payload: Any) -> int:
+        if not isinstance(node_payload, dict):
+            return 0
+        count = 1
+        children = node_payload.get("children")
+        if isinstance(children, list):
+            for child in children:
+                count += self._payload_tree_node_count(child)
+        return count
 
     def _classification_label_from_prediction(self, prediction: PredictionResult) -> Optional[str]:
         root = prediction.root_prediction
