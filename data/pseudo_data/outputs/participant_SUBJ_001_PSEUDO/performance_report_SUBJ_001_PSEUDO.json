@@ -1,59 +1,26 @@
 {
   "participant_id": "SUBJ_001_PSEUDO",
-  "target_condition": "Phenotype Profile",
-  "control_condition": "",
+  "target_condition": "DEPRESSION",
+  "control_condition": "HEALTHY",
   "prediction_task_spec": {
     "schema_version": "1.0",
-    "task_id": "INTELLECTUAL DISABILITY",
+    "task_id": null,
     "root": {
-      "node_id": "phenotype_profile",
-      "display_name": "Phenotype Profile",
-      "mode": "multivariate_regression",
-      "class_labels": [],
-      "regression_outputs": [
-        "VERBAL",
-        "SPATIAL",
-        "CREATIVITY"
+      "node_id": "root",
+      "display_name": "DEPRESSION",
+      "mode": "binary_classification",
+      "class_labels": [
+        "DEPRESSION",
+        "HEALTHY"
       ],
-      "unit_by_output": {
-        "dimension_a": "z_score",
-        "dimension_b": "z_score",
-        "dimension_c": "z_score"
-      },
+      "regression_outputs": [],
+      "unit_by_output": {},
       "required": true,
-      "children": [
-        {
-          "node_id": "phenotype_subgroups",
-          "display_name": "Phenotype Subgroups",
-          "mode": "multivariate_regression",
-          "class_labels": [],
-          "regression_outputs": [
-            "sub_score_1",
-            "sub_score_2"
-          ],
-          "unit_by_output": {},
-          "required": true,
-          "children": []
-        },
-        {
-          "node_id": "phenotype_risk_band",
-          "display_name": "Phenotype Risk Band",
-          "mode": "multiclass_classification",
-          "class_labels": [
-            "low_risk",
-            "moderate_risk",
-            "high_risk"
-          ],
-          "regression_outputs": [],
-          "unit_by_output": {},
-          "required": true,
-          "children": []
-        }
-      ]
+      "children": []
     }
   },
   "agent_instructions": {
-    "global": "EVERYTHING MUST BE IN FRENCH!",
+    "global": "",
     "orchestrator": "",
     "executor": "",
     "tools": "",
@@ -62,8 +29,8 @@
     "critic": "",
     "communicator": ""
   },
-  "execution_timestamp": "2026-02-24T18:29:07.521041",
-  "total_duration_seconds": 197.38,
+  "execution_timestamp": "2026-02-25T18:57:20.098389",
+  "total_duration_seconds": 139.99,
   "iterations": 1,
   "selected_iteration": 1,
   "selection_reason": "Satisfactory verdict available; chose strongest satisfactory attempt (iteration 1).",
@@ -80,11 +47,11 @@
   },
   "dataflow_summary": {
     "iteration": 1,
-    "target_condition": "Phenotype Profile",
-    "control_condition": "",
-    "prediction_task_root_mode": "multivariate_regression",
+    "target_condition": "DEPRESSION",
+    "control_condition": "HEALTHY",
+    "prediction_task_root_mode": "binary_classification",
     "agent_instruction_flags": {
-      "global": true,
+      "global": false,
       "orchestrator": false,
       "executor": false,
       "tools": false,
@@ -120,14 +87,14 @@
       "processed_raw_full_included": true,
       "rag_added_count": null,
       "predictor_payload_estimate": {
-        "baseline_tokens": 46036,
-        "final_tokens": 53434,
-        "processed_raw_tokens": 53371,
+        "baseline_tokens": 29697,
+        "final_tokens": 37028,
+        "processed_raw_tokens": 36967,
         "single_chunk_limit": 1900000,
         "threshold": 1800000,
         "chunked_two_pass_required": false,
         "strategy": "threshold_driven_no_loss_pass_through",
-        "runtime_instruction_applied": true
+        "runtime_instruction_applied": false
       },
       "coverage_snapshot": {
         "processed_whole_domains": [
@@ -166,237 +133,160 @@
     }
   },
   "prediction_result": {
-    "classification": "VERBAL: -0.700; SPATIAL: -0.500; CREATIVITY: -0.600",
-    "probability": null,
-    "root_confidence": 0.75,
-    "confidence": "MEDIUM",
-    "primary_output_kind": "regression",
+    "classification": "DEPRESSION",
+    "probability": 0.92,
+    "root_confidence": 0.92,
+    "confidence": "HIGH",
+    "primary_output_kind": "classification",
     "root_prediction": {
-      "node_id": "phenotype_profile",
-      "path": "phenotype_profile",
-      "mode": "multivariate_regression",
-      "classification": null,
-      "regression": {
-        "values": {
-          "VERBAL": -0.7,
-          "SPATIAL": -0.5,
-          "CREATIVITY": -0.6
+      "node_id": "root",
+      "path": "root",
+      "mode": "binary_classification",
+      "classification": {
+        "predicted_label": "DEPRESSION",
+        "probabilities": {
+          "DEPRESSION": 0.92,
+          "HEALTHY": 0.07999999999999996
         }
       },
-      "confidence_level": "MEDIUM",
-      "confidence_score": 0.75,
+      "regression": null,
+      "confidence_level": "HIGH",
+      "confidence_score": 0.92,
       "key_findings": [],
       "reasoning_chain": [],
-      "supporting_evidence_for": [
-        "Verbal_learning z=-0.7, verbal_fluency z=-0.7 pour VERBAL ; visual_memory z=-0.4 pour SPATIAL ; executive fluency pour CREATIVITY."
-      ],
-      "supporting_evidence_against": [
-        "\u00c9ducation z=0.0, absence d\u00e9ficits s\u00e9v\u00e8res ; impacts d\u00e9pressifs dominants."
-      ],
-      "uncertainty_factors": [
-        "Proxies indirects ; couverture COGNITION 14%."
-      ],
-      "children": [
-        {
-          "node_id": "phenotype_subgroups",
-          "path": "phenotype_profile.phenotype_subgroups",
-          "mode": "multivariate_regression",
-          "classification": null,
-          "regression": {
-            "values": {
-              "sub_score_1": -0.4,
-              "sub_score_2": -0.3
-            }
-          },
-          "confidence_level": "MEDIUM",
-          "confidence_score": 0.7,
-          "key_findings": [],
-          "reasoning_chain": [],
-          "supporting_evidence_for": [
-            "Moyennes agr\u00e9g\u00e9es cognition l\u00e9g\u00e8re."
-          ],
-          "supporting_evidence_against": [
-            "Pas de sous-groupes s\u00e9v\u00e8res identifi\u00e9s."
-          ],
-          "uncertainty_factors": [
-            "D\u00e9finition sub_scores non sp\u00e9cifi\u00e9e."
-          ],
-          "children": []
-        },
-        {
-          "node_id": "phenotype_risk_band",
-          "path": "phenotype_profile.phenotype_risk_band",
-          "mode": "multiclass_classification",
-          "classification": {
-            "predicted_label": "low_risk",
-            "probabilities": {
-              "low_risk": 0.8,
-              "moderate_risk": 0.15,
-              "high_risk": 0.05
-            }
-          },
-          "regression": null,
-          "confidence_level": "HIGH",
-          "confidence_score": 0.85,
-          "key_findings": [],
-          "reasoning_chain": [],
-          "supporting_evidence_for": [
-            "Profils cognitifs subcliniques, \u00e9ducation \u00e9lev\u00e9e, absence signes d\u00e9veloppementaux."
-          ],
-          "supporting_evidence_against": [
-            "D\u00e9ficits l\u00e9gers ex\u00e9cutifs/mn\u00e9siques."
-          ],
-          "uncertainty_factors": [
-            "Pas de QI direct."
-          ],
-          "children": []
-        }
-      ]
+      "supporting_evidence_for": [],
+      "supporting_evidence_against": [],
+      "uncertainty_factors": [],
+      "children": []
     }
   },
   "critic_verdict": "SATISFACTORY",
   "token_usage": {
-    "total_tokens": 141413,
-    "prompt_tokens": 103119,
-    "completion_tokens": 38294,
+    "total_tokens": 106087,
+    "prompt_tokens": 78534,
+    "completion_tokens": 27553,
     "calls": [
       {
         "component": "orchestrator",
-        "prompt_tokens": 4442,
-        "completion_tokens": 5327,
-        "total": 9769,
+        "prompt_tokens": 4406,
+        "completion_tokens": 3642,
+        "total": 8048,
         "step_tool": null,
         "step_reasoning": null
       },
       {
         "component": "executor",
-        "prompt_tokens": 3081,
-        "completion_tokens": 2401,
-        "total": 5482,
-        "step_tool": "UnimodalCompressor",
-        "step_reasoning": "Volume moyen (1260 tokens) ; capture interactions environnementales pertinentes au ph\u00e9notype."
-      },
-      {
-        "component": "executor",
-        "prompt_tokens": 1236,
-        "completion_tokens": 1437,
-        "total": 2673,
-        "step_tool": "PhenotypeRepresentation",
-        "step_reasoning": "\u00c9tablit les crit\u00e8res ph\u00e9notypiques (biomarqueurs, exclusions) pour guider toutes les analyses discriminantes et pr\u00e9dictives."
-      },
-      {
-        "component": "executor",
-        "prompt_tokens": 5124,
-        "completion_tokens": 2020,
-        "total": 7144,
+        "prompt_tokens": 5107,
+        "completion_tokens": 1793,
+        "total": 6900,
         "step_tool": "AnomalyNarrativeBuilder",
-        "step_reasoning": "Fournit un screening rapide des anomalies domainales pour prioriser les modalit\u00e9s pertinentes \u00e0 la pr\u00e9diction."
+        "step_reasoning": "Offers rapid overview of patient abnormalities for prioritization in depression context."
       },
       {
         "component": "executor",
-        "prompt_tokens": 5392,
-        "completion_tokens": 2771,
-        "total": 8163,
-        "step_tool": "UnimodalCompressor",
-        "step_reasoning": "Domaine volumineux (3780 tokens) ; extraction de patterns pr\u00e9dictifs (ex. m\u00e9tabolites, prot\u00e9ines) via raisonnement cibl\u00e9."
+        "prompt_tokens": 1209,
+        "completion_tokens": 1708,
+        "total": 2917,
+        "step_tool": "PhenotypeRepresentation",
+        "step_reasoning": "Provides the clinical 'rule book' for all downstream tools to evaluate patient data against depression phenotype."
       },
       {
         "component": "executor",
-        "prompt_tokens": 2632,
-        "completion_tokens": 2783,
-        "total": 5415,
-        "step_tool": "UnimodalCompressor",
-        "step_reasoning": "Domaine central (1120 tokens) pour pr\u00e9diction de d\u00e9ficience intellectuelle ; patterns discriminants essentiels."
-      },
-      {
-        "component": "executor",
-        "prompt_tokens": 3410,
-        "completion_tokens": 2155,
-        "total": 5565,
+        "prompt_tokens": 3382,
+        "completion_tokens": 1742,
+        "total": 5124,
         "step_tool": "FeatureSynthesizer",
-        "step_reasoning": "Identifie les features hi\u00e9rarchiquement prioritaires pour optimiser l'allocation des ressources de raisonnement."
+        "step_reasoning": "Identifies top deviant features to guide relevance ranking and focus reasoning on depression-discriminative signals."
       },
       {
         "component": "executor",
-        "prompt_tokens": 3276,
-        "completion_tokens": 2806,
-        "total": 6082,
-        "step_tool": "UnimodalCompressor",
-        "step_reasoning": "Domaine moyen-haut volume (1710 tokens) critique pour d\u00e9ficience intellectuelle ; d\u00e9tecte anomalies structurelles/fonctionnelles."
-      },
-      {
-        "component": "executor",
-        "prompt_tokens": 1933,
-        "completion_tokens": 1466,
-        "total": 3399,
+        "prompt_tokens": 1954,
+        "completion_tokens": 1188,
+        "total": 3142,
         "step_tool": "ClinicalRelevanceRanker",
-        "step_reasoning": "Priorise les features synth\u00e9tis\u00e9es pour raffiner les pr\u00e9dictions multivari\u00e9es."
+        "step_reasoning": "Prioritizes deviation map features for depression-specific interpretation post-synthesis."
       },
       {
         "component": "executor",
-        "prompt_tokens": 4338,
-        "completion_tokens": 2144,
-        "total": 6482,
+        "prompt_tokens": 3249,
+        "completion_tokens": 2463,
+        "total": 5712,
+        "step_tool": "UnimodalCompressor",
+        "step_reasoning": "Medium domain; compression extracts neuroimaging patterns (e.g., volumes, connectivity) critical for depression."
+      },
+      {
+        "component": "executor",
+        "prompt_tokens": 2605,
+        "completion_tokens": 2005,
+        "total": 4610,
+        "step_tool": "UnimodalCompressor",
+        "step_reasoning": "Medium domain; leverages pattern detection for executive/memory impairments key in depression classification."
+      },
+      {
+        "component": "executor",
+        "prompt_tokens": 5365,
+        "completion_tokens": 2729,
+        "total": 8094,
+        "step_tool": "UnimodalCompressor",
+        "step_reasoning": "Medium-large domain requires compression for pattern detection (e.g., inflammation, metabolomics) aiding depression biomarker discrimination."
+      },
+      {
+        "component": "executor",
+        "prompt_tokens": 3054,
+        "completion_tokens": 2469,
+        "total": 5523,
+        "step_tool": "UnimodalCompressor",
+        "step_reasoning": "Medium domain; identifies stress/exercise patterns influencing depression risk."
+      },
+      {
+        "component": "executor",
+        "prompt_tokens": 8527,
+        "completion_tokens": 2122,
+        "total": 10649,
         "step_tool": "MultimodalNarrativeCreator",
-        "step_reasoning": "Int\u00e8gre patterns cerveau-cognition hautement pertinents pour d\u00e9ficience intellectuelle."
+        "step_reasoning": "Integrates all processed data for holistic view of multimodal patterns supporting binary classification."
       },
       {
         "component": "executor",
-        "prompt_tokens": 5815,
-        "completion_tokens": 2886,
-        "total": 8701,
-        "step_tool": "MultimodalNarrativeCreator",
-        "step_reasoning": "Capture interactions syst\u00e9miques pour expliquer d\u00e9viations ph\u00e9notypiques."
-      },
-      {
-        "component": "executor",
-        "prompt_tokens": 9406,
-        "completion_tokens": 2808,
-        "total": 12214,
-        "step_tool": "MultimodalNarrativeCreator",
-        "step_reasoning": "Synth\u00e8se multimodale compl\u00e8te pour \u00e9vidence pr\u00e9dictive holistique ; DEMOGRAPHICS pass\u00e9 raw car petit."
-      },
-      {
-        "component": "executor",
-        "prompt_tokens": 1277,
-        "completion_tokens": 1692,
-        "total": 2969,
+        "prompt_tokens": 1161,
+        "completion_tokens": 1229,
+        "total": 2390,
         "step_tool": "HypothesisGenerator",
-        "step_reasoning": "Propose m\u00e9canismes plausibles liant observations au ph\u00e9notype cible pour guider pr\u00e9diction."
+        "step_reasoning": "Links observations to mechanistic explanations for depression phenotype."
       },
       {
         "component": "executor",
-        "prompt_tokens": 3994,
-        "completion_tokens": 2374,
-        "total": 6368,
+        "prompt_tokens": 3051,
+        "completion_tokens": 2280,
+        "total": 5331,
         "step_tool": "DifferentialDiagnosis",
-        "step_reasoning": "Synth\u00e9tise toute l'\u00e9vidence pour pr\u00e9diction finale du profil ph\u00e9notypique multivari\u00e9."
+        "step_reasoning": "Final step for comprehensive DEPRESSION prediction with evidence-based discrimination vs controls/other conditions."
       },
       {
         "component": "predictor",
-        "prompt_tokens": 47426,
-        "completion_tokens": 2746,
-        "total": 50172,
+        "prompt_tokens": 35144,
+        "completion_tokens": 1858,
+        "total": 37002,
         "step_tool": null,
         "step_reasoning": null
       },
       {
         "component": "critic",
-        "prompt_tokens": 337,
-        "completion_tokens": 478,
-        "total": 815,
+        "prompt_tokens": 320,
+        "completion_tokens": 325,
+        "total": 645,
         "step_tool": null,
         "step_reasoning": null
       }
     ]
   },
   "plan_summary": {
-    "plan_id": "plan_SUBJ_001_PSEUDO_INTELLECTUAL_DISABILITY_v1",
-    "total_steps": 13,
+    "plan_id": "depression_SUBJ_001_PSEUDO_plan_v1",
+    "total_steps": 11,
     "priority_domains": [
-      "COGNITION",
-      "BRAIN_MRI",
       "BIOLOGICAL_ASSAY",
+      "BRAIN_MRI",
+      "COGNITION",
       "LIFESTYLE_ENVIRONMENT",
       "DEMOGRAPHICS"
     ]

@@ -1,37 +1,38 @@
 # Patient Report: SUBJ_001_PSEUDO
 
-**Generated**: 2026-02-24T18:32:24.898810
+**Generated**: 2026-02-25T18:59:40.084618
 
 ## Prediction
-- **Prediction Type**: hierarchical
-- **Primary Output**: VERBAL: -0.700, SPATIAL: -0.500, CREATIVITY: -0.600 | nodes: 3
-- **Probability / Root Confidence**: 75.0%
-- **Confidence**: MEDIUM
-- **Target Label Context**: Phenotype Profile
+- **Prediction Type**: binary_classification
+- **Primary Output**: DEPRESSION
+- **Probability / Root Confidence**: 92.0%
+- **Confidence**: HIGH
+- **Target Label Context**: DEPRESSION
+- **Comparator Label Context**: HEALTHY
 
 ## Evaluation
 - **Verdict**: SATISFACTORY
-- **Checklist**: 10/10 passed
+- **Checklist**: 8/8 passed
 
 ## Key Findings
-1. **[COGNITION]** Déficits légers en mémoire épisodique (rappel différé z=-1.0, 16e percentile, effet petit) et fonction exécutive (TMT_B z=-1.3, 10e percentile, effet petit)
-2. **[BRAIN_MRI]** Atrophie hippocampique bilatérale modérée (gauche z=-2.0, droite z=-1.7, moyenne |z|=1.85, effet modéré)
-3. **[BIOLOGICAL_ASSAY]** Déficit neurotrophique (BDNF z=-2.0, 2e percentile, effet modéré) et élévation inflammatoire (CRP z=1.7)
-4. **[LIFESTYLE_ENVIRONMENT]** Stress perçu élevé (z=1.4) et insomnie (z=1.6), avec isolement social (z=1.3)
+1. **[CLINICAL_NOTES]** Persistent low mood, anhedonia, fatigue, early morning awakening, reduced appetite with 4-5kg weight loss, impaired concentration, social withdrawal over 7-8 months; moderate mood scale 17/27
+2. **[BIOLOGICAL_ASSAY]** Neurotrophic factors reduced (z=-1.7; BDNF z=-2.0, 2nd percentile)
+3. **[BIOLOGICAL_ASSAY]** Sphingolipids elevated (z=1.7); inflammation markers CRP z=1.7, HPA axis z=1.2
+4. **[BRAIN_MRI]** Subcortical volumes reduced (z=-1.4; left hippocampus z=-2.0, 2nd percentile)
+5. **[BRAIN_MRI]** Resting-state functional connectivity elevated (z=1.3; DMN mpfc-pcc z=2.5)
 
 ## Clinical Summary
-Chez cette patiente de 45 ans présentant un épisode thymique persistant avec symptômes dépressifs (humeur basse, anhedonie, insomnie, fatigue), les données multimodales révèlent des altérations cognitives légères (déficits exécutifs et mnésiques z≈-1.0 à -1.3), une atrophie hippocampique modérée et des marqueurs neuroinflammatoires (BDNF bas z=-2.0, CRP élevé z=1.7), sans évidence d'un phénotype de déficience intellectuelle. Le profil suggère des impacts fonctionnels secondaires à un trouble thymique neuroinflammatoire, avec z-scores cognitifs spécifiques proches de la normale (VERBAL/SPATIAL/CREATIVITY ≈ -0.6). Risque phénotypique faible ; surveillance et interventions multimodales recommandées.
+This 45-year-old female exhibits a classic melancholic depression phenotype with 7-8 months of persistent low mood, anhedonia, neurovegetative symptoms (early awakening, weight loss, fatigue), cognitive impairment, and functional decline, corroborated by multimodal biomarkers including reduced BDNF/hippocampal volume (z=-2.0), elevated inflammation/HPA/sphingolipids (z=1.7), limbic hyperconnectivity (z=2.5), genetic risk, stress/sleep dysregulation, and mild executive slowing. Prior episode and family history further support recurrent MDD over healthy control, warranting intervention.
 
 ## Reasoning Chain
-1. Évaluation prioritaire des notes cliniques : absence de signes de déficience intellectuelle (éducation 16 ans, profession enseignante, MMSE 28/30) ; symptômes dominés par humeur basse et fatigue dépressive.
-2. Intégration hiérarchique : déviations modérées en cognition (moyenne |z|~1.0, petits effets) sans déficits verbaux/spatiaux/créatifs sévères ; priorisation BIOLOGICAL_ASSAY/BRAIN_MRI per FeatureSynthesizer.
-3. Estimation régressive : z-scores verbaux/spatiaux/créatifs négatifs légers (-0.5 à -0.7) basés sur verbal_learning (-0.7), visual_memory (-0.4), fluency (-0.7).
-4. Classification risque : faible risque (low_risk) car profils cognitifs subcliniques, convergence vers phénotype thymique (80% per DifferentialDiagnosis).
-5. Incertitude modérée due à couverture incomplète (19-46% par domaine) et absence de tests IQ directs.
+1. Step 1: Prioritize non_numerical_data showing explicit DSM-aligned symptoms (low mood, anhedonia, insomnia, weight loss, concentration issues) with functional impact and moderate rating scales, overriding biomarkers as supportive.
+2. Step 2: Confirm multimodal convergence from FeatureSynthesizer/ClinicalRelevanceRanker/DifferentialDiagnosis (85% MDD likelihood, strong case/control discrimination via HPA/limbic/inflammation clusters).
+3. Step 3: Quantify key z-scores (>1.5 in 6+ depression-relevant leaves across 5 domains) per hierarchy; no isolated deficits.
+4. Step 4: Calibrate probability high (0.92) given prevalence-aware elevation, convergent evidence minimizing FP risk; HIGH confidence from data quality/consistency.
 
 ## Execution Details
 - **Iterations**: 1
 - **Selected Iteration**: 1
 - **Selection Reason**: Satisfactory verdict available; chose strongest satisfactory attempt (iteration 1).
-- **Tokens Used**: 141,413
-- **Domains Processed**: COGNITION, BRAIN_MRI, BIOLOGICAL_ASSAY, LIFESTYLE_ENVIRONMENT, DEMOGRAPHICS
+- **Tokens Used**: 106,087
+- **Domains Processed**: BIOLOGICAL_ASSAY, BRAIN_MRI, COGNITION, LIFESTYLE_ENVIRONMENT, DEMOGRAPHICS

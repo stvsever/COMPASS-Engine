@@ -231,6 +231,8 @@ COMPASS is being developed and tested on large multimodal phenotype cohorts to e
 
 **Research Lab**: [Computational Neuroimaging Lab](https://compneurobilbao.eus)
 
+Van Severen, S. B., Diez, I. P., & Cortes, J. M. (2026). *Leveraging Pre-trained Knowledge of Large Language Models: Toward a Scalable Multi-modal Approach for Deep Phenotypic Prediction of Neuropsychiatric Disorders.* [Manuscript in preparation]
+
 ## 📝 Internship Blogpost
 
 As part of the internship dissemination, a Dutch blogpost was created and is available on GitHub Pages:

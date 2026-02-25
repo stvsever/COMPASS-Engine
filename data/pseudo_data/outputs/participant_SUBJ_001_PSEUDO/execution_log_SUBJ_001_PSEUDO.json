@@ -1,25 +1,25 @@
 [
   {
     "type": "PIPELINE_START",
-    "timestamp": "2026-02-24T18:29:07.527247",
+    "timestamp": "2026-02-25T18:57:20.103279",
     "data": {
       "participant_id": "SUBJ_001_PSEUDO",
-      "target_condition": "Phenotype Profile",
-      "control_condition": "",
-      "prediction_task_mode": "multivariate_regression",
-      "timestamp": "2026-02-24T18:29:07.527244"
+      "target_condition": "DEPRESSION",
+      "control_condition": "HEALTHY",
+      "prediction_task_mode": "binary_classification",
+      "timestamp": "2026-02-25T18:57:20.103275"
     }
   },
   {
     "type": "ORCHESTRATOR",
-    "timestamp": "2026-02-24T18:29:55.656706",
+    "timestamp": "2026-02-25T18:57:53.028602",
     "data": {
-      "plan_id": "plan_SUBJ_001_PSEUDO_INTELLECTUAL_DISABILITY_v1",
-      "total_steps": 13,
+      "plan_id": "depression_SUBJ_001_PSEUDO_plan_v1",
+      "total_steps": 11,
       "priority_domains": [
-        "COGNITION",
-        "BRAIN_MRI",
         "BIOLOGICAL_ASSAY",
+        "BRAIN_MRI",
+        "COGNITION",
         "LIFESTYLE_ENVIRONMENT",
         "DEMOGRAPHICS"
       ]
@@ -27,14 +27,14 @@
   },
   {
     "type": "DATAFLOW_SUMMARY",
-    "timestamp": "2026-02-24T18:32:19.684930",
+    "timestamp": "2026-02-25T18:59:37.215908",
     "data": {
       "iteration": 1,
-      "target_condition": "Phenotype Profile",
-      "control_condition": "",
-      "prediction_task_root_mode": "multivariate_regression",
+      "target_condition": "DEPRESSION",
+      "control_condition": "HEALTHY",
+      "prediction_task_root_mode": "binary_classification",
       "agent_instruction_flags": {
-        "global": true,
+        "global": false,
         "orchestrator": false,
         "executor": false,
         "tools": false,
@@ -70,14 +70,14 @@
         "processed_raw_full_included": true,
         "rag_added_count": null,
         "predictor_payload_estimate": {
-          "baseline_tokens": 46036,
-          "final_tokens": 53434,
-          "processed_raw_tokens": 53371,
+          "baseline_tokens": 29697,
+          "final_tokens": 37028,
+          "processed_raw_tokens": 36967,
           "single_chunk_limit": 1900000,
           "threshold": 1800000,
           "chunked_two_pass_required": false,
           "strategy": "threshold_driven_no_loss_pass_through",
-          "runtime_instruction_applied": true
+          "runtime_instruction_applied": false
         },
         "coverage_snapshot": {
           "processed_whole_domains": [
@@ -118,16 +118,16 @@
   },
   {
     "type": "PREDICTOR",
-    "timestamp": "2026-02-24T18:32:19.686177",
+    "timestamp": "2026-02-25T18:59:37.217340",
     "data": {
-      "classification": "VERBAL: -0.700; SPATIAL: -0.500; CREATIVITY: -0.600",
-      "probability": 0.75,
-      "prediction_task_mode": "multivariate_regression"
+      "classification": "DEPRESSION",
+      "probability": 0.92,
+      "prediction_task_mode": "binary_classification"
     }
   },
   {
     "type": "CRITIC",
-    "timestamp": "2026-02-24T18:32:24.897235",
+    "timestamp": "2026-02-25T18:59:40.082636",
     "data": {
       "verdict": "SATISFACTORY",
       "confidence": 0.95
