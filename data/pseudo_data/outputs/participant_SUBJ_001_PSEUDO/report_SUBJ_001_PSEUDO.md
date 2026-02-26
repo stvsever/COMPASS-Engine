@@ -1,6 +1,6 @@
 # Patient Report: SUBJ_001_PSEUDO
 
-**Generated**: 2026-02-25T18:59:40.084618
+**Generated**: 2026-02-26T10:45:48.077071
 
 ## Prediction
 - **Prediction Type**: binary_classification
@@ -15,24 +15,25 @@
 - **Checklist**: 8/8 passed
 
 ## Key Findings
-1. **[CLINICAL_NOTES]** Persistent low mood, anhedonia, fatigue, early morning awakening, reduced appetite with 4-5kg weight loss, impaired concentration, social withdrawal over 7-8 months; moderate mood scale 17/27
-2. **[BIOLOGICAL_ASSAY]** Neurotrophic factors reduced (z=-1.7; BDNF z=-2.0, 2nd percentile)
-3. **[BIOLOGICAL_ASSAY]** Sphingolipids elevated (z=1.7); inflammation markers CRP z=1.7, HPA axis z=1.2
-4. **[BRAIN_MRI]** Subcortical volumes reduced (z=-1.4; left hippocampus z=-2.0, 2nd percentile)
-5. **[BRAIN_MRI]** Resting-state functional connectivity elevated (z=1.3; DMN mpfc-pcc z=2.5)
+1. **[CLINICAL_NOTES]** Persistent low mood, anhedonia, fatigue, early morning awakening, concentration impairment, appetite/weight loss (4-5kg) over 7-8 months with functional impairment
+2. **[BIOLOGICAL_ASSAY]** Neurotrophic factors deficiency (BDNF z=-2.0, 2nd percentile, MODERATE effect)
+3. **[BIOLOGICAL_ASSAY]** Elevated sphingolipids (z=1.7, 96th percentile, MODERATE effect); inflammation (CRP z=1.7); HPA axis (cortisol z=1.4)
+4. **[BRAIN_MRI]** Bilateral hippocampal atrophy (left z=-2.0, 2nd percentile; right z=-1.7, 4th percentile, MODERATE effect)
+5. **[BRAIN_MRI]** DMN hyperconnectivity (z=2.5, 99th percentile, LARGE effect); amygdala reactivity (z=1.8)
 
 ## Clinical Summary
-This 45-year-old female exhibits a classic melancholic depression phenotype with 7-8 months of persistent low mood, anhedonia, neurovegetative symptoms (early awakening, weight loss, fatigue), cognitive impairment, and functional decline, corroborated by multimodal biomarkers including reduced BDNF/hippocampal volume (z=-2.0), elevated inflammation/HPA/sphingolipids (z=1.7), limbic hyperconnectivity (z=2.5), genetic risk, stress/sleep dysregulation, and mild executive slowing. Prior episode and family history further support recurrent MDD over healthy control, warranting intervention.
+This 45-year-old female exhibits a classic Major Depressive Disorder phenotype with persistent low mood, anhedonia, somatic symptoms (fatigue, insomnia, weight loss), cognitive slowing, and functional impairment following work/caregiving stress, corroborated by moderate mood scale scores and family history. Convergent multimodal evidence includes moderate-to-large deviations in key depression markers: reduced neurotrophics/hippocampal volume (z=-2.0), elevated inflammation/sphingolipids/HPA (z=1.4-1.7), DMN hyperconnectivity (z=2.5), and lifestyle stress/sleep perturbations. No medical mimics or bipolar features; high-confidence CASE designation over healthy control, warranting antidepressant trial and monitoring.
 
 ## Reasoning Chain
-1. Step 1: Prioritize non_numerical_data showing explicit DSM-aligned symptoms (low mood, anhedonia, insomnia, weight loss, concentration issues) with functional impact and moderate rating scales, overriding biomarkers as supportive.
-2. Step 2: Confirm multimodal convergence from FeatureSynthesizer/ClinicalRelevanceRanker/DifferentialDiagnosis (85% MDD likelihood, strong case/control discrimination via HPA/limbic/inflammation clusters).
-3. Step 3: Quantify key z-scores (>1.5 in 6+ depression-relevant leaves across 5 domains) per hierarchy; no isolated deficits.
-4. Step 4: Calibrate probability high (0.92) given prevalence-aware elevation, convergent evidence minimizing FP risk; HIGH confidence from data quality/consistency.
+1. Step 1: Prioritize non_numerical_data - explicit DSM-5 MDD symptoms (low mood, anhedonia, sleep/appetite change, fatigue, concentration) with functional impact, prior episode, family history; mood scale moderate (17/27) - strongly favors CASE.
+2. Step 2: Assess hierarchical deviations and synthesizers - multi-domain convergence (|z|>1.5 in neurotrophics z=-2.0, sphingolipids z=1.7, hippocampal z=-2.0, DMN z=2.5, HPA/inflammation); FeatureSynthesizer/ClinicalRelevanceRanker prioritize bioassay/MRI for discrimination.
+3. Step 3: Integrate multimodal narratives/DifferentialDiagnosis - VERY_LIKELY MDD (85%), high confluence across clinical+biomarkers; no rule-out criteria met (e.g., stable thyroid, no mania).
+4. Step 4: Calibrate probability - strong clinical primary evidence + convergent biomarkers (no isolated deficits) yield strongly elevated risk (0.92); HIGH confidence from data quality/consistency.
+5. Step 5: False positive check - symptoms not biomarker-originated; convergent, not generic stress/sleep alone.
 
 ## Execution Details
 - **Iterations**: 1
 - **Selected Iteration**: 1
 - **Selection Reason**: Satisfactory verdict available; chose strongest satisfactory attempt (iteration 1).
-- **Tokens Used**: 106,087
+- **Tokens Used**: 113,770
 - **Domains Processed**: BIOLOGICAL_ASSAY, BRAIN_MRI, COGNITION, LIFESTYLE_ENVIRONMENT, DEMOGRAPHICS

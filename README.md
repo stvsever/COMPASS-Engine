@@ -190,7 +190,7 @@ The notebook includes separate backend controls for:
 
 ## 📁 Project Structure
 
-A client-side knowledge graph creator (GitNexus) was used to generate  a comprehensive knowledge graph of the entire codebase architecture and component interactions is provided below:
+A client-side graph creator (GitNexus) was used to generate  a comprehensive knowledge graph of the entire codebase; its component interactions are provided below:
 
 <div align="center">
   <img src="overview/codebase/GitNexus_codebase.png" alt="COMPASS Dashboard" width="800" />

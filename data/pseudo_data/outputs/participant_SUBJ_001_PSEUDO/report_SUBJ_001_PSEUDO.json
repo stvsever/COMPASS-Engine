@@ -1,7 +1,7 @@
 {
-  "report_id": "RPT_SUBJ_001_PSEUDO_20260225_185940",
+  "report_id": "RPT_SUBJ_001_PSEUDO_20260226_104548",
   "participant_id": "SUBJ_001_PSEUDO",
-  "generated_at": "2026-02-25T18:59:40.084618",
+  "generated_at": "2026-02-26T10:45:48.077071",
   "prediction": {
     "prediction_type": "binary_classification",
     "root_mode": "binary_classification",
@@ -61,47 +61,48 @@
   "key_findings": [
     {
       "domain": "CLINICAL_NOTES",
-      "finding": "Persistent low mood, anhedonia, fatigue, early morning awakening, reduced appetite with 4-5kg weight loss, impaired concentration, social withdrawal over 7-8 months; moderate mood scale 17/27",
-      "direction": "ABNORMAL_HIGH"
-    },
-    {
-      "domain": "BIOLOGICAL_ASSAY",
-      "finding": "Neurotrophic factors reduced (z=-1.7; BDNF z=-2.0, 2nd percentile)",
+      "finding": "Persistent low mood, anhedonia, fatigue, early morning awakening, concentration impairment, appetite/weight loss (4-5kg) over 7-8 months with functional impairment",
       "direction": "ABNORMAL_LOW"
     },
     {
       "domain": "BIOLOGICAL_ASSAY",
-      "finding": "Sphingolipids elevated (z=1.7); inflammation markers CRP z=1.7, HPA axis z=1.2",
+      "finding": "Neurotrophic factors deficiency (BDNF z=-2.0, 2nd percentile, MODERATE effect)",
+      "direction": "ABNORMAL_LOW"
+    },
+    {
+      "domain": "BIOLOGICAL_ASSAY",
+      "finding": "Elevated sphingolipids (z=1.7, 96th percentile, MODERATE effect); inflammation (CRP z=1.7); HPA axis (cortisol z=1.4)",
       "direction": "ABNORMAL_HIGH"
     },
     {
       "domain": "BRAIN_MRI",
-      "finding": "Subcortical volumes reduced (z=-1.4; left hippocampus z=-2.0, 2nd percentile)",
+      "finding": "Bilateral hippocampal atrophy (left z=-2.0, 2nd percentile; right z=-1.7, 4th percentile, MODERATE effect)",
       "direction": "ABNORMAL_LOW"
     },
     {
       "domain": "BRAIN_MRI",
-      "finding": "Resting-state functional connectivity elevated (z=1.3; DMN mpfc-pcc z=2.5)",
+      "finding": "DMN hyperconnectivity (z=2.5, 99th percentile, LARGE effect); amygdala reactivity (z=1.8)",
       "direction": "ABNORMAL_HIGH"
     },
     {
       "domain": "COGNITION",
-      "finding": "Executive function deficit (z=-1.1); affective bias elevated (z=1.1)",
+      "finding": "Executive function deficit (z=-1.1, 13th percentile, SMALL effect); affective bias elevation (z=1.1)",
       "direction": "ABNORMAL_LOW"
     },
     {
       "domain": "LIFESTYLE_ENVIRONMENT",
-      "finding": "Stress elevated (z=1.4); sleep disturbed (z=1.2)",
+      "finding": "Sleep disturbance (z=1.2); stress elevation (z=1.4, 92nd percentile, MODERATE effect)",
       "direction": "ABNORMAL_HIGH"
     }
   ],
   "reasoning": [
-    "Step 1: Prioritize non_numerical_data showing explicit DSM-aligned symptoms (low mood, anhedonia, insomnia, weight loss, concentration issues) with functional impact and moderate rating scales, overriding biomarkers as supportive.",
-    "Step 2: Confirm multimodal convergence from FeatureSynthesizer/ClinicalRelevanceRanker/DifferentialDiagnosis (85% MDD likelihood, strong case/control discrimination via HPA/limbic/inflammation clusters).",
-    "Step 3: Quantify key z-scores (>1.5 in 6+ depression-relevant leaves across 5 domains) per hierarchy; no isolated deficits.",
-    "Step 4: Calibrate probability high (0.92) given prevalence-aware elevation, convergent evidence minimizing FP risk; HIGH confidence from data quality/consistency."
+    "Step 1: Prioritize non_numerical_data - explicit DSM-5 MDD symptoms (low mood, anhedonia, sleep/appetite change, fatigue, concentration) with functional impact, prior episode, family history; mood scale moderate (17/27) - strongly favors CASE.",
+    "Step 2: Assess hierarchical deviations and synthesizers - multi-domain convergence (|z|>1.5 in neurotrophics z=-2.0, sphingolipids z=1.7, hippocampal z=-2.0, DMN z=2.5, HPA/inflammation); FeatureSynthesizer/ClinicalRelevanceRanker prioritize bioassay/MRI for discrimination.",
+    "Step 3: Integrate multimodal narratives/DifferentialDiagnosis - VERY_LIKELY MDD (85%), high confluence across clinical+biomarkers; no rule-out criteria met (e.g., stable thyroid, no mania).",
+    "Step 4: Calibrate probability - strong clinical primary evidence + convergent biomarkers (no isolated deficits) yield strongly elevated risk (0.92); HIGH confidence from data quality/consistency.",
+    "Step 5: False positive check - symptoms not biomarker-originated; convergent, not generic stress/sleep alone."
   ],
-  "clinical_summary": "This 45-year-old female exhibits a classic melancholic depression phenotype with 7-8 months of persistent low mood, anhedonia, neurovegetative symptoms (early awakening, weight loss, fatigue), cognitive impairment, and functional decline, corroborated by multimodal biomarkers including reduced BDNF/hippocampal volume (z=-2.0), elevated inflammation/HPA/sphingolipids (z=1.7), limbic hyperconnectivity (z=2.5), genetic risk, stress/sleep dysregulation, and mild executive slowing. Prior episode and family history further support recurrent MDD over healthy control, warranting intervention.",
+  "clinical_summary": "This 45-year-old female exhibits a classic Major Depressive Disorder phenotype with persistent low mood, anhedonia, somatic symptoms (fatigue, insomnia, weight loss), cognitive slowing, and functional impairment following work/caregiving stress, corroborated by moderate mood scale scores and family history. Convergent multimodal evidence includes moderate-to-large deviations in key depression markers: reduced neurotrophics/hippocampal volume (z=-2.0), elevated inflammation/sphingolipids/HPA (z=1.4-1.7), DMN hyperconnectivity (z=2.5), and lifestyle stress/sleep perturbations. No medical mimics or bipolar features; high-confidence CASE designation over healthy control, warranting antidepressant trial and monitoring.",
   "execution": {
     "iterations": 1,
     "selected_iteration": 1,
@@ -159,9 +160,9 @@
         "processed_raw_full_included": true,
         "rag_added_count": null,
         "predictor_payload_estimate": {
-          "baseline_tokens": 29697,
-          "final_tokens": 37028,
-          "processed_raw_tokens": 36967,
+          "baseline_tokens": 30619,
+          "final_tokens": 37950,
+          "processed_raw_tokens": 37889,
           "single_chunk_limit": 1900000,
           "threshold": 1800000,
           "chunked_two_pass_required": false,
@@ -204,7 +205,7 @@
         "processed_raw_flag_consistent": true
       }
     },
-    "tokens_used": 106087,
+    "tokens_used": 113770,
     "domains_processed": [
       "BIOLOGICAL_ASSAY",
       "BRAIN_MRI",
@@ -220,19 +221,19 @@
       "component": "Orchestrator",
       "decision_type": "PLAN_GENERATION",
       "input_summary": "Domains: BIOLOGICAL_ASSAY, BRAIN_MRI, COGNITION, LIFESTYLE_ENVIRONMENT, DEMOGRAPHICS",
-      "output_summary": "Generated 11-step plan",
-      "reasoning": "For binary classification of DEPRESSION vs HEALTHY, early parallel steps define the phenotype and prioritize deviations/features using available hierarchical_deviation_map.json. UnimodalCompressor is applied to all domains >1000 tokens (BIOLOGICAL_ASSAY 3780, BRAIN_MRI 1710, COGNITION 1120, LIFESTYLE_ENVIRONMENT 1260) for pattern detection despite FIT_FOR_RAW status, as it leverages clinical reasoning for discrimination; DEMOGRAPHICS (210 tokens) passed raw. ClinicalRelevanceRanker follows Featu",
-      "timestamp": "2026-02-25T18:57:53.029493",
+      "output_summary": "Generated 12-step plan",
+      "reasoning": "All domains have >13% coverage and are relevant to depression (e.g., brain changes, cognitive deficits, inflammatory biomarkers, lifestyle stressors); total raw 8680 tokens fits budget but medium domains (BIOLOGICAL_ASSAY 3780, others ~1100-1700) benefit from UnimodalCompressor for pattern detection over raw pass. Early steps (1-3) run in parallel for phenotype definition, anomaly narrative, and feature ranking; mid Unimodal (4-7) parallel post-early; ClinicalRanker (8) after FeatureSynthesizer;",
+      "timestamp": "2026-02-26T10:44:28.484332",
       "metadata": {}
     },
     {
       "decision_id": "D002",
       "component": "Predictor",
       "decision_type": "PREDICTION_OUTPUT",
-      "input_summary": "Key findings: Persistent low mood, anhedonia, fatigue, early morning awakening, reduced appetite with 4-5kg weight loss, impaired concentration, social withdrawal over 7-8 months; moderate mood scale 17/27, Neurotrophic factors reduced (z=-1.7; BDNF z=-2.0, 2nd percentile), Sphingolipids elevated (z=1.7); inflammation markers CRP z=1.7, HPA axis z=1.2...",
+      "input_summary": "Key findings: Persistent low mood, anhedonia, fatigue, early morning awakening, concentration impairment, appetite/weight loss (4-5kg) over 7-8 months with functional impairment, Neurotrophic factors deficiency (BDNF z=-2.0, 2nd percentile, MODERATE effect), Elevated sphingolipids (z=1.7, 96th percentile, MODERATE effect); inflammation (CRP z=1.7); HPA axis (cortisol z=1.4)...",
       "output_summary": "DEPRESSION (confidence=0.920)",
-      "reasoning": "This 45-year-old female exhibits a classic melancholic depression phenotype with 7-8 months of persistent low mood, anhedonia, neurovegetative symptoms (early awakening, weight loss, fatigue), cognitive impairment, and functional decline, corroborated by multimodal biomarkers including reduced BDNF/hippocampal volume (z=-2.0), elevated inflammation/HPA/sphingolipids (z=1.7), limbic hyperconnectivity (z=2.5), genetic risk, stress/sleep dysregulation, and mild executive slowing. Prior episode and ",
-      "timestamp": "2026-02-25T18:59:37.218036",
+      "reasoning": "This 45-year-old female exhibits a classic Major Depressive Disorder phenotype with persistent low mood, anhedonia, somatic symptoms (fatigue, insomnia, weight loss), cognitive slowing, and functional impairment following work/caregiving stress, corroborated by moderate mood scale scores and family history. Convergent multimodal evidence includes moderate-to-large deviations in key depression markers: reduced neurotrophics/hippocampal volume (z=-2.0), elevated inflammation/sphingolipids/HPA (z=1",
+      "timestamp": "2026-02-26T10:45:45.005714",
       "metadata": {
         "probability": 0.92,
         "classification": "DEPRESSION"
@@ -245,7 +246,7 @@
       "input_summary": "Checklist: 8/8 passed",
       "output_summary": "SATISFACTORY",
       "reasoning": "Required nodes present=True; output schema valid=True; classification probabilities valid=True; regression values valid=n/a; hierarchy consistent=n/a; coverage ratio=1.00; fallback_used=False.",
-      "timestamp": "2026-02-25T18:59:40.083165",
+      "timestamp": "2026-02-26T10:45:48.075078",
       "metadata": {}
     }
   ]
