@@ -1,21 +1,21 @@
 [
   {
     "type": "PIPELINE_START",
-    "timestamp": "2026-02-26T10:43:55.470503",
+    "timestamp": "2026-03-01T18:20:20.560900",
     "data": {
       "participant_id": "SUBJ_001_PSEUDO",
       "target_condition": "DEPRESSION",
       "control_condition": "HEALTHY",
       "prediction_task_mode": "binary_classification",
-      "timestamp": "2026-02-26T10:43:55.470499"
+      "timestamp": "2026-03-01T18:20:20.560897"
     }
   },
   {
     "type": "ORCHESTRATOR",
-    "timestamp": "2026-02-26T10:44:28.483542",
+    "timestamp": "2026-03-01T18:21:18.356716",
     "data": {
       "plan_id": "depression_subj001_plan_v1",
-      "total_steps": 12,
+      "total_steps": 13,
       "priority_domains": [
         "BIOLOGICAL_ASSAY",
         "BRAIN_MRI",
@@ -27,7 +27,7 @@
   },
   {
     "type": "DATAFLOW_SUMMARY",
-    "timestamp": "2026-02-26T10:45:45.003491",
+    "timestamp": "2026-03-01T18:23:41.884416",
     "data": {
       "iteration": 1,
       "target_condition": "DEPRESSION",
@@ -70,9 +70,9 @@
         "processed_raw_full_included": true,
         "rag_added_count": null,
         "predictor_payload_estimate": {
-          "baseline_tokens": 30619,
-          "final_tokens": 37950,
-          "processed_raw_tokens": 37889,
+          "baseline_tokens": 36651,
+          "final_tokens": 43982,
+          "processed_raw_tokens": 43921,
           "single_chunk_limit": 1900000,
           "threshold": 1800000,
           "chunked_two_pass_required": false,
@@ -118,7 +118,7 @@
   },
   {
     "type": "PREDICTOR",
-    "timestamp": "2026-02-26T10:45:45.005007",
+    "timestamp": "2026-03-01T18:23:41.886825",
     "data": {
       "classification": "DEPRESSION",
       "probability": 0.92,
@@ -127,7 +127,7 @@
   },
   {
     "type": "CRITIC",
-    "timestamp": "2026-02-26T10:45:48.074589",
+    "timestamp": "2026-03-01T18:23:45.927249",
     "data": {
       "verdict": "SATISFACTORY",
       "confidence": 0.95
