@@ -1,14 +1,39 @@
+<div align="center">
+
 # Clinical Ontology-driven Multi-modal Predictive Agentic Support System (COMPASS)
 
 <!--
-<div align="center">
   <img src="overview/logo/COMPASS_logo_2.png" alt="COMPASS Logo" width="300" />
-</div>
 -->
+
+[![Software Tool](https://img.shields.io/badge/Type-Software_Tool-4f46e5.svg?style=flat-square)](#)
+[![License: GPL 3.0](https://img.shields.io/badge/License-GPL_3.0-059669.svg?style=flat-square)](https://www.gnu.org/licenses/gpl-3.0)
+[![Python 3.11+](https://img.shields.io/badge/Python-3.11+-3776AB.svg?style=flat-square&logo=python&logoColor=white)](https://www.python.org/)
+[![Docker](https://img.shields.io/badge/Docker-Ready-0db7ed.svg?style=flat-square&logo=docker&logoColor=white)](docker/)
+<br>
 
 **COMPASS** is an advanced multi-agent orchestrator for deep phenotype prediction, integrating hierarchical multi-modal deviation maps and non-tabular health information. The current engine supports binary classification, multiclass classification, univariate regression, multivariate regression, and hierarchical mixed task trees.
 
-## 🚀 Key Features
+</div>
+
+---
+
+## 📖 Table of Contents
+
+- [🚀 Key Features](#key-features)
+- [🧠 System Architecture](#system-architecture)
+- [🖥️ Interactive Dashboard](#interactive-dashboard)
+- [🛠️ Installation](#installation)
+- [⚡ Usage](#usage)
+- [📁 Project Structure](#project-structure)
+- [🎓 Project Context](#project-context)
+- [📚 Project Credits](#project-credits)
+- [📝 Internship Blogpost](#internship-blogpost)
+- [📈 Future Work](#future-work)
+
+<br>
+
+## <a id="key-features"></a>🚀 Key Features
 
 - **Multi-Agent Orchestration**: A dynamic actor-critic team of specialized agents (**Orchestrator, Executor, Integrator, Predictor, Critic**) collaborates to synthesize complex diagnostic logic through iterative refinement cycles.
 - **Scalable Nature of LLM-based Knowledge**: Leverages the vast pre-trained clinical and biomedical knowledge of state-of-the-art large language models (LLM) for high-precision phenotypic prediction without requiring task-specific training, or fine-tuning.
@@ -17,7 +42,7 @@
 - **Deep Phenotyping Report**: A dedicated **Communicator** agent produces a `deep_phenotype.md` report that is evidence-grounded and explicit about missing data (no hallucinated metrics).
 
 
-## 🧠 System Architecture
+## <a id="system-architecture"></a>🧠 System Architecture
 
 The COMPASS-engine utilizes a sequential multi-agent workflow with iterative feedback loops.
 
@@ -25,7 +50,7 @@ The COMPASS-engine utilizes a sequential multi-agent workflow with iterative fee
   <img src="overview/compass_engine/compass_flowchart_simplified.png" alt="COMPASS Flowchart" width="800" />
 </div>
 
-## 🖥️ Interactive Dashboard
+## <a id="interactive-dashboard"></a>🖥️ Interactive Dashboard
 
 COMPASS features a real-time monitoring dashboard that provides full transparency into the multi-agent reasoning process.
 
@@ -39,7 +64,7 @@ Through the dashboard, you can:
 - **Analyze Reasoning**: Deep-dive into the clinical narratives and cross-modal evidence chains as they are synthesized.
 - **Audit System Logs**: Access structured execution logs for full traceability of all agent decisions and tool calls.
 
-## 🛠️ Installation
+## <a id="installation"></a>🛠️ Installation
 
 ### Docker (CPU/UI)
 
@@ -62,7 +87,7 @@ For Intel Mac/Linux/Windows builds, use `--platform linux/amd64` (see `docker/RE
 > GPU acceleration is explicitly not here; use `hpc/`.
 
 
-## ⚡ Usage
+## <a id="usage"></a>⚡ Usage
 
 ### Expected Input-Output Structure
 
@@ -188,7 +213,7 @@ The notebook includes separate backend controls for:
 - Public API mode (OpenRouter model + context window)
 - Local backend mode (model path/name + local runtime settings)
 
-## 📁 Project Structure
+## <a id="project-structure"></a>📁 Project Structure
 
 A client-side graph creator (GitNexus) was used to generate  a comprehensive knowledge graph of the entire codebase; its component interactions are provided below:
 
@@ -213,7 +238,7 @@ multi_agent_system/
 └── main.py             # CLI Entry Point
 ```
 
-## 🎓 Project Context
+## <a id="project-context"></a>🎓 Project Context
 
 This Multi-Agent System is being developed in the context of a **Master's Internship in Theoretical and Experimental Psychology (with Specialization in Neuroscience)** at **Ghent University** (Belgium).
 
@@ -221,7 +246,7 @@ The research is being conducted at the **Computational Neuroimaging Lab** of **[
 
 COMPASS is being developed and tested on large multimodal phenotype cohorts to evaluate robustness, scalability, and generalization in real-world population settings.
 
-## 📚 Project Credits
+## <a id="project-credits"></a>📚 Project Credits
 
 **Author**: Stijn Van Severen (email: stijn.vanseveren@ugent.be)
 
@@ -233,13 +258,13 @@ COMPASS is being developed and tested on large multimodal phenotype cohorts to e
 
 Van Severen, S. B., Diez, I. P., & Cortes, J. M. (2026). *Leveraging Pre-trained Knowledge of Large Language Models: Toward a Scalable Multi-modal Approach for Deep Phenotypic Prediction of Neuropsychiatric Disorders.* [Manuscript in preparation]
 
-## 📝 Internship Blogpost
+## <a id="internship-blogpost"></a>📝 Internship Blogpost
 
 As part of the internship dissemination, a Dutch blogpost was created and is available on GitHub Pages:
 
 **Blogpost**: https://stvsever.github.io/COMPASS-Engine/
 
-## 📈 Future Work
+## <a id="future-work"></a>📈 Future Work
 
 Key future development directions include:
 - **Continuous Engine Optimization & Stability Refinement**  
