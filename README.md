@@ -29,6 +29,7 @@
 - [🎓 Project Context](#project-context)
 - [📚 Project Credits](#project-credits)
 - [📝 Internship Blogpost](#internship-blogpost)
+- [📄 Research Paper](#research-paper)
 - [📈 Future Work](#future-work)
 
 <br>
@@ -264,6 +265,14 @@ As part of the internship dissemination, a Dutch blogpost was created and is ava
 
 **Blogpost**: https://stvsever.github.io/COMPASS-Engine/
 
+## <a id="research-paper"></a>📄 Research Paper
+
+As the first clinical validation study of this architecture, we evaluated the system's binary classification performance on the UK Biobank dataset. For a comprehensive overview of the methodology and findings, please refer to the full **[Internship Report](research/main.pdf)**.
+
+> *On a 200-participant UK Biobank benchmark spanning five disorder families, COMPASS achieved an aggregate accuracy of 0.725 (95% Wilson CI: 0.659–0.782), with balanced sensitivity (0.730) and specificity (0.720).*
+
+The 14B AWQ-based multi-agent system defines the reported accuracy as a conservative lower bound for the architecture’s potential.
+
 ## <a id="future-work"></a>📈 Future Work
 
 Key future development directions include:
@@ -277,6 +286,9 @@ Key future development directions include:
 
 - **Dedicated DataLoader Agent for Raw Multi-Modal Preparation**  
   A major next step is the implementation of a specialized **Data Loader Agent** that automatically prepares raw neuroimaging, deviation-map, and electronic health inputs into a standardized `ParticipantData` container, ensuring seamless delivery to the **Orchestrator Agent** and reducing manual preprocessing overhead.
+
+- **Multi-Cohort and Larger-Scale External Validation**  
+  Additional validation studies are planned to evaluate the system's generalizability on external cohorts beyond the UK Biobank. By leveraging diverse open resources (e.g., Human Connectome Project, NKI-Rockland Sample) and larger population studies (e.g., ABCD Study, Generation Scotland), we aim to stress-test the architecture's transportability across different age ranges, ancestry structures, and acquisition pipelines.
 
 Together, these developments aim to strengthen the COMPASS-engine as a scalable, interpretable, and clinician-oriented framework for next-generation deep phenotyping and decision support.
 

@@ -1,0 +1,1436 @@
+\documentclass[11pt,a4paper,twoside]{article}
+
+% ── Encoding & fonts ──
+\usepackage[T1]{fontenc}
+\usepackage[utf8]{inputenc}
+\usepackage{mathpazo}        % Palatino text + math
+\linespread{1.05}             % Palatino needs slightly more space
+\usepackage{microtype}
+\usepackage{textgreek}
+
+% ── Layout ──
+\usepackage[
+  top=2.5cm, bottom=2.5cm,
+  left=2.5cm, right=2.5cm,
+  headheight=14pt
+]{geometry}
+\usepackage{setspace}
+\onehalfspacing
+
+% ── Colours (must come before hyperref) ──
+\usepackage[dvipsnames]{xcolor}
+
+% ── Headers & footers ──
+\usepackage{fancyhdr}
+\pagestyle{fancy}
+\fancyhf{}
+\fancyhead[L]{\small\textit{Van Severen, Cort\'{e}s, \& D\'{\i}ez}}
+\fancyhead[R]{\small\textit{Multi-Agent System for Neuropsychiatric Prediction}}
+\fancyfoot[C]{\thepage}
+\renewcommand{\headrulewidth}{0.4pt}
+\renewcommand{\footrulewidth}{0pt}
+\fancypagestyle{plain}{%
+  \fancyhf{}%
+  \fancyhead[L]{\small\textit{Van Severen, Cort\'{e}s, \& D\'{\i}ez}}%
+  \fancyhead[R]{\small\textit{Multi-Agent System for Neuropsychiatric Prediction}}%
+  \fancyfoot[C]{\thepage}%
+  \renewcommand{\headrulewidth}{0.4pt}%
+}
+
+% ── Packages ──
+\usepackage{graphicx}
+\usepackage{booktabs}
+\usepackage{longtable}
+\usepackage{array}
+\usepackage{adjustbox}
+\usepackage{tabularx}
+\usepackage{float}
+\usepackage{caption}
+\usepackage{amsmath}
+\usepackage{amssymb}
+\usepackage{textcomp}
+\usepackage[shortlabels]{enumitem}
+\usepackage{pdflscape}
+\usepackage{titlesec}
+\usepackage[hyphens]{url}
+\usepackage[
+  colorlinks=true,
+  linkcolor=NavyBlue,
+  citecolor=NavyBlue,
+  urlcolor=RoyalBlue,
+  bookmarks=true,
+  bookmarksnumbered=true,
+  pdfstartview=FitH
+]{hyperref}
+
+% ── APA 7 table captions: bold number, italic title, flush left ──
+\captionsetup[table]{
+  labelsep=newline,
+  justification=raggedright,
+  singlelinecheck=false,
+  font=small,
+  labelfont=bf,
+  textfont=it,
+  skip=4pt
+}
+\captionsetup[figure]{
+  labelsep=newline,
+  justification=raggedright,
+  singlelinecheck=false,
+  font=small,
+  labelfont=bf,
+  textfont=it,
+  skip=4pt
+}
+
+% ── Global table/text spacing ──
+\renewcommand{\arraystretch}{1.2}
+\setlength{\tabcolsep}{5pt}
+\setlength{\textfloatsep}{10pt plus 2pt minus 2pt}
+\setlength{\floatsep}{10pt plus 2pt minus 2pt}
+\setlength{\intextsep}{10pt plus 2pt minus 2pt}
+\renewcommand{\topfraction}{0.95}
+\renewcommand{\textfraction}{0.05}
+\renewcommand{\floatpagefraction}{0.85}
+\setlength{\emergencystretch}{3em}
+\raggedbottom
+\newcommand{\FloatBarrier}{\par}
+
+% ── Section formatting ──
+\titleformat{\section}[block]{\large\bfseries\centering}{\thesection.}{0.5em}{\MakeUppercase}
+\titleformat{\subsection}{\normalsize\bfseries}{\thesubsection}{0.5em}{}
+\titleformat{\subsubsection}{\normalsize\bfseries\itshape}{\thesubsubsection}{0.5em}{}
+\titlespacing*{\section}{0pt}{18pt plus 4pt minus 2pt}{10pt plus 2pt minus 2pt}
+\titlespacing*{\subsection}{0pt}{12pt plus 2pt minus 1pt}{6pt plus 1pt minus 1pt}
+\titlespacing*{\subsubsection}{0pt}{8pt plus 2pt minus 1pt}{4pt plus 1pt minus 1pt}
+
+% ── PDF metadata ──
+\hypersetup{
+  pdftitle={Leveraging Pre-Trained Knowledge of Large Language Models: Toward a Scalable Multi-Modal Approach for Deep Phenotypic Prediction of Neuropsychiatric Disorders},
+  pdfauthor={Stijn Van Severen, Jesus M. Cortes, Ibai P. Diez}
+}
+
+\begin{document}
+
+% ═══════════════════════════════════════════════════
+% Title page
+% ═══════════════════════════════════════════════════
+\thispagestyle{plain}
+
+\begin{center}
+\vspace*{0.5cm}
+\begin{singlespacing}
+{\LARGE\bfseries Leveraging Pre-Trained Knowledge of\\
+Large Language Models: Toward a Scalable\\
+Multi-Modal Approach for Deep Phenotypic\\[6pt]
+Prediction of Neuropsychiatric Disorders}
+\end{singlespacing}
+
+\vspace{20pt}
+
+{\large
+Stijn Van Severen\textsuperscript{1,\,*} \quad
+Jes\'{u}s M.\ Cort\'{e}s\textsuperscript{2,3,4} \quad
+Ibai P.\ D\'{i}ez\textsuperscript{2,3,5}}
+
+\vspace{10pt}
+
+{\small
+\textsuperscript{1}\,Department of Experimental Psychology, Ghent University, Ghent, Belgium\\[2pt]
+\textsuperscript{2}\,Computational Neuroimaging Lab, Biobizkaia Health Research Institute, Barakaldo, Spain\\[2pt]
+\textsuperscript{3}\,IKERBASQUE: The Basque Foundation for Science, Bilbao, Spain\\[2pt]
+\textsuperscript{4}\,Department of Cell Biology and Histology, University of the Basque Country, Leioa, Spain\\[2pt]
+\textsuperscript{5}\,Center for Inflammation Imaging, Mass General Brigham, Harvard Medical School, Boston, MA, USA\\[6pt]
+\textsuperscript{*}\,Corresponding author: \href{mailto:stijn.vanseveren@ugent.be}{stijn.vanseveren@ugent.be}}
+\end{center}
+
+\vspace{16pt}
+
+\begin{abstract}
+\noindent
+Neuropsychiatric disorders are characterized by distributed, multi-scale abnormalities spanning brain structure, genomics, cognition, and behaviour. This biomedical complexity creates several well-known challenges for conventional machine learning algorithms, including 1) the need for disorder-specific training and 2) poor cross-cohort generalization. This study introduces COMPASS (Clinical Ontology-driven Multi-modal Predictive Agentic Support System), a multi-agent inference engine that leverages the pre-trained biomedical knowledge of large language models (LLM) for zero-shot, participant-level phenotypic prediction. Six role-specialized agents operate over ontology-conditioned multimodal participant profiles in which raw measurements have been converted to individualized deviation scores via age- and sex-stratified normative modelling. On a 200-participant UK Biobank benchmark spanning five neuropsychiatric disorder families (major depressive disorder, bipolar and manic disorders, anxiety disorders, sleep--wake disorders, and substance use disorders), COMPASS achieved an aggregate accuracy of 0.725 (95\% Wilson CI: 0.659--0.782; Matthews correlation coefficient [MCC] = 0.450), with balanced sensitivity (0.730) and specificity (0.720). Disorder-specific accuracy ranged from 0.800 (substance use disorders) to 0.625 (sleep--wake disorders). An iterative actor-critic mechanism improved composite quality scores in 86.4\% of multi-pass runs (Wilcoxon \textit{W} = 139, \textit{p} = 7.46 $\times$ 10$^{-12}$), functioning as a practical hallucination-control mechanism that imposes explicit self-audit and data-grounding steps before final output. These results demonstrate that multi-agent systems reasoning over normative deviation profiles can significantly discriminate neuropsychiatric cases from non-psychiatric cases without task-specific training. Taken together, these findings point to the promise of scalable multimodal neuropsychiatric inference.
+\end{abstract}
+
+\newpage
+
+\section{Introduction}
+
+\subsection{Clinical Burden and Heterogeneity of Neuropsychiatric Disorders}
+
+Neuropsychiatric disorders exert a persistent global burden that is reflected in both population-scale disability metrics and system-level capacity shortfalls. According to recent documentation released by the World Health Organization (WHO), including World Mental Health Today (World Health Organization, 2025c) and the Mental Health Atlas (World Health Organization, 2025a), more than one billion individuals globally are estimated to be living with mental health disorders. Anxiety and depressive disorders are identified as among the most prevalent conditions across age groups and countries, and mental disorders are highlighted as a major contributor to global disability, with current mental health services remaining insufficient to meet population-level needs (World Health Organization, 2025a, 2025b, 2025c). The same WHO materials highlight the large macroeconomic toll of mental disorders, noting that depression and anxiety alone are associated with roughly US\$1 trillion in annual global productivity losses (World Health Organization, 2025b, 2025c).
+
+At the individual level, burden is also expressed as markedly shortened lifespan across diagnostic categories. A 2023 systematic review and meta-analysis (109 studies; 12.2 million patients) estimates pooled years of potential life lost of approximately 14.7 years among people with mental disorders, describing reduced life expectancy as transdiagnostic and persistent over time (Chan et al., 2023). Together, these data motivate the clinical relevance of prediction frameworks that can support earlier identification of high-risk trajectories, improved stratification, and more targeted intervention development---while remaining cautious about the difference between research prediction and clinical deployment.
+
+However, the central scientific constraint for prediction is heterogeneity. Individuals meeting criteria for the same diagnosis can differ substantially in symptom configuration, severity structure, developmental timing, cognitive impairment, comorbidity profiles, longitudinal course, and treatment response. Recent empirical work demonstrates that symptom presentations are not arbitrary but exhibit structured probability patterns across disorders, implying that observed heterogeneity contains learnable structure but is poorly captured by single-label abstraction (Spiller et al., 2024). This heterogeneity is also evident in high-dimensional clinical data such as electronic health records (EHR), where diagnostic overlap is common and comorbidity patterns are pervasive (Hansen et al., 2025).
+
+\subsection{Generative Artificial Intelligence in Mental Healthcare}
+
+\subsubsection{Conventional Machine Learning for Neuropsychiatric Prediction}
+
+Conventional machine learning (ML) algorithms have repeatedly demonstrated that neuropsychiatric prediction is feasible in principle across modalities (e.g., clinical scales, cognitive tests, neuroimaging, genetics, biomarkers, digital behavior). Yet systematic reviews show that translation is limited by recurrent methodological constraints: small samples relative to feature dimensionality, inconsistent validation strategies, limited external validation, and non-representative sampling---often producing inflated performance estimates that do not generalize to real-world clinical populations (Chen et al., 2023; Collins et al., 2024). More recent discussions of replicability and generalizability in psychiatric neuroimaging explicitly warn that models can ``shortcut learn'' cohort- or site-specific correlates of outcomes, undermining transportability even when internal metrics look strong (Marek \& Laumann, 2024).
+
+These limitations are visible in realistic electronic health record (EHR) prediction tasks. In a cohort study of 24,449 patients from psychiatric services in Central Denmark (2013--2016), routine clinical data were used to predict diagnostic progression to schizophrenia or bipolar disorder; the study reports higher predictive accuracy for schizophrenia than for bipolar disorder and highlights the difficulty of predicting heterogeneous outcomes under routine-care data constraints (Hansen et al., 2025). This pattern---moderate performance in ecologically realistic datasets versus higher performance in enriched case-control settings---is consistent with the broader conclusion that the main bottleneck is not the absence of informative signal, but rather a mismatch between narrowly framed prediction tasks and the multiscale causal structure of psychiatric phenotypes.
+
+\subsubsection{Large Language Models as Scalable Reasoning Layer}
+
+Large language models (LLM) introduce a promising possibility: treating the model not as a classifier trained from scratch for each outcome, but as a pretrained inference engine operating over structured descriptions of patient states. Recent mental-health--focused reviews argue that the key opportunity is multimodal integration: mental health phenomena manifest across speech, language, physiology, behavior, and context, and multimodal LLMs could help combine these streams while producing human-readable summaries and explanations (Hua et al., 2025; Teles et al., 2025).
+
+A second opportunity is scalability via representation: if heterogeneous measurements (e.g., imaging, biomarkers, cognition) are converted into standardized ``feature statements'' (such as normative deviation descriptors), then an LLM can be used as a reasoning and report-generation layer without requiring end-to-end retraining for every task configuration. This aligns with broader trends in healthcare AI reviews describing the evolution from text-only clinical LLM applications toward multimodal systems that integrate imaging, structured data, and text (Teles et al., 2025; World Health Organization, 2024).
+
+Nevertheless, the literature is clear that LLMs in healthcare require strong governance and careful claims. WHO's dedicated guidance on large multi-modal models frames these systems as promising but emphasizes ethics, governance, and the need for accountability and safeguards in health contexts (World Health Organization, 2024). This guidance is especially relevant to mental health because errors can be high-impact (e.g., inappropriate reassurance, biased interpretations, misplaced certainty). Subsequently, policy makers should aim to positione LLMs as a research-grade reasoning layer over structured, auditable inputs rather than as autonomous clinical decision makers.
+
+\subsubsection{Multi-Agent Systems for Multimodal Clinical Reasoning}
+
+Single-pass prompting is a poor match for complex clinical inference, because real reasoning is iterative: it decomposes tasks, checks inconsistencies, revises hypotheses, and arbitrates between competing interpretations. Multi-agent systems (MAS) provide a principled computational metaphor for this---distributing goals across interacting agents with specialized roles and coordination protocols. Classical MAS literature formalizes the field as the design of interacting autonomous agents, emphasizing coordination, negotiation, communication, and distributed problem solving; MAS can be understood as a way to make complex systems tractable by decomposing them into modular components rather than relying on a monolithic solver (Shoham \& Leyton-Brown, 2009; Stone \& Veloso, 2000; Wooldridge, 2009).
+
+In the LLM era, ``agent'' has become a system primitive: an LLM instance coupled to memory, tools, and control logic. Surveys now propose taxonomies of LLM-based agents and LLM-based multi-agent systems, highlighting recurring patterns such as planner--executor separation, critic/verifier roles, debate and consensus, and supervisor-based orchestration (Li et al., 2024; Wang, Ma, et al., 2024). Underpinning methods include (i) reasoning-action interleaving (ReAct), which reduces hallucination risk by grounding steps in tool interactions; (ii) deliberate search across candidate reasoning branches; and (iii) sampling-and-consensus strategies (i.e., self-consistency) that mitigate brittleness in complex inference. Multi-agent debate and ``society of minds'' approaches further motivate critique-and-consensus as a way to improve factuality and reasoning performance (Du et al., 2023; Wang, Wei, et al., 2023; Yao, Zhao, et al., 2023; Yao, Yu, et al., 2023).
+
+Crucially, healthcare evaluations increasingly justify MAS beyond analogy. An recent study describes a Multi-Agent Conversation framework for rare disease diagnosis inspired by multi-disciplinary team discussion and reports improved diagnostic performance relative to single-agent models and several self-improvement baselines (Chen et al., 2025). In psychiatry, MAGI (i.e., Multi-Agent Guided Interview for Psychiatric Assessment) operationalizes a gold-standard structured interview into a coordinated multi-agent workflow with specialized agents for navigation, questioning, judgment, and explicit criterion mapping, evaluated on 1,002 participants (Bi et al., 2025). In neurology, a five-agent framework reported substantial gains for a LLaMA 3.3--70B-based system compared to its base performance, suggesting that decomposition into specialized cognitive functions can be especially valuable for mid-tier models and complex reasoning questions where retrieval alone is insufficient (Sorka et al., 2025).
+
+At the same time, the agentic evidence base is still developing, and multi-agent designs introduce new failure modes: escalating compute cost, coordination errors, cascading mistakes, and ``consensus'' that hides uncertainty. This implies that multi-agent architectures are most scientifically useful when they produce auditable intermediate outputs (evidence tables, contradiction checks, traceable decisions) rather than opaque ensemble answers. WHO governance guidance is consistent with this requirement for intelligibility, accountability, and oversight in health uses of large foundation models (World Health Organization, 2024).
+
+\subsection{Deep Phenotyping and Multimodal Characterization of Neuropsychiatric Disorders}
+
+Precision psychiatry increasingly argues that clinically useful prediction requires moving beyond case labels toward deep phenotyping: multidomain characterization spanning symptoms, cognition, neuroimaging, electrophysiology, molecular assays, immune markers, genetics, behavior, function, and environment. The ECNP-led Precision Psychiatry Roadmap explicitly emphasizes the need for a biology-informed framework and coordinated large-scale resources, implying that multimodal, quantitative phenotypes should become central units of analysis rather than secondary features appended to diagnostic categories (Kas et al., 2025). Dimensional research frameworks (e.g., RDoC; HiTOP) likewise motivate transdiagnostic, multilevel measurement as a route to addressing heterogeneity and improving mechanistic validity (Kotov et al., 2022; National Institute of Mental Health, 2024).
+
+Large cohorts and modern sensing technologies now make the clinical validation of deep phenotyping technologies more operational than in earlier ``small study'' eras. For example, the UK Biobank was designed as a large, prospective, open-access resource integrating genetic and environmental determinants of disease, with major neuroimaging efforts enabling population-scale multimodal brain phenotyping (Miller et al., 2016; Sudlow et al., 2015). Digital phenotyping is also maturing: a recent Cell study using the ABCD cohort analyzes >250 wearable-derived features and reports that wearable digital phenotypes can support interpretable AI classification of adolescents with psychiatric disorders, while also enabling genetic analyses using these features as intermediate phenotypes (Liu et al., 2025).
+
+However, deep phenotyping introduces a representation problem: adding modalities increases dimensionality and missingness while making naïve fusion strategies brittle. This motivates structured feature hierarchies (i.e., ontology-guided organization) and transformations that convert heterogeneous raw inputs into comparable signals (e.g., normative deviations).
+
+\subsection{Study Aim and Research Questions}
+
+The preceding literature converges on methodological gaps and their subsequent solutions: 1) neuropsychiatric disorders are heterogeneous and partially transdiagnostic; 2) deep phenotyping is necessary, but creates representation and integration challenges; 3) normative modeling provides a principled way to convert raw multimodal measures into individual-level atypicality signals; and 4) LLM-based agentic systems offer a scalable reasoning substrate for integrating structured evidence and producing auditable intermediate artifacts. Yet few existing approaches unify these components into a single pipeline designed for scalable, multimodal, participant-level prediction under realistic computational constraints (Bethlehem et al., 2022; Fraza et al., 2025; Hua et al., 2025; Marquand et al., 2019).
+
+\subsubsection{Primary Aim}
+
+The primary aim of this study is to develop and evaluate a scalable multimodal framework for binary prediction of neuropsychiatric disorder status using structured deep phenotypic representations derived from UK Biobank data. UK Biobank provides the scale and breadth needed for multimodal modeling, including genetic and environmental determinants and large-scale neuroimaging, making it suitable for deep phenotyping and normative reference construction (Miller et al., 2016; Sudlow et al., 2015). More specifically, the study tests whether ontology-organized multimodal features---augmented by individual-level normative deviation information---can support clinically meaningful binary classification when integrated through a large-language-model-driven, multi-agent reasoning architecture.
+
+\subsubsection{Research Questions}
+
+\begin{itemize}[nosep]
+  \item Can a hierarchical multi-modal patient representation support accurate binary classification of neuropsychiatric disorder status relative to reference participants?
+  \item Does the incorporation of normative deviation scores improve predictive performance beyond conventional raw-feature representations?
+  \item Can an ontology-guided feature hierarchy improve evidence organization and multimodal integration for downstream reasoning and prediction?
+  \item Can a large-language-model-based multi-agent framework synthesize structured multimodal evidence into coherent and clinically interpretable predictions without task-specific retraining from scratch?
+\end{itemize}
+
+\section{Methods and Materials}
+
+\subsection{Study Design and Analytical Overview}
+This work constitutes a retrospective clinical validation of the Clinical Ontology-driven Multi-modal Predictive Agentic Support System (COMPASS) on UK Biobank-derived participant profiles. The objective was to evaluate whether a prompt-driven, multi-agent reasoning engine could perform participant-level binary case--control discrimination across five neuropsychiatric disorder groups using hierarchical multimodal deviation profiles and non-tabular health records.
+
+The validated pipeline combined six structured modality trees (\texttt{BRAIN\_{\allowbreak}MRI}, \texttt{GENOMICS}, \texttt{BIOLOGICAL\_{\allowbreak}ASSAY}, \texttt{COGNITION}, \texttt{LIFESTYLE}, and \texttt{DEMOGRAPHICS}) with a separate textual/non-numerical channel. Age- and sex-stratified normative modelling converted raw measurements into standardized deviation scores upstream, after which ontology-guided hierarchical textualization of this flat feature set produced COMPASS-ready participant folders. The primary benchmark consisted of disorder-specific binary classification tasks with post-hoc validation against an annotated case--control target file and explicit anti-leakage preprocessing to prevent direct diagnosis-string exposure during inference.
+
+The multimodal preprocessing workflow that transforms UK Biobank-derived data into normativized hierarchical deviation maps is summarized in Figure~\ref{fig:f0}.
+
+\begin{figure}[!tp]
+\caption{Multimodal preprocessing to construct normativized hierarchical deviation maps from UK Biobank data.}
+\label{fig:f0}
+{\centering\includegraphics[width=\linewidth,height=0.82\textheight,keepaspectratio]{figures/fig3.png}\par}
+\par\smallskip
+\begin{minipage}{\linewidth}
+\raggedright\small\setstretch{1.5}\textit{Note.} UK Biobank-derived multimodal inputs were organized into brain MRI, genomics, biological assays, cognitive assessments, lifestyle-environment variables, and demographics. Brain-derived phenotypes were normativized with age- and sex-stratified GAMLSS, non-brain features were standardized through residualization and empirical distribution scoring, and the resulting leaf-level deviations were assembled into ontology-guided hierarchical aggregates that preserve covariance structure across levels. The final output is a participant-specific hierarchical deviation map for downstream inference by the COMPASS engine.
+\end{minipage}
+\end{figure}
+
+\subsection{Dataset and Cohort Definition}
+\subsubsection{UK Biobank Resource}
+All participant data originated from the UK Biobank, a large-scale prospective population resource integrating imaging, genomics, blood- and urine-based assays, cognitive assessments, demographics, lifestyle variables, and linked health records (Sudlow et al., 2015; Bycroft et al., 2018). COMPASS was validated on UK Biobank-derived secondary data objects rather than primary acquisition files: the inference engine did not directly access raw magnetic resonance imaging (MRI) volumes, raw genotype arrays, or unprocessed electronic health record exports.
+
+The local preprocessing stack operated on already structured UK Biobank resources and transformed them into participant-level multimodal profiles. Brain MRI had already been converted into imaging-derived phenotypes (IDPs) within the UK Biobank imaging-processing ecosystem, genotype data had undergone centralized quality control and imputation and were further reduced locally to derived genomic liability features, assay variables had been harmonized into analysis-ready tables, and linked diagnoses and non-numerical fields had been exported into structured and textual summaries (Bycroft et al., 2018; Alfaro-Almagro et al., 2018). The project-specific preprocessing pipeline then regrouped these derived data into ontology-aligned modality trees, applied normative standardization, and serialized the result into COMPASS-ready participant folders.
+
+
+The UK~Biobank-derived input data states and project-specific transformations applied before COMPASS inference are summarized in Supplementary Table~\hyperref[tab:s8]{S8}.
+
+
+The source cohort file (\texttt{eligible\_{\allowbreak}eids\_{\allowbreak}for\_{\allowbreak}paper.{\allowbreak}csv}) stored candidate participants together with case--control labels, disorder-group assignments, neurological comorbidity indicators, control-type annotations, and linked ICD-10 code summaries. The final COMPASS validation benchmark was a downstream curated subset of this broader candidate pool.
+
+\subsubsection{Inclusion and Exclusion Criteria}
+The primary requirement was that all brain imaging sub-modalities were present in the deviation profile: morphologic features derived from automatic subcortical segmentation (ASEG), cortical parcellation (DKT atlas), and cortical white-matter parcel summaries; and connectomic features from structural tractography networks, resting-state functional connectivity networks, and structural--functional coupling matrices. Participants missing any of these six brain imaging branches were excluded to ensure that COMPASS received complete cross-modal neuroimaging evidence for every inference.
+
+Case definition was further restricted to participants assigned to exactly one neuropsychiatric disorder group, removing diagnostically ambiguous (i.e., comorbid) multi-group participants; the broader cross-disorder overlap structure motivating this restriction is summarized in Supplementary Figure~\ref{fig:s2}. A second exclusion step removed low-support tail groups ($N < 30$) so that the benchmark operated on disorder families with sufficient evaluability.
+
+\subsubsection{Neuropsychiatric Disorder Groups}
+The benchmark comprised five disorder families defined by explicit International Classification of Diseases, Tenth Revision (ICD-10) family mappings: major depressive disorder (\texttt{F32}, \texttt{F33}), bipolar and manic disorders (\texttt{F30}, \texttt{F31}), anxiety disorders (\texttt{F40}, \texttt{F41}), sleep--wake disorders (\texttt{F51}, \texttt{G47}), and substance use disorders (\texttt{F10}--\texttt{F19}).
+
+Mappings were implemented at the level of specific ICD-10 subtypes. The benchmark therefore preserved clinically specific subtype content within each group --- for example, recurrent and single-episode depressive diagnoses within major depressive disorder, panic and phobic diagnoses within anxiety disorders, alcohol- and nicotine-related codes within substance use disorders, and both psychiatric (\texttt{F51}) and neurological (\texttt{G47}) sleep diagnoses within sleep--wake disorders.
+
+\subsubsection{Control and Reference Samples}
+The project distinguished two participant pools that must not be conflated: \textit{comparator controls} for binary classification and \textit{healthy-reference participants} for normative modelling. Comparator controls represented non-target participants against whom neuropsychiatric cases were adjudicated; the healthy-reference cohort approximated a low-pathology normative manifold for age- and sex-stratified deviation modelling.
+
+The cohort-construction framework preserved the possibility of control strata with brain-implicated but non-psychiatric pathology, reflecting ecologically valid case--control designs in which a non-case comparator need not satisfy the stricter exclusion logic of a normative reference sample. The healthy-reference cohort was defined independently through the three-domain framework described in Section 2.4.2; classifier controls were constructed as non-target comparator participants for disorder-specific binary adjudication.
+
+\subsection{Multimodal Phenotypic Data Representation}
+The participant representation consumed by COMPASS was implemented as a hierarchical multimodal phenotype graph in which each root node corresponds to a clinically coherent data family and each lower level encodes progressively more specific subsystem or biomarker content. Six root modality domains were represented in structured JSON form; a seventh non-tabular text channel was stored separately. This representation preserves conditional relations between modality, subsystem, and leaf feature while permitting token-constrained, coarse-to-fine retrieval during large language model inference. The detailed root input channel specifications, leaf counts, and functional roles are reported in Supplementary Table~\hyperref[tab:s1]{S1}.
+
+\subsubsection{Brain Modality}
+The \texttt{BRAIN\_{\allowbreak}MRI} domain was the most structurally complex branch (1,563 leaves), combining UK Biobank-derived FreeSurfer imaging-derived phenotypes (IDPs) with locally engineered connectomics and structural--functional coupling descriptors in a hierarchy that separates \texttt{Morphologics} from \texttt{Connectomics}, consistent with the UK Biobank imaging-processing paradigm and large-scale connectome-resource generation in this cohort (Alfaro-Almagro et al., 2018; Mansour et al., 2023).
+
+The final branch integrates morphometric, structural-connectivity, functional-connectivity, and structural--functional coupling evidence as ontology-organized leaf-level deviation scores rather than raw images or matrices. Detailed sub-branch composition, atlas choices, feature-family definitions, and serialization roles are summarized in Supplementary Table~\hyperref[tab:s11]{S11}; finer-grained brain feature inventories and pipeline schematics remain available in Supplementary Tables~\hyperref[tab:s2]{S2}--\hyperref[tab:s4]{S4} and Supplementary Figures~\ref{fig:s6}--\ref{fig:s7}.
+
+\subsubsection{Genomics Modality}
+The \texttt{GENOMICS} domain (93 leaves) was centered on derived inherited-liability features rather than raw variant calls, combining two tiers of polygenic risk scores (PRS) with a telomere-length marker to capture neuropsychiatric, neurodegenerative, cerebrovascular, and selected cardiometabolic risk dimensions from UK Biobank-derived genotype resources (Bycroft et al., 2018).
+
+Enhanced PRS values were used preferentially, with standard PRS substituted when enhanced estimates were unavailable, and the branch was extended beyond PRS-only profiling by inclusion of the UK Biobank Z-adjusted log telomere T/S ratio as a cellular-ageing marker. Detailed genotyping provenance, imputation background, PRS-construction strategy, trait coverage, and telomere derivation are summarized in Supplementary Table~\hyperref[tab:s12]{S12}.
+
+\subsubsection{Biological Assay Modality}
+The \texttt{BIOLOGICAL\_{\allowbreak}ASSAY} domain was the largest branch (3,100 leaves), integrating six UK Biobank-derived assay families into a shared deviation-aligned hierarchy before COMPASS inference (Bycroft et al., 2018).
+
+Together, haematology, serum biochemistry, NMR metabolomics, proteomics, plasma neurobiomarkers, and urine assays provided broad peripheral biological coverage while preserving assay-family subtrees for targeted retrieval during inference. Detailed category identifiers, platforms, specimen types, field counts, and biomarker content are summarized in Supplementary Table~\hyperref[tab:s13]{S13}.
+
+\subsubsection{Cognition Modality}
+The \texttt{COGNITION} domain (20 leaves) comprised standardized task-derived performance markers from UK Biobank Assessment Centre and Online Follow-Up cognitive batteries, normativized against the same age- and sex-stratified reference distribution as other continuous modalities. Although UK Biobank does not implement the Wechsler Adult Intelligence Scale directly, the selected task set was intended to capture domains broadly analogous to WAIS-IV constructs such as verbal comprehension, working memory, perceptual reasoning, and processing speed (Wechsler, 2008).
+
+The branch spans reasoning, working memory, reaction speed, episodic memory, executive set-shifting, non-verbal reasoning, processing speed, prospective memory, crystallized ability, and planning; duration and error variables were reverse-coded so that higher deviation uniformly reflected poorer performance. Detailed field-level task mappings, construct assignments, and preprocessing rules are summarized in Supplementary Table~\hyperref[tab:s14]{S14}. The branch also contributed upstream to healthy-reference exclusion via the composite total-intelligence proxy described in Section 2.4.2.
+
+\subsubsection{Lifestyle--Environment Modality}
+The \texttt{LIFESTYLE} domain (48 leaves) encoded clinically informative non-biological characteristics: sleep, smoking, alcohol use, diet, physical activity, sexual factors, and sun exposure. Lifestyle factors were represented as a first-class modality rather than a residual nuisance block, available for targeted retrieval when adjudicating between competing neuropsychiatric hypotheses or weighing symptom-compatible but non-specific biological signals.
+
+\subsubsection{Demographics Modality}
+The \texttt{DEMOGRAPHICS} domain (8 leaves) centered on sex, age, birth year, and age completed full-time education. These variables served as explicit participant-context covariates for prompt anchoring and interpretation, but were deliberately excluded from hierarchical deviation aggregation so that stable background descriptors did not inflate higher-order multimodal abnormality summaries.
+
+\subsubsection{Non-Tabular Data Fields}
+Non-tabular information was stored in \texttt{non\_{\allowbreak}numerical\_{\allowbreak}data.{\allowbreak}txt} as a controlled serialization comprising two components: three aggregated UK Biobank-derived text fields and a schema-informed categorical section split into nominal and inferred-ordinal variables. The detailed non-tabular data field specifications and transformation rules are reported in Supplementary Table~\hyperref[tab:s5]{S5}.
+
+Categorical layers were derived using local UK Biobank Showcase schema exports (field value-type mappings, field-title/category mappings, field-description/code mappings) rather than ad hoc label replacement. Negative sentinel values were systematically converted to missing. Ordinal inference was applied only to \texttt{Categorical (single)} fields after a scored heuristic evaluated title terms (e.g., \textit{frequency}, \textit{severity}, \textit{degree}), ordered label patterns resembling Likert scales, and contiguous low-cardinality code structure. Fields meeting the threshold were routed into the ordinal section; explicit override lists corrected known edge cases.
+
+Preserving these variables in controlled text form is preferable to flat tabular encodings: one-hot expansion of high-cardinality nominal variables increases sparsity without semantic value, whereas coercing ordered categories into linear scales imposes interval assumptions that may not hold for clinical response categories. The text representation preserves semantic resolution while remaining compatible with COMPASS's ontology-guided, retrieval-based inference design.
+
+A critical anti-leakage preprocessing step was applied to case-labelled participant folders before inference. The script parsed the external target-definition file to identify case EIDs, recursively removed ICD-10-like diagnostic keys from \texttt{multimodal\_{\allowbreak}data.{\allowbreak}json} and \texttt{data\_{\allowbreak}overview.{\allowbreak}json}, and rewrote diagnosis lines in participant text files to the canonical empty label \texttt{ICD10 CODES (diagnoses):} with no appended diagnosis string. This preserves channel existence while eliminating verbatim target strings, ensuring that benchmark performance cannot be obtained by reading the case label from the serialized payload.
+
+\subsection{Normative Modelling Framework}
+\subsubsection{GAMLSS-Based Brain Charts}
+Upstream normative modelling used sex-stratified healthy-reference frameworks estimating expected age-related trajectories for participant-level deviation scoring. The brain-chart implementation employed Generalized Additive Models for Location, Scale and Shape (GAMLSS) with candidate distribution families: generalized gamma (GG), Box--Cox Cole--Green (BCCG), Box--Cox power exponential (BCPE), Box--Cox \textit{t} (BCT), and sinh-arcsinh original (SHASHo) (Rigby \& Stasinopoulos, 2005; Bethlehem et al., 2022). This family set spans two- to four-parameter distributions, accommodating age-dependent changes in central tendency, variance, skewness, and tail behaviour --- properties that are critical for brain-derived phenotypes, whose healthy distributions are often non-Gaussian and heteroscedastic across age.
+
+Models were fit within sex strata when sufficient healthy-reference support was available. Age was modelled non-linearly through penalized spline terms in the location and scale components, with additional shape parameters estimated when supported by the selected family. This is preferable to fixed Gaussian $z$-normalization because it permits the expected distribution to evolve across the adult lifespan rather than assuming age-invariant variance or symmetry, consistent with the lifespan brain-chart rationale (Bethlehem et al., 2022).
+
+The normative stack also provides a safeguard pathway for broader tabular coverage in which residual-based scoring is followed by empirical cumulative distribution function transformation. GAMLSS-based brain-chart modelling is the primary framework; simpler residual/ECDF scoring remains available for features outside the dedicated brain-chart path. The serialized COMPASS payload expresses all resulting measurements in a shared deviation space.
+
+\subsubsection{Definition of Healthy Reference Group}
+The healthy-reference group was constructed through a three-domain exclusion framework spanning (i) overt clinical pathology, (ii) latent genetic liability, and (iii) low global cognitive performance, reducing contamination of the normative manifold by manifest disease, elevated inherited neuropsychiatric or neurovascular liability, and generalized cognitive impairment (see Supplementary Figure~\ref{fig:s1}, panel B).
+
+\textit{Domain 1 --- Clinical pathology.} The first pass matched each participant's linked ICD-10 history against a curated exclusion library and separated candidate healthy from pathological participants on the basis of registered disease burden. This library was intentionally broad: it removed all mental and behavioural disorders (\texttt{F00--F99}) and nervous-system diseases (\texttt{G00--G99}), together with major cerebrovascular, CNS neoplastic, endocrine--metabolic, inflammatory, organ-failure, toxic-injury, and active-treatment or follow-up codes when these implied clinically meaningful brain-health burden. The goal of this stage was to prevent overt neuropsychiatric, neurological, or major systemic pathology from entering the normative baseline.
+
+\textit{Domain 2 --- Genetic liability.} Among ICD-clean candidates, a second pass applied trait-specific PRS thresholds, preferentially using enhanced PRS values and falling back to standard scores when enhanced estimates were unavailable. The core exclusion mask targeted schizophrenia, bipolar disorder, Alzheimer's disease, Parkinson's disease, multiple sclerosis, and ischaemic stroke, with additional extreme-tail screens for atrial fibrillation, cardiovascular disease, coronary artery disease, hypertension, type 2 diabetes, LDL-related burden, triglycerides, total cholesterol, BMI, and selected autoimmune liabilities. Any participant exceeding the configured upper-tail cutoff for a screened trait was removed from the healthy set. The aim was not to eliminate ordinary polygenic variation, but to avoid anchoring the normative manifold on individuals with unusually high inherited liability for neuropsychiatric, cerebrovascular, or cardiometabolic disease.
+
+\textit{Domain 3 --- Cognitive screening.} A final cognition screen mapped UK Biobank tasks onto Wechsler Adult Intelligence Scale (WAIS)-like proxy domains: verbal comprehension (VCI) from vocabulary, working memory (WMI) from digit span, prospective memory, and verbal paired associates, perceptual organization (POI) from matrix-style reasoning and puzzle completion, and processing speed (PSI) from symbol-digit, symbol-search, and trail-making measures. Error and duration variables were reverse-coded, per-field $z$-scores were winsorized, and a composite total-intelligence proxy (\texttt{tIQ\_z}) was then built hierarchically by prioritizing fluid-intelligence fields (\texttt{20016}, \texttt{20191}), then the specific cognitive-ability field (\texttt{26302}), and finally the mean of remaining cognitive $z$-scores when higher-priority proxies were unavailable. Participants with \texttt{tIQ\_z} < $-$2 were excluded so that generalized low cognitive performance would not shift the reference distribution.
+
+\subsubsection{Derivation of Single-Subject Deviation Scores}
+After model fitting, each participant's raw features were transformed into individualized deviation scores conditional on the normative reference distribution. In the brain-chart pathway, this involved age- and sex-stratified distributional modelling followed by conversion into standardized deviations; in the tabular safeguard pathway, residualization and empirical distribution scoring were applied. All features were thereby converted from raw measurement space into a common deviation space before COMPASS ingestion.
+
+Participant-specific deviations were written into \texttt{multimodal\_{\allowbreak}data.{\allowbreak}json} as signed leaf-level $z$-scores, preserving both directionality and magnitude at the most granular feature level and enabling downstream hierarchical summarization without discarding fine-grained modality information.
+
+\subsubsection{Construction of Hierarchical Deviation Maps}
+Leaf-level deviation scores were aggregated into parent-level summaries in \texttt{hierarchical\_{\allowbreak}deviation\_{\allowbreak}map.{\allowbreak}json} using hierarchical centile Mahalanobis distance (CMD) rather than simple mean absolute deviation. CMD was computed at each node by evaluating multivariate departure relative to the healthy-reference covariance structure across all descendant features, producing a hierarchical representation of participant-specific pathological atypicality. The \texttt{DEMOGRAPHICS} subtree was excluded from this aggregation.
+
+Mean absolute deviation, while computationally simple, discards sign information, ignores inter-feature covariance, and can overweight large branches containing many mildly deviant variables relative to smaller nodes with coherent multivariate pathological patterns. By contrast, hierarchical CMD preserves the multivariate geometry of the healthy-reference distribution. The original implementation computes centile Mahalanobis distance in the principal-component basis of the sex-specific healthy covariance matrix --- the transform diagonalizes healthy-reference covariance for stable subject-level multivariate departure evaluation in normative centile space, rather than projecting the full cohort into a generic low-dimensional latent space (Brereton, 2015; Bethlehem et al., 2022).
+
+An optimized implementation removes the eigendecomposition step and uses a diagonal Mahalanobis form normalized by participant-specific effective dimensionality under missingness, improving cross-node comparability and computational tractability across large multimodal feature sets.
+
+The resulting \texttt{hierarchical\_{\allowbreak}deviation\_{\allowbreak}map.{\allowbreak}json} therefore represents a hierarchically structured CMD-based atypicality map preserving covariance-aware abnormality structure while remaining compact enough for prompt-efficient reasoning.
+
+\subsection{Ontology-Guided Feature Structuring}
+\subsubsection{Hierarchical Ontology Design}
+Formally, an ontology is an explicit specification of the concepts, relations, and constraints that define a shared domain of discourse in machine-readable form (Gruber, 1993). In ontology engineering, these specifications are typically organized as interoperable class hierarchies with typed relations so that complex domains can be represented, queried, and reasoned over consistently across applications (Guarino et al., 2009).
+
+This kind of semantically explicit representation is increasingly being argued for in psychiatric research and clinical informatics, where heterogeneous phenotypes, linked health records, imaging, and genetics must be harmonized without collapsing clinically meaningful structure (McInnis et al., 2025).
+
+The participant representation was therefore formalized as a hierarchical ontology encoding multi-scale multimodal atypicality rather than a flat covariate vector. In practice, this means that modalities, submodalities, and leaf-level biomarkers were embedded in an explicit parent--child structure that preserves semantic containment, supports coarse-to-fine traversal by the COMPASS agents, and enables selective descent into diagnostically relevant branches without losing the contextual relation between a local feature and its higher-order biological system.
+
+\subsubsection{Root Domains and Nested Feature Organization}
+The six root domains (\texttt{BRAIN\_{\allowbreak}MRI}, \texttt{BIOLOGICAL\_{\allowbreak}ASSAY}, \texttt{GENOMICS}, \texttt{COGNITION}, \texttt{DEMOGRAPHICS}, \texttt{LIFESTYLE}) are internally nested into biologically coherent subbranches (e.g., morphologic vs. connectomic brain branches, proteomics vs. metabolomics assay branches). This hierarchical organization enables cross-scale reasoning while preserving local interpretability, supporting high-level prioritization, subtree-specific retrieval, multimodal evidence synthesis, and feature-level attribution within a stable coordinate system.
+
+\subsubsection{Conversion of Raw Inputs into Structured Phenotypic Maps}
+Participant-level COMPASS folders were generated from textualized feature profiles using a dedicated preprocessing script that writes four standardized files per participant: \texttt{data\_{\allowbreak}overview.{\allowbreak}json} (domain coverage, token load, hierarchy structure), \texttt{multimodal\_{\allowbreak}data.{\allowbreak}json} (hierarchical leaf-level deviation scores), \texttt{hierarchical\_{\allowbreak}deviation\_{\allowbreak}map.{\allowbreak}json} (parent-level abnormality summary), and \texttt{non\_{\allowbreak}numerical\_{\allowbreak}data.{\allowbreak}txt} (qualitative and categorical context channel as described in Section 2.3.7).
+
+The hierarchical feature ontology was maintained in nested JSON form for direct pipeline use. Ontology export was partially automated with \texttt{rdflib}: the utility sanitizes node labels into stable Internationalized Resource Identifier fragments, declares each node as a Web Ontology Language (OWL) class, writes explicit \texttt{rdfs:{\allowbreak}subClassOf} relations following the runtime hierarchy, and attaches ontology-level metadata through Dublin Core and related namespaces, keeping the operational serialization and the formal ontology export synchronized (W3C OWL Working Group, 2012).
+
+\subsection{COMPASS Multi-Agent Prediction Framework}
+\subsubsection{Architectural Overview}
+COMPASS is a multi-agent inference engine that reasons over ontology-organized multimodal participant data rather than training a conventional supervised classifier end to end. The engine ingests the four standardized participant files, constructs a task-specific execution plan, selectively retrieves relevant multimodal evidence, fuses that evidence with qualitative context, and outputs a structured case--control prediction with supporting rationale. The framework converts diagnostic reasoning into an explicit dependency graph of planning, retrieval, compression, fusion, adjudication, and critique steps.
+
+The architecture is explicitly token-aware. The Orchestrator always receives high-level control information (\texttt{data\_{\allowbreak}overview.{\allowbreak}json}, \texttt{hierarchical\_{\allowbreak}deviation\_{\allowbreak}map.{\allowbreak}json}), but the raw \texttt{multimodal\_{\allowbreak}data.{\allowbreak}json} tree is accessed only through targeted compression and retrieval steps --- essential for maintaining tractable inference over large multimodal profiles on a single GPU. The end-to-end workflow is summarized in Figure~\ref{fig:f1}, which integrates the core agent pipeline, supporting tool layer, Critic feedback loop, and embedded response schema in a single architecture view.
+
+\begin{figure}[H]
+\caption{Overview of the COMPASS architecture.}
+\label{fig:f1}
+{\centering\includegraphics[width=\linewidth]{figures/fig4.png}\par}
+\par\smallskip
+\begin{minipage}{\linewidth}
+\raggedright\small\setstretch{1.5}\textit{Note.} The figure summarizes the full COMPASS workflow from the four standardized participant inputs to the final output artifacts. It shows the six role-specialized agents, the supporting diagnostic-tool layer, the critic-driven feedback loop used for iterative refinement, and the simplified Critic response format embedded directly within the architecture schematic.
+\end{minipage}
+\end{figure}
+
+\subsubsection{Agent Roles and Functional Specialization}
+The engine separates reasoning across six role-specialized agents. The \texttt{Orchestrator} constructs the analysis plan from the task label and participant-level data availability. The \texttt{Executor} runs structured retrieval and compression operations over selected ontology branches. The \texttt{Integrator} summarizes retrieved multimodal fragments into phenotype-relevant evidence blocks. The \texttt{Predictor} converts fused evidence into a task-specific prediction. The \texttt{Critic} inspects the reasoning trace for unsupported jumps, data-coverage failures, or logic inconsistencies. The \texttt{Communicator} produces the human-readable synthesis layer when report generation is requested. Their design decisions, primary inputs, and functional specializations are summarized in Supplementary Table~\hyperref[tab:s6]{S6}.
+
+This separation allows planning, evidence retrieval, fusion, judgment, and communication to be audited independently --- important in a validation setting where prediction provenance matters alongside the label itself. Within that agent structure, the tool layer is operationalized through a set of role-specialized diagnostic tools; their component specifications and functional roles are detailed in Supplementary Table~\hyperref[tab:s7]{S7}.
+
+\subsubsection{Iterative Actor--Critic Reasoning Workflow}
+COMPASS uses an iterative actor--critic scheme rather than a single-pass prompt. An initial reasoning plan is proposed, executed, and fused into a candidate prediction, after which the Critic can reject or qualify the reasoning and trigger a revised pass. The default retry configuration adds critic-driven refinement iterations beyond the initial prediction attempt, consistent with the observation that reflective verbal-feedback loops can improve agent performance on complex reasoning tasks (Shinn et al., 2023).
+
+The execution plan formalizes diagnostic reasoning as a dependency-constrained workflow. Early steps define the target phenotype concept and screen the hierarchy for abnormal domains. Mid-stage steps expand only selected high-value subtrees --- often in parallel --- and compress them into token-efficient unimodal summaries. The same planning logic can apply the compressor repeatedly to separate branches within a single domain (e.g., structural streamline-count, structural FA, and functional-connectivity subtrees within \texttt{BRAIN\_{\allowbreak}MRI}) before invoking an intermediate same-domain fusion step. Cross-modal integration is scheduled only after these intermediate summaries are available. Late-stage tools then generate mechanistic hypotheses and a comparator-aware differential diagnosis. This dependency logic is essential because large branches such as \texttt{BIOLOGICAL\_{\allowbreak}ASSAY} and \texttt{BRAIN\_{\allowbreak}MRI} cannot be naïvely concatenated into a single prompt under single-GPU context limits.
+
+The actor--critic loop is particularly important in multimodal biomedical settings where relevant evidence can be sparse, cross-domain, and partially missing, functioning as a practical hallucination-control mechanism that imposes explicit self-audit and data-grounding opportunities before final output.
+
+\subsubsection{Ontology-Conditioned Evidence Integration}
+Evidence integration is explicitly ontology-conditioned. High-level abnormalities are identified from \texttt{hierarchical\_{\allowbreak}deviation\_{\allowbreak}map.{\allowbreak}json}; the Orchestrator schedules targeted subtree extraction from \texttt{multimodal\_{\allowbreak}data.{\allowbreak}json}; the Integrator and Predictor combine numeric abnormalities with qualitative context from \texttt{non\_{\allowbreak}numerical\_{\allowbreak}data.{\allowbreak}txt} and coverage metadata from \texttt{data\_{\allowbreak}overview.{\allowbreak}json}. The result is a structured participant abstraction rather than a monolithic raw prompt.
+
+This ontology-guided compression is the mechanism that makes participant-level multimodal reasoning feasible under single-GPU constraints while preserving traceability of which domains influenced the final decision. The strategy is selective rather than lossy by default: the planner chooses subtrees using coverage metadata, abnormality burden, and task relevance, and can recover more localized evidence when an initial summary proves insufficient.
+
+\subsubsection{Prediction Task Types Supported}
+At the software level, COMPASS supports binary classification, multiclass classification, univariate regression, multivariate regression, and hierarchical mixed prediction trees. The present benchmark focuses specifically on binary classification; all subsequent methodological descriptions refer to the binary case--control validation path unless noted otherwise.
+
+\subsection{Prediction Tasks and Evaluation Strategy}
+\subsubsection{Primary Prediction Objective}
+The primary objective was to evaluate whether COMPASS could distinguish case participants from non-target controls in five disorder-specific binary tasks: major depressive disorder, anxiety disorders, substance use disorders, sleep--wake disorders, and bipolar/manic disorders. Each run was participant-level, zero-shot, and inference-only --- the engine formulated a prediction from the provided multimodal profile without a disorder-specific trained classifier.
+
+This design tests whether a pre-trained, ontology-grounded reasoning engine can synthesize heterogeneous participant evidence into clinically coherent case--control discrimination, a stronger claim than ordinary supervised benchmark performance.
+
+\subsubsection{Task Formulations}
+At runtime, each binary task was parameterized with a target phenotype label and a generic control comparator label. In the reproducible local high-performance computing (HPC) batch workflow, the target label was disorder-specific and derived from the benchmark target file, whereas the control label was fixed as \texttt{non-target comparator phenotype profile} --- avoiding disorder-specific control semantics in the prompt while still framing the task as case--control discrimination.
+
+Ground-truth labels were derived from an externally curated annotated target file rather than from free-text folder metadata, ensuring that prediction and evaluation remained tied to a stable cohort definition.
+
+\subsubsection{Group-Balanced Cohort Construction}
+The balanced binary benchmark was constructed in several steps. Cases were restricted to participants assigned to exactly one neuropsychiatric disorder group, after which low-support tail groups ($N < 30$) were removed. Comparator controls were sampled from the non-psychiatric control arm, with explicit prohibition of case--control overlap at the participant level. A subsequent control-splitting step reassigned comparator entries so that each disorder-specific binary task received a matched control distribution.
+
+The resulting \texttt{binary\_{\allowbreak}targets.{\allowbreak}json} benchmark is group-balanced by construction and disjoint across disorder groups: participants are not recycled across multiple disorder-specific task entries, preventing metric inflation through repeated reuse.
+
+\subsubsection{Validation With Annotated Datasets}
+Automated validation was performed with the project's annotated-dataset utilities, which parse result folders and compare predictions against an external target specification. For binary tasks, the required annotation file is a JSON target map in the style of \texttt{binary\_{\allowbreak}targets.{\allowbreak}json}. Post-hoc analysis scripts compute aggregate metrics, generate confusion diagnostics, and write disorder-specific evaluation outputs to analysis directories under \texttt{results/{\allowbreak}}.
+
+Validation was performed only after the explicit target-leakage scrubbing step described in Section 2.3.7: the engine was evaluated on participant folders from which direct ICD-10 case strings had already been removed from structured and text inputs.
+
+\subsubsection{Performance Metrics}
+Binary performance was quantified on the subset of rows yielding an extractable \texttt{CASE} or \texttt{CONTROL} prediction; runs without a valid binary label were counted separately as failed outputs. From the resulting confusion structure, the framework computes accuracy, sensitivity, specificity, precision, F1 score, and Matthews correlation coefficient (MCC). The exact formulas used for these binary metrics are summarized in Supplementary Table~\hyperref[tab:s17]{S17}. The MCC is a correlation-like coefficient over the full 2 $\times$ 2 confusion matrix, ranging from $-1$ (complete inversion) through $0$ (chance-level association) to $+1$ (perfect classification), and attains a high value only when true-positive, true-negative, precision, and negative-predictive-value performance are jointly strong. Its inclusion follows methodological work arguing that MCC is a more stringent primary summary statistic for binary classification than receiver operating characteristic area under the curve (ROC AUC), because it preserves dependence on all quadrants of the confusion matrix rather than rewarding threshold regions that can obscure asymmetric failure modes (Chicco \& Jurman, 2023). This metric set therefore avoids over-reliance on plain accuracy in a setting where class-wise performance symmetry and robustness to output failures are both relevant.
+
+The validation workflow generates integrated and disorder-specific confusion diagnostics, metrics JSON files, and detailed text reports, permitting inspection of both aggregate performance and disorder-level error structure.
+
+\subsection{Input and Output Structure}
+\subsubsection{Participant-Level Input Files}
+Each participant folder supplied to COMPASS contained four required files: \texttt{data\_{\allowbreak}overview.{\allowbreak}json} (domain availability, hierarchy structure, token-relevant size information), \texttt{multimodal\_{\allowbreak}data.{\allowbreak}json} (hierarchical leaf-level deviation scores), \texttt{hierarchical\_{\allowbreak}deviation\_{\allowbreak}map.{\allowbreak}json} (compact parent-level abnormality summary for anomaly screening and planning), and \texttt{non\_{\allowbreak}numerical\_{\allowbreak}data.{\allowbreak}txt} (controlled text payload described in Section 2.3.7). These four files form the minimal reproducible participant package for inference.
+
+\subsubsection{Prediction Outputs and Generated Reports}
+Standard participant-level outputs comprised four artifact classes: a machine-readable prediction object, a human-readable report, a structured execution trace, and run-level performance metadata. Together these preserve both the final decision and its provenance. An optional extended deep-phenotyping document is available but supplementary to benchmark evaluation.
+
+\subsubsection{Structured Logging and Audit Trails}
+Detailed execution logging, structured execution summaries, and per-attempt metadata are stored in JSON outputs, enabling reconstruction of the plan, retrieval steps, and decision path. In the HPC batch workflow, participant outputs are additionally copied into a persistent \texttt{participant\_{\allowbreak}runs} directory and indexed by a \texttt{batch\_{\allowbreak}manifest.{\allowbreak}json}, so that completed runs remain analysable even if a long sequential batch terminates early.
+
+\subsection{Computational Environment and Deployment}
+\subsubsection{Privacy-Constrained Local Deployment}
+Because participant folders contain sensitive multimodal health-derived data, the validation workflow prioritized fully local institutional inference over hosted third-party services. The validated deployment used a Slurm-scheduled, Apptainer-backed HPC workflow with locally stored model weights and a quantized open-weight backend, preserving data locality and General Data Protection Regulation (GDPR) compliance while retaining the full COMPASS reasoning stack on a single node. Detailed deployment specifications are provided in Supplementary Table~\hyperref[tab:s15]{S15}.
+
+\subsubsection{Single-GPU Runtime Stack}
+The validated local backend comprised \texttt{Qwen/{\allowbreak}Qwen3-14B-AWQ} for generation and \texttt{Qwen/{\allowbreak}Qwen3-Embedding-8B} for embedding-based utilities under a single graphics processing unit (GPU) runtime, using the Qwen3 model family as described in its technical report (Qwen Team, 2025). Activation-aware Weight Quantization (AWQ) was a deployment enabler rather than an experimental variable, allowing long-context inference on 48 GB hardware without multi-GPU sharding. Full runtime settings, token budgets, and kernel-path details are summarized in Supplementary Table~\hyperref[tab:s15]{S15}.
+
+\subsubsection{Execution Constraints and Reproducibility Profile}
+Execution used one NVIDIA L40S GPU, 16 CPU cores, 64 GB system memory, and sequential participant processing with audit-first persistence of outputs. This configuration prioritized reproducibility, traceability, and regulatory compatibility over throughput, and defined the reported benchmark as a conservative local-execution profile rather than a throughput-optimized upper bound. The complete hardware allocation, workflow logic, and reproducibility batch template are reported in Supplementary Table~\hyperref[tab:s15]{S15}.
+
+\subsection{Ethical, Clinical, and Reproducibility Considerations}
+\subsubsection{Research-Only Use}
+COMPASS was evaluated strictly as a research prototype, not as a certified clinical device. The benchmark assesses computational phenotypic discrimination under controlled experimental conditions, not readiness for autonomous diagnostic use. All outputs must be interpreted as research-oriented predictions requiring domain-expert scrutiny.
+
+\subsubsection{Transparency, Auditability, and Human Verification}
+The pipeline was designed to maximize post-hoc inspectability. Structured reports, execution logs, participant-level output folders, and batch manifests provide an auditable record of what the engine saw, prioritized, and predicted --- important for multimodal LLM-based systems where strong performance without transparent traceability would be methodologically insufficient.
+
+Human verification remains necessary: LLM-mediated reasoning can fail despite internal critique loops, and in neuropsychiatric inference, even a well-grounded computational output does not substitute for clinical assessment, contextual review, and diagnostic judgment.
+
+\subsubsection{Reproducibility and Code Availability}
+The local project workspace contains the UK Biobank-specific preprocessing, cohort-construction, normative-modelling, high-performance computing (HPC), and validation scripts described above. A public COMPASS software distribution is maintained at the COMPASS-Engine GitHub repository (\url{https://github.com/stvsever/COMPASS-Engine}), providing docker-based containerized user interface (UI) for debugging purposes, and command-line interface (CLI) execution paths for the multi-agent engine.
+
+The public stack interfaces with standard transformer-model tooling widely used for large-language-model deployment and experimentation (Wolf et al., 2020) and is released under the GNU General Public License v3.0 (GPL-3.0), a reciprocal open-source license that permits inspection, modification, and redistribution while requiring derivative redistributions to preserve the same licensing terms. This supports transparent method extension and auditable software reuse. A debugging-oriented interface from this distribution, including real-time visualization of the agentic workflow, is shown in Supplementary Figure~\ref{fig:s4}.
+
+The public repository exposes executable research infrastructure rather than a manuscript-only wrapper, including containerized CPU/UI deployment, single-GPU local-execution workflows, annotated-dataset validation utilities, public demonstration inputs, and end-to-end usage notebooks. The repository components that operationalize reproducibility are summarized in Supplementary Table~\ref{tab:s16}.
+
+\FloatBarrier
+\section{Results}
+
+\subsection{Cohort Characteristics and Data Coverage}
+
+\subsubsection{Sample Composition by Disorder Group}
+
+The evaluable benchmark comprised 200 completed participant-level COMPASS runs corresponding to 100 neuropsychiatric cases and 100 controls distributed evenly across five disorder families (Table~\ref{tab:t1}). The cohort had a mean age at recruitment of 53.96 years (SD = 7.83; range 40--69), with 104 female and 96 male participants. The benchmark was balanced not only for class prevalence (exact 1:1 case--control ratio per disorder group) but also for age and sex: no significant case--control difference was detected in age (cases: mean = 53.57, SD = 7.59; controls: mean = 54.36, SD = 8.08; Welch's \textit{t} = $-$0.71, \textit{p} = 0.477) or sex distribution (cases: 51 female/49 male; controls: 53 female/47 male; $\chi^2$(1) = 0.020, \textit{p} = 0.887).
+
+\begin{table}[H]
+\caption{Demographic characteristics of the evaluable benchmark cohort stratified by disorder group and case--control label.}
+\label{tab:t1}
+\small
+\begin{tabularx}{\linewidth}{X l r X r r}
+\toprule
+Disorder group & Label & \textit{n} & Age, mean $\pm$ SD [range] & Female, \textit{n} (\%) & Male, \textit{n} (\%) \\
+\midrule
+Anxiety disorders & Case & 20 & 53.35 $\pm$ 8.92 [40--68] & 14 (70.0) & 6 (30.0) \\
+Anxiety disorders & Control & 20 & 54.55 $\pm$ 8.68 [40--69] & 8 (40.0) & 12 (60.0) \\
+Bipolar and manic disorders & Case & 20 & 52.85 $\pm$ 7.57 [40--67] & 7 (35.0) & 13 (65.0) \\
+Bipolar and manic disorders & Control & 20 & 56.95 $\pm$ 8.92 [41--68] & 12 (60.0) & 8 (40.0) \\
+Major depressive disorder & Case & 20 & 50.75 $\pm$ 7.11 [41--68] & 13 (65.0) & 7 (35.0) \\
+Major depressive disorder & Control & 20 & 55.00 $\pm$ 8.05 [41--66] & 11 (55.0) & 9 (45.0) \\
+Sleep--wake disorders & Case & 20 & 55.35 $\pm$ 6.93 [44--66] & 8 (40.0) & 12 (60.0) \\
+Sleep--wake disorders & Control & 20 & 53.85 $\pm$ 7.12 [42--64] & 10 (50.0) & 10 (50.0) \\
+Substance use disorders & Case & 20 & 55.55 $\pm$ 6.97 [43--68] & 9 (45.0) & 11 (55.0) \\
+Substance use disorders & Control & 20 & 51.45 $\pm$ 7.28 [40--67] & 12 (60.0) & 8 (40.0) \\
+\bottomrule
+\end{tabularx}
+\par\smallskip\noindent\small\textit{Note.} Age expressed as mean $\pm$ SD [range] in years. Exact case--control balance enforced at \textit{n} = 20 per class per disorder group.
+\end{table}
+
+\subsubsection{Modality Availability and Missingness}
+
+All 200 participants retained the full set of COMPASS input channels (six structured modality trees plus the non-tabular text channel). Missingness manifested as within-domain incompleteness rather than whole-domain absence. Brain MRI exhibited the highest structural completeness (mean 1,418.7 of 1,563 leaves; mean coverage 90.8\%; range 89.6--94.4\%), followed by genomics (55.9\%; range 1.1--97.8\%, reflecting variable enhanced versus standard polygenic risk score availability). Intermediate completeness was observed for lifestyle (51.9\%; range 22.9--83.3\%) and demographics (74.4\%; range 50.0--87.5\%), whereas cognition (33.0\%; range 15.0--95.0\%) and biological assays (6.5\%; range 2.4--6.8\%) were substantially sparser.
+
+Critically, case--control coverage was closely matched across all modalities (brain MRI: 90.8\% vs. 90.8\%; biological assays: 6.4\% vs. 6.5\%; genomics: 57.9\% vs. 53.9\%; cognition: 32.5\% vs. 33.4\%; lifestyle: 51.1\% vs. 52.7\%; demographics: 74.5\% vs. 74.2\% for cases vs. controls, respectively), confirming that benchmark difficulty was not confounded by systematic class-specific completeness differences.
+Complete modality-level coverage and token-load summaries are reported in Supplementary Table~\hyperref[tab:s10]{S10}.
+
+At the participant level, the serialized input package contained a mean of 20,790.2 tokens (SD = 512.7; range 19,288--22,300) and a mean data completeness score of 0.521 (SD = 0.062; range 0.393--0.726). Feature-level completeness distributions across non-brain and brain sources are shown in Supplementary Figure~\ref{fig:s5}.
+
+\subsubsection{Balanced Cohort Construction Summary}
+
+The final evaluation set preserved exact disorder-wise class balance (20 cases and 20 controls per disorder family), yielding five disorder-specific binary tasks of \textit{n} = 40 and an aggregate of \textit{N} = 200. One additional major depressive disorder case folder (201 total in the \texttt{participant\_{\allowbreak}runs} directory) did not yield a completed performance report and was excluded. All statistics reported hereafter are based on the 200 evaluable runs.
+
+\subsection{Normative Modelling Outputs}
+
+\subsubsection{Single-Subject Deviation Map Characteristics}
+
+Participant-level abnormality profiles were generated within the hierarchical normative framework and serialized into COMPASS-ready deviation maps. The upstream CMD pipeline defined the hierarchy and subject-specific abnormality geometry; the inference-facing JSON payload exposed hierarchy-preserving node summaries (\texttt{\_{\allowbreak}stats.{\allowbreak}mean\_{\allowbreak}abs\_{\allowbreak}score} with leaf-count metadata), enabling coarse-to-fine phenotype screening without flattening the multimodal graph.
+
+Across all 200 participants, the strongest root-level deviation burden was observed in cognition (mean = 1.534, SD = 0.631), followed by biological assays (0.853, SD = 0.172), lifestyle (0.841, SD = 0.188), genomics (0.791, SD = 0.140), and brain MRI (0.754, SD = 0.098). Case participants showed modestly higher root-level abnormality than controls across brain MRI (0.759 vs. 0.750), biological assays (0.862 vs. 0.844), genomics (0.804 vs. 0.779), and cognition (1.582 vs. 1.486), whereas lifestyle burden was virtually identical (0.842 vs. 0.840). These directionally consistent but small case--control separations are compatible with the intended benchmark difficulty of using a clinically plausible comparator arm rather than an idealized ultra-healthy reference group.
+
+The cognition root was the highest-scoring domain in 151 of 200 participants (75 cases, 76 controls), compared with 21 for biological assays, 17 for lifestyle, 6 for genomics, and 5 for brain MRI. This near-perfect label symmetry indicates that cognitive dominance at the screening layer reflected the amplitude structure of the deviation maps rather than differential case--control signal. Downstream COMPASS reasoning was therefore required to adjudicate concentrated cognitive deviations against broader multimodal context.
+
+\subsubsection{Cross-Modal Hierarchical Representation}
+
+The mean absolute deviation burden by hierarchical modality sub-branch across all 200 participants is reported in Supplementary Table~\hyperref[tab:s9]{S9}. Each value is the mean leaf-level GAMLSS \textit{z}-score magnitude aggregated within a branch: a higher mean indicates greater aggregate atypicality relative to the healthy-reference population; a high SD reflects large between-participant variability, expected in a mixed-disorder cohort.
+
+Within brain MRI, morphologic burden was consistently moderate (0.812 $\pm$ 0.192), while connectomic deviations were slightly lower and markedly uniform (0.730 $\pm$ 0.115), suggesting that structural and functional connectivity atypicality was present but less heterogeneous than morphometrics. The processing-speed branch showed the strongest signal in the benchmark (1.584 $\pm$ 0.663) --- nearly twice the general-factor burden (0.903 $\pm$ 0.734) --- with the large SD in both cognitive branches reflecting the disorder-group mixing across the 200-participant cohort. In the biological assay tree, proteomics returned the most consistent elevated signal (0.904 $\pm$ 0.157), while serum biochemistry showed comparable mean burden but considerably wider variability (0.871 $\pm$ 0.508), indicating disorder-specific biochemical profiles rather than a uniform signature. Genomics was the lowest-variance branch in the benchmark (0.798 $\pm$ 0.095), consistent with a globally uniform polygenic deviation profile across participants. Lifestyle sleep-related (0.916 $\pm$ 0.721) and smoking-related (0.853 $\pm$ 0.492) branches were also prominent, supporting the retention of behaviourally proximal exposures alongside imaging- and assay-derived phenotypes.
+
+These findings confirm that the hierarchical CMD representation generated a multi-scale abnormality profile in which high-burden cognitive and behavioural nodes coexisted with distributed brain, assay, and genomic signals. This structure enabled COMPASS to perform coarse-to-fine reasoning: root-level prioritization identified the most informative modalities, after which targeted subtree retrieval extracted localized evidence from the highest-burden branches. Broader healthy-versus-clinical brain-modality hierarchical-deviation distributions, including disorder-resolved views for neuropsychiatric and neurological groups, are shown in Supplementary Figure~\ref{fig:s3}.
+
+\subsection{Binary Classification Performance}
+
+The principal benchmark results are summarized in Figure~\ref{fig:f2}, where panel A shows the aggregate binary confusion matrix, panel B the effectiveness of the actor--critic feedback loop, and panel C the disorder-specific confusion matrices.
+
+\subsubsection{Aggregate Performance}
+
+From the aggregate confusion matrix (Figure~3A), COMPASS correctly classified 145 of 200 participants (accuracy = 0.725; 95\% Wilson CI: 0.659--0.782). The full confusion structure (73 true positives, 72 true negatives, 28 false positives, 27 false negatives) is depicted in Figure~3A. Sensitivity (0.730) and specificity (0.720) were closely balanced, precision was 0.723, F1 score was 0.726, and the Matthews correlation coefficient was 0.450. The near-symmetric error profile argues against a pronounced directional decision bias. Because the benchmark was perfectly class-balanced (exact 1:1 ratio globally and within each disorder group), accuracy and balanced accuracy were numerically identical; the latter is therefore omitted from subsequent tables.
+
+\subsubsection{Disorder-Specific Performance}
+
+Disorder-specific performance (Figure~3C) demonstrated substantial heterogeneity across the five binary tasks. Substance use disorders yielded the strongest discrimination (accuracy = 0.800; MCC = 0.603), driven by the highest case sensitivity (0.850) in the benchmark. Major depressive disorder followed closely (accuracy = 0.775; MCC = 0.551), with the strongest control specificity (0.800) among all groups. Bipolar and manic disorders and anxiety disorders occupied an intermediate range (accuracy = 0.725 and 0.700; MCC = 0.451 and 0.402, respectively). Sleep--wake disorders showed the weakest performance (accuracy = 0.625; MCC = 0.253), driven primarily by reduced specificity (0.550) rather than by loss of case sensitivity --- 9 of 20 controls were misclassified as cases, indicating broader phenotypic overlap in the available multimodal signatures for this disorder family.
+
+\begin{figure}[H]
+\caption{Overview of benchmark results.}
+\label{fig:f2}
+{\centering\includegraphics[width=\linewidth,height=0.78\textheight,keepaspectratio]{figures/fig2.png}\par}
+\par\smallskip
+\begin{minipage}{\linewidth}
+\raggedright\small\setstretch{1.5}\textit{Note.} Panel A shows the aggregate binary confusion matrix. Panel B shows the effectiveness of the critic--actor loop. Panel C shows disorder-specific confusion matrices for the five neuropsychiatric disorder groups.
+\end{minipage}
+\end{figure}
+
+Because each disorder-specific task comprised only 40 participants, the corresponding Wilson confidence intervals are necessarily wider than the aggregate interval and should be interpreted as task-level estimates. Accordingly, apparent rank differences between the intermediate-performing disorder groups should be treated as descriptive rather than definitive unless replicated in larger evaluation cohorts.
+\begin{table}[H]
+\caption{Disorder-specific binary classification performance. Balanced accuracy equals accuracy in all groups due to perfect class balance (\textit{n} = 20 per arm) and is omitted. Confusion-matrix components are shown in Figure~3C.}
+\label{tab:t3}
+\footnotesize
+\begin{adjustbox}{max width=\textwidth}
+\begin{tabular}{l l r r r r r}
+\toprule
+Disorder group & Accuracy (95\% Wilson CI) & Sensitivity & Specificity & Precision & F1 & MCC \\
+\midrule
+Substance use disorders & 0.800 (0.652--0.895) & 0.850 & 0.750 & 0.773 & 0.810 & 0.603 \\
+Major depressive disorder & 0.775 (0.625--0.877) & 0.750 & 0.800 & 0.789 & 0.769 & 0.551 \\
+Bipolar and manic disorders & 0.725 (0.572--0.839) & 0.700 & 0.750 & 0.737 & 0.718 & 0.451 \\
+Anxiety disorders & 0.700 (0.546--0.819) & 0.650 & 0.750 & 0.722 & 0.684 & 0.402 \\
+Sleep--wake disorders & 0.625 (0.470--0.758) & 0.700 & 0.550 & 0.609 & 0.651 & 0.253 \\
+\bottomrule
+\end{tabular}
+\end{adjustbox}
+\par\smallskip\noindent\small\textit{Note.} Wilson CI = Wilson score confidence interval. MCC = Matthews correlation coefficient. Each disorder-specific task comprised \textit{n} = 40 participants (20 cases, 20 controls).
+\end{table}
+
+\subsection{Agentic Reasoning and System Behaviour}
+
+\subsubsection{Execution Flow and Iterative Refinement}
+
+COMPASS did not operate as a single-pass classifier. Of 200 runs, 118 (59.0\%) were completed after one predictor--critic cycle, 41 (20.5\%) required two passes, and 41 (20.5\%) required three passes. Each pass comprised one plan, one prediction, and one critic evaluation, yielding structurally regular decision traces of 3, 6, or 9 entries, respectively.
+
+The computational cost was substantial. Mean end-to-end duration was 2,861.5 s (47.7 min; SD = 1,631.0; median = 2,234.1 s; range 673.5--7,021.1), and mean total token usage was 210,965.7 (SD = 110,636.6; range 66,803--460,005). Anxiety disorder runs incurred the highest resource burden (mean = 3,448.6 s; mean = 242,937.8 tokens); major depressive disorder and bipolar/manic runs were comparatively lighter.
+
+Token management constituted a core operational constraint. All 200 runs required chunked two-pass predictor assembly. In the 199 runs with available dataflow-audit files, the mean fused predictor payload was 592,978.8 tokens (SD = 14,007.6; range 546,079--633,643) against a fixed 60,000-token chunk budget, necessitating a mean of 3.6 final predictor chunks per participant (range 3--4).
+\begin{table}[H]
+\caption{Computational resource utilization by neuropsychiatric disorder group (medians across participants).}
+\label{tab:t4}
+\small
+\begin{tabular}{l r r r}
+\toprule
+Disorder group & Mean iterations & Median runtime (s) & Median total tokens \\
+\midrule
+Anxiety disorders & 1.8 & 3,113.8 & 248,902.5 \\
+Bipolar and manic disorders & 1.6 & 1,799.6 & 133,043.5 \\
+Major depressive disorder & 1.5 & 1,903.1 & 136,105.0 \\
+Sleep--wake disorders & 1.6 & 2,083.4 & 145,092.5 \\
+Substance use disorders & 1.6 & 2,620.1 & 146,092.0 \\
+\bottomrule
+\end{tabular}
+\par\smallskip\noindent\small\textit{Note.} Runtime in seconds. Token counts sum all agentic generation steps across the full multi-agent reasoning chain. All 200 participants required multi-pass chunked predictor assembly.
+\end{table}
+
+\subsubsection{Critic-Led Corrections and Failure Recovery}
+
+Figure~3B summarizes the critic-driven improvement trajectory for the subset of participants whose first critic evaluation was unsatisfactory and for whom at least one subsequent iteration was available (\textit{n} = 81). In this rerun subset, the mean normalized critic composite increased from 0.63 (first attempt) to 0.89 (final verdict). A Wilcoxon signed-rank test confirmed the improvement (\textit{W} = 139, \textit{p} = 7.46 $\times$ 10$^{-12}$, justified by non-normality of both distributions). The mean within-participant increase was 0.259 (median = 0.286; IQR: 0.143--0.429).
+
+Of 81 participants with paired trajectories, 70 (86.4\%) improved, 6 (7.4\%) were unchanged, and 5 (6.2\%) worsened. At the run level, 61 of 81 multi-pass participants (75.3\%) recovered to a final satisfactory verdict. The 21 participants (25.6\%) with persistent unsatisfactory status were concentrated in substance use disorders (\textit{n} = 7) and anxiety disorders (\textit{n} = 5), followed by sleep--wake disorders (\textit{n} = 4), major depressive disorder (\textit{n} = 3), and bipolar/manic disorders (\textit{n} = 2). These unresolved cases had a mean final composite score of 0.719 (SD = 0.043; range 0.680--0.820) and a mean checklist score of 4.62/7.
+
+Critic intervention was not limited to surface refinement: the final class label differed from the initial predictor label in 22 of 200 participants, with the highest label-change frequency in major depressive disorder (\textit{n} = 7) and sleep--wake disorders (\textit{n} = 7), followed by bipolar/manic disorders (\textit{n} = 4). At benchmark completion, 179 of 200 reports (89.5\%) received an overall satisfactory verdict, and 165 (82.5\%) achieved a full 7/7 critic checklist score (12 scored 6/7; 14, 5/7; 8, 4/7; 1, 3/7). The critic loop therefore functioned as a substantive error-correction mechanism rather than a cosmetic post-processing layer.
+
+\FloatBarrier
+\section{Discussion}
+
+\subsection{Principal Findings}
+
+This study evaluated COMPASS, a multi-agent, ontology-grounded inference engine, on a 200-participant UK Biobank benchmark spanning five neuropsychiatric disorder families. Operating in a fully zero-shot, inference-only mode without task-specific training, COMPASS achieved an aggregate accuracy of 0.725 (95\% Wilson CI: 0.659-0.782), an MCC of 0.450, balanced sensitivity (0.730) and specificity (0.720), and a near-symmetric error profile (27 false negatives vs. 28 false positives). Disorder-specific performance ranged from 0.800 (substance use disorders) to 0.625 (sleep-wake disorders), demonstrating both systemic discriminative capacity and clinically interpretable inter-disorder heterogeneity. The iterative actor-critic mechanism yielded measurable reasoning refinement: 86.4\% of multi-pass runs improved, and 22 of 200 participants received a corrected class label after critic-driven re-evaluation. The entire pipeline operated under fully local, GDPR-compliant infrastructure using a quantized open-weight model on a single GPU node, confirming that agentic multimodal phenotypic prediction is technically feasible within resource-constrained institutional settings.
+
+These results situate COMPASS at the intersection of three developments that have largely proceeded in isolation: normative modelling for individualized deviation profiling (Marquand et al., 2016, 2019; Bethlehem et al., 2022), ontology-driven multimodal data integration in neuropsychiatry (Calhoun \& Sui, 2016), and multi-agent LLM architectures for complex reasoning (Shinn et al., 2023; Wei et al., 2022). To our knowledge, no prior system has combined hierarchical normative deviation maps, structured ontology-conditioned retrieval, and iterative LLM-based actor-critic reasoning within a single participant-level inference pipeline for neuropsychiatric case-control discrimination. Existing clinical LLM applications operate predominantly on text-only inputs, such as clinical notes, radiology reports, or exam-style questions (Singhal et al., 2023; Nori et al., 2023), and do not address the multi-scale, multimodal, deviation-based phenotyping paradigm that COMPASS implements.
+
+\subsection{Multi-Agent LLM Frameworks as Engines for Deep Phenotypic Prediction}
+
+\subsubsection{Pre-Trained Knowledge as a Zero-Shot Reasoning Layer}
+
+The central architectural claim of COMPASS is that pre-trained biomedical knowledge encoded in the weights of a general-purpose LLM can function as a scalable reasoning substrate for clinical phenotypic prediction, replacing the conventional approach of learning discriminative boundaries from labelled training samples with structured inference over participant-specific deviation profiles. This zero-shot formulation eliminates the need for disorder-specific training sets, avoids training-set leakage, and extends in principle to any phenotype expressible as a binary, multiclass, or regression target against the underlying ontology.
+
+The aggregate accuracy of 0.725 should be interpreted relative to the deliberate lower-bound design: a quantized 14-billion-parameter model operating on a single GPU under strict context-length constraints. Contemporary large-scale medical LLM benchmarks have demonstrated substantially higher accuracy using frontier-scale models; Med-PaLM 2 achieved 86.5\% on medical question answering (Singhal et al., 2023) and GPT-4 scored 86.7\% on USMLE-style evaluations (Nori et al., 2023). 
+
+However, these evaluations differ categorically from participant-level multimodal phenotypic prediction. Unlike question answering or text classification, COMPASS must synthesize thousands of deviation scores, qualitative clinical context, and structured hierarchical metadata into a coherent diagnostic judgment for an individual participant, which constitutes a substantially harder inference task. The observation that even a resource-constrained, quantized model achieves above-chance performance across all five disorder families under these conditions suggests that the multi-agent reasoning architecture itself --- rather than model scale alone --- contributes meaningfully to discriminative capacity.
+
+This framing carries practical implications. Conventional supervised neuroimaging classifiers require retraining for each new target, are sensitive to sample-size limitations, and generalize poorly across cohorts and scanners (Varoquaux et al., 2017; Woo et al., 2017). A reasoning-based engine that derives predictions from pre-trained domain knowledge and structured participant data could, if validated at scale, offer a complementary paradigm in which new phenotypes are addressed by reconfiguring the inference plan rather than retraining the model.
+
+\subsubsection{Ontology-Conditioned Multimodal Fusion}
+
+COMPASS fuses six structured modality domains and a non-tabular text channel through ontology-conditioned selective retrieval rather than fixed concatenation or learned gating, addressing a long-standing limitation of multimodal neuroimaging-plus-omics integration: the difficulty of combining heterogeneous data types with different dimensionalities, sparsity profiles, and clinical semantics within a single analytic framework (Calhoun \& Sui, 2016; Baltrusaitis et al., 2019).
+
+Conventional multimodal fusion strategies fall into three broad categories: early fusion (concatenation before modelling), late fusion (separate models with decision-level aggregation), and intermediate fusion (joint latent-space learning). Each imposes assumptions on data completeness and inter-modal alignment that are difficult to satisfy in real-world clinical cohorts with heterogeneous missingness. COMPASS sidesteps these constraints by treating the ontology as a navigable search space: the Orchestrator identifies salient abnormality domains from the hierarchical deviation map, the Executor selectively retrieves and compresses relevant subtrees, and the Integrator fuses unimodal summaries into cross-domain narrative evidence. Critically, missingness is handled transparently: absent branches are visible in the coverage metadata and are explicitly named in reports rather than silently imputed or dropped.
+
+The modality-specific token loads observed in the benchmark (brain MRI: 18,026 tokens; biological assays: 1,708; genomics: 698; cognition: 85; lifestyle: 256; demographics: 18) illustrate the scale asymmetry that motivates selective retrieval. Naive concatenation of all modality trees would exceed single-GPU context limits; the ontology-conditioned strategy compresses high-dimensional brain and assay branches while preserving full resolution for compact domains. This architecture is inherently extensible: additional modalities (e.g., free-text clinical notes, ecological momentary assessment data) could be incorporated by adding new ontology branches without modifying the fusion logic.
+
+\subsubsection{Actor-Critic Self-Correction Under Uncertainty}
+
+The actor-critic loop represents a departure from single-pass classification. Rather than treating the first generated prediction as final, the Critic agent inspects each prediction for unsupported reasoning, data-coverage gaps, and logical inconsistencies. Unsatisfactory verdicts trigger re-planning and re-prediction with explicit critique feedback, producing an iterative refinement trajectory.
+
+Empirically, the critic mechanism improved composite quality scores in 70 of 81 multi-pass participants (86.4\%), with a mean improvement of 0.259 on the normalized composite. The Wilcoxon signed-rank test (\textit{W} = 139, \textit{p} = 7.46 x $10^{-12}$) confirmed that this improvement was unlikely attributable to chance. Importantly, 22 of 200 labels were changed by the critic loop, representing substantive corrections rather than surface rewording. This finding is consistent with work on reflexive verbal-feedback loops in LLM agents demonstrating that self-critique can reduce error rates on complex multi-step tasks (Shinn et al., 2023).
+
+However, the critic is not infallible. Of 81 multi-pass participants, 21 (25.93\%) retained an unsatisfactory final verdict, with concentration in the substance use and anxiety disorder groups. The mechanism should therefore be understood as a probabilistic error-reduction layer rather than a guarantee of correctness. Additionally, the critic operates within the same model's knowledge space: errors arising from systematic knowledge gaps, as opposed to reasoning lapses, are unlikely to be caught by self-critique alone.
+
+This limitation connects to a broader debate in the LLM agent literature. Huang et al. (2024) argue that large language models cannot self-correct reasoning without external feedback, because the same knowledge that produced the error is used to evaluate it. The COMPASS design partially addresses this concern: the critic does not evaluate predictions in isolation but against structured external evidence --- hierarchical deviation maps, coverage metadata, and the full multimodal data payload. This data-grounded critique differs from pure self-reflection and may explain the observed empirical effectiveness, although it does not eliminate the fundamental single-model knowledge ceiling.
+
+\subsection{Privacy-Preserving Local Deployment as a Lower-Bound Estimate}
+
+The fully local deployment model, comprising a quantized open-weight LLM, single GPU, and no external API calls, was an intentional design constraint rather than a pragmatic compromise. Participant folders contained sensitive multimodal health-derived data governed by UK Biobank data-sharing protocols and institutional GDPR requirements; routing such data through commercial cloud APIs would violate data-governance requirements. The documented HPC pathway (Apptainer-containerized, Slurm-scheduled, single L40S node) demonstrates that agentic multimodal inference is institutionally deployable without third-party data exposure.
+
+This design choice entails a deliberate quality-throughput trade-off. The Qwen3-14B-AWQ backend is a quantized, mid-scale model; frontier-class models (70B+ parameters, unquantized, multi-GPU) would likely improve reasoning fidelity, contextual capacity, and discriminative performance. The present benchmark therefore represents a lower-bound estimate of what the COMPASS architecture can achieve. This lower-bound argument is methodologically important: a system that demonstrates above-chance, clinically patterned discrimination under resource-constrained conditions is more credible when scaled up than one that depends on frontier hardware for any discriminative signal.
+
+Computational cost, in terms of time, was substantial (mean 47.7 min per participant, mean 210,966 tokens per run), in which the non-parallel processing of 200 participants required multi-day batch execution. This cost profile is incompatible with real-time clinical deployment, but acceptable for research-stage validation, retrospective cohort analysis, and proof-of-concept benchmarking. Future work on batched GPU inference, parallelized agent execution, and context-window optimization could substantially reduce throughput constraints without altering the privacy-preserving deployment model.
+
+\subsection{Limitations}
+
+\subsubsection{Inherent Limitations of LLM-Based Reasoning}
+
+Despite the structured reasoning pipeline and critic-driven self-audit, the system remains subject to known LLM failure modes. Hallucination, the generation of plausible but factually unsupported claims, is a persistent risk in free-form medical generation (Ji et al., 2023). Although the ontology-grounded retrieval design and structured deviation inputs mitigate this risk relative to open-ended text generation, the engine can still produce spurious cross-modal inferences or over-interpret marginally elevated deviation scores. Prompt sensitivity is a related concern: phrasing changes in task descriptions, agent prompts, or tool-output formatting can influence model behaviour in ways that are difficult to predict or characterize exhaustively.
+
+Additionally, the present benchmark used a single LLM backend (Qwen3-14B-AWQ). While this provides a controlled evaluation of the reasoning architecture, performance may not generalize across model families, quantization levels, or context-window sizes. The degree to which COMPASS performance reflects the architecture versus the specific pre-trained knowledge of the Qwen3 model family remains an open question. Multi-backend evaluation is necessary to disentangle these contributions.
+
+A further concern is non-determinism. LLM inference under non-zero temperature settings produces stochastic outputs: repeated runs on the same participant may yield different reasoning traces, emphasis patterns, or, in boundary cases, different class labels. The present benchmark did not include a test-retest reliability analysis (e.g., running each participant multiple times and computing intra-class correlation), so the stability of COMPASS predictions under repeated inference remains uncharacterized. This is particularly relevant for clinical applications where reproducibility is a regulatory requirement.
+
+Finally, while the agent reasoning trace is structurally logged and inspectable, the internal decision process of the LLM, specifically the mapping from token-level representations to generated clinical judgments, remains partially opaque. Full mechanistic transparency would require model-internal interpretability methods beyond the scope of this benchmark. The pre-trained knowledge embedded in the model weights also reflects the composition and recency of its training corpus, introducing a knowledge-cutoff limitation: clinical evidence published after the training data freeze is unavailable to the reasoning engine unless externally injected through retrieval-augmented generation or similar mechanisms.
+
+\subsubsection{Validation Scope and External Generalizability}
+
+Several aspects of the current benchmark design constrain the scope of performance claims.
+
+\textit{Sample size.} The 200-participant benchmark (40 per disorder group) provides sufficient statistical power for directionally informative aggregate and disorder-level estimates, but disorder-specific confidence intervals are wide (e.g., sleep-wake: 0.470-0.758). Precision of subgroup estimates will require substantially larger evaluation cohorts.
+
+\textit{Cohort composition.} All participants were drawn from the UK Biobank, a volunteer-based community cohort that is not representative of the general population: participants are healthier, better educated, and more ethnically homogeneous than the UK average (Fry et al., 2017). Generalization to clinical referral populations, non-European ancestries, or low- and middle-income healthcare contexts cannot be assumed without dedicated external validation.
+
+\textit{No supervised baseline comparison.} The present benchmark does not include a matched supervised machine learning comparator (e.g., gradient-boosted trees or deep neural networks trained on the same feature set). Without such a baseline, the relative efficiency of the zero-shot reasoning approach versus traditional trained classifiers remains unquantified. This comparison is a priority for future work and would clarify whether COMPASS achieves accuracy competitive with state-of-the-art supervised methods or serves a complementary function, for instance by providing interpretable phenotype narratives in low-data or novel-target scenarios.
+
+\textit{Cross-sectional evaluation.} The benchmark evaluates single-time-point case-control discrimination. Longitudinal prediction, including tracking clinical trajectory, treatment response, or conversion from at-risk to clinical status, is not assessed and would require repeated-measures cohort designs with matched COMPASS re-evaluation.
+
+\textit{Binary-only evaluation.} Only binary case-control classification was validated. The software supports multiclass, regression, and hierarchical prediction; whether the architecture generalizes to these more complex task types is an empirical question for future benchmarks.
+
+\textit{Control-group definition.} Comparator controls were non-target participants, defined as individuals not meeting case criteria for the specific disorder under evaluation, rather than a rigorously screened healthy cohort. Some controls may carry subclinical pathology, comorbid conditions outside the target group, or brain-affecting somatic diagnoses, which could attenuate case-control separation and partially explain the intermediate accuracy range. This ecologically valid but diagnostically noisy control definition should be considered when interpreting specificity estimates.
+
+\subsubsection{Explainability Modules: Implemented but Not Validated}
+
+The COMPASS engine software already includes three post-hoc explainability modules: aHFR-TokenSHAP, a perturbation-based external attribution method over the structured feature tree; Integrated Gradients, an internal gradient-based attribution method over a local causal language model; and LLM-Select, a prior-guided hybrid relevance scoring method that queries an LLM over the same ontology-organized feature set. These modules collectively constitute a triangular explainability framework designed to cross-validate attribution estimates from complementary methodological perspectives.
+
+All three modules are already implemented within the COMPASS engine and documented in the public XAI workflow notebook (\url{https://github.com/stvsever/COMPASS-Engine/blob/main/utils/validation/explainable_AI/xai_methods_compass.ipynb}). However, they were not applied in the present paper because the computational demands of systematic explainability analysis, which requires repeated inference runs with perturbed inputs (external method), gradient computation over full forward passes (internal method), and structured LLM querying for prior-guided scoring (hybrid method), were prohibitive under the single-GPU constraint and the fixed time scope of this internship project. Each explainability run multiplies the already substantial per-participant cost (mean 47.7 min, 210,966 tokens) by the number of perturbation conditions or attribution passes required, rendering full-cohort explainability analysis infeasible within the available computational budget and project timeline.
+
+The current benchmark therefore evaluates predictive performance without concurrent explainability assessment. This is an important gap: in clinical applications, \textit{why} a prediction was made is often as important as the prediction itself, and unvalidated attribution methods risk producing misleading feature-importance rankings. This issue is well established in the deep learning interpretability literature, where methods can pass superficial plausibility checks while failing basic sanity criteria such as parameter randomization invariance (Adebayo et al., 2018) or input degradation fidelity (Hooker et al., 2019).
+
+Recent systematic review work in disease-prediction XAI similarly emphasizes persistent limitations in dataset diversity, modality breadth, and robustness evaluation, reinforcing the need for explicit reliability testing before attribution outputs are treated as clinically meaningful evidence (Alkhanbouli et al., 2025). Without demonstrating that COMPASS attributions satisfy analogous reliability standards, the implemented XAI modules should be regarded as engineering infrastructure awaiting empirical validation rather than as validated interpretive tools. Systematic evaluation of attribution stability, cross-method agreement, and alignment with established neuropsychiatric biomarker literature is deferred to subsequent work.
+
+\subsection{Future Directions}
+
+\subsubsection{Hierarchical Multiclass, and Multivariate Phenotypic Prediction}
+
+The present binary evaluation constitutes the minimal validatable unit. These hierarchical multiclass and regression-capable execution paths are already implemented in the public COMPASS repository rather than remaining purely conceptual extensions (see Supplementary Table~\ref{tab:s16}). The COMPASS architecture natively supports hierarchical multiclass prediction, such as simultaneously discriminating among multiple disorder families and healthy participants, as well as univariate and multivariate regression for predicting symptom severity scales or composite cognitive scores.
+
+The full benchmark target file encodes 5,396 balanced case-control entries spanning a broader set of neuropsychiatric and neurological conditions; evaluation against this expanded target would substantially broaden construct-validity evidence. Multivariate regression against continuous phenotypic dimensions, particularly cognitive and symptom-severity scores, would further test whether the reasoning architecture captures graded individual differences beyond categorical classification boundaries.
+
+\subsubsection{Triangular Explainability Validation}
+
+Systematic deployment of the three related XAI modules on a sufficiently powered cohort would allow explainability to be validated as a quantitative component of the COMPASS pipeline rather than treated as an informal post-hoc add-on. That triangular explainability stack is likewise already implemented in the public COMPASS repository as executable validation infrastructure, although it remains empirically unvalidated at cohort scale in the present paper (see Supplementary Table~\ref{tab:s16}).
+
+The external module documented in that public XAI workflow notebook is aHFR-TokenSHAP, an adaptive hierarchical extension of TokenSHAP that treats template-aligned features as Shapley players and defines the value function as the binary decision score \(v(S) = \log P_{\theta}(\mathrm{CASE}\mid S) - \log P_{\theta}(\mathrm{CONTROL}\mid S)\), where \(S\) denotes the active subset of serialized features (Goldshmidt \& Horovicz, 2024). Feature importance is then estimated through the standard Shapley decomposition
+\[
+\phi_i = \sum_{S \subseteq N \setminus \{i\}}
+\frac{|S|!(|N|-|S|-1)!}{|N|!}
+\left[v(S \cup \{i\}) - v(S)\right],
+\]
+with the COMPASS implementation reducing computational burden through hierarchy-restricted frontier sampling, primary-layer calibration, and epoch-wise reweighting of the permutation distribution. Because this method repeatedly perturbs the actual prompt structure and re-evaluates the classifier, it provides the most direct estimate of which participant-specific features truly alter the model's decision.
+
+The internal module uses Integrated Gradients on a local causal language model and evaluates the same binary score \(f(x) = \log P_{\theta}(\mathrm{CASE}\mid x) - \log P_{\theta}(\mathrm{CONTROL}\mid x)\) along a straight-line path from a masked baseline \(x'\) to the full prompt \(x\), so that
+\[
+\mathrm{IG}_i(x) = (x_i - x'_i) \int_0^1
+\frac{\partial f\!\left(x' + \alpha(x-x')\right)}{\partial x_i}\, d\alpha
+\]
+(Sundararajan et al., 2017). In COMPASS, token-level gradients are computed in embedding space and then aggregated back to the character spans occupied by each structured feature, yielding feature-level scores that are directly comparable with the perturbation-based Shapley estimates.
+
+The third module, LLM-Select, contributes a prior-guided comparator rather than a direct perturbation or gradient estimate: the model is prompted with the prediction task and the ontology-organized feature list alone, returns integer relevance scores for each leaf and parent node, and these are normalized as \(\tilde{w}_i = |w_i| / \sum_j |w_j|\) before comparison across runs (Jeong et al., 2025). This method is valuable precisely because it does not use participant-specific values; it estimates which features a biomedical LLM expects to matter on the basis of prior knowledge.
+
+A robust triangular validation programme would therefore assess repeated-run stability for each module, rank concordance between the three attribution families, and biological plausibility by testing whether repeatedly salient features converge on known disorder-specific signatures from ENIGMA and related large-scale psychiatric imaging studies (Schmaal et al., 2017; Hibar et al., 2018). Agreement across the three methods would strengthen confidence that COMPASS is reasoning over clinically meaningful multimodal signal rather than prompt artefacts, whereas systematic disagreement would expose failure modes that are not visible in accuracy metrics alone.
+
+\subsubsection{Multi-Cohort and Larger-Scale External Validation}
+
+Generalizability assessment requires evaluation on cohorts external to UK Biobank, ideally spanning both openly shared multimodal resources and larger governed-access population studies. Particularly suitable open resources include the Human Connectome Project, which provides high-quality multimodal MRI, behavioral phenotyping, and family structure in healthy young adults under harmonized acquisition protocols (Van Essen et al., 2013), and the NKI-Rockland Sample, which was explicitly designed as an openly shared lifespan psychiatry resource combining neuroimaging, cognition, behavioral phenotyping, and genetic data (Nooner et al., 2012). These cohorts would allow direct stress-testing of the transportability of the brain, cognition, and lifestyle branches of COMPASS under different recruitment frames and acquisition pipelines without requiring de novo data collection.
+
+Larger external comparators would extend that validation into developmental and population-health settings that are not represented by UK Biobank alone. The ABCD Study offers harmonized multimodal imaging, cognitive testing, biospecimens, and rich psychiatric and environmental characterization in adolescents (Casey et al., 2018), whereas Generation Scotland provides genetics, cognition, lifestyle measures, linked health records, and a smaller but relevant multimodal imaging subset in a family-based adult cohort (Milbourn et al., 2024).
+
+Cross-cohort evaluation across these resources, complemented by clinically ascertained referral samples with confirmed diagnoses, would make it possible to test robustness across age ranges, ancestry structure, ascertainment strategies, modality missingness, and disease prevalence shifts. Larger external samples would also provide the statistical power required for subgroup analyses, probability calibration, and disorder-specific reliability estimates that are not feasible in the present 200-participant benchmark.
+
+\subsubsection{Software Expansion and Clinical Translation}
+
+Several software engineering developments would bring COMPASS closer to translational readiness. A clinician-oriented user interface with interactive report browsing, confidence visualization, and feature-salience overlays would facilitate clinical review without requiring computational expertise. A dedicated data-loader agent capable of ingesting and ontology-mapping raw clinical datasets, rather than relying on the current project-specific preprocessing pipeline, would broaden applicability beyond UK Biobank. Extension of the connectomics feature extraction to the full A-I configuration (including ROI-level statistics and hemispheric-asymmetry features) would increase the granularity of brain-network phenotyping. Integration of longitudinal time-series tasks, tracking within-subject change over repeated assessments, would expand the inference framework from cross-sectional case-control classification to clinically more relevant trajectory-prediction applications.
+
+Any movement toward clinical translation would also require engagement with regulatory frameworks for AI-based medical devices, including the EU AI Act and the FDA Software as a Medical Device pathway. Formal requirements for clinical-grade systems typically include demonstration of reproducibility, prospective validation on independent clinical cohorts, calibration assessment, and documentation of failure modes, all of which extend substantially beyond the current proof-of-concept benchmark but are addressable within the existing software architecture. For AI-enabled device software functions, this additionally implies predefined change-control procedures, lifecycle performance monitoring, and traceable post-market update governance rather than one-off premarket validation alone (European Parliament \& Council of the European Union, 2024; U.S. Food and Drug Administration, 2025).
+
+\section{Conclusion}
+
+This study introduced and validated COMPASS, a multi-agent inference engine for participant-level neuropsychiatric case-control discrimination using ontology-conditioned multimodal deviation profiles. On a 200-participant UK Biobank benchmark spanning five disorder families, the system achieved an aggregate accuracy of 0.725 (MCC = 0.450) in a fully zero-shot, inference-only mode, without task-specific training. The 14B AWQ-model defines the reported accuracy as a conservative lower bound for the architecture's potential.
+
+The zero-shot architecture eliminates the need for disorder-specific trained classifiers, allows new prediction targets to be addressed through reconfigured inference plans rather than model retraining, and co-produces structured interpretive reports that link multimodal evidence to each diagnostic judgment, a prerequisite for clinical auditability. The entire pipeline operated on a single local GPU under GDPR-compliant constraints, establishing agentic multimodal reasoning as institutionally deployable at mid-scale hardware.
+
+\clearpage
+\section*{AI Acknowledgement}
+\addcontentsline{toc}{section}{AI Acknowledgement}
+AI tools were used as writing and software-engineering assistants during preparation of this report. OpenAI's GPT-5-Codex was used primarily for code navigation, debugging, script adaptation, LaTeX troubleshooting, and integration of figures, tables, and formatting changes in the manuscript source. OpenAI's ChatGPT (GPT-5) was used for drafting alternative phrasings, tightening explanations, improving structure, and refining the clarity of methodological and interpretive text. Google Gemini (Google DeepMind; Gemini 3 Pro) was used occasionally as a secondary assistant for cross-checking wording, summarizing technical material, and proposing alternative ways to present complex content. PaperBanana was used occasionally to explore alternative figure and plot aesthetics during visual polishing, although all final figure content, labeling, and design choices were manually reviewed and finalized. All scientific decisions, result interpretation, and final manuscript content were reviewed, edited, verified, and approved by myself.
+
+\clearpage
+\section*{References}
+\addcontentsline{toc}{section}{References}
+\begingroup
+\small
+\setlength{\parindent}{0pt}
+\setlength{\parskip}{4pt plus 1pt minus 1pt}
+
+\hangindent=2em\hangafter=1 Adebayo, J., Gilmer, J., Muelly, M., Goodfellow, I., Hardt, M., \& Kim, B. (2018). Sanity checks for saliency maps. In S. Bengio, H. Wallach, H. Larochelle, K. Grauman, N. Cesa-Bianchi, \& R. Garnett (Eds.), \textit{Advances in Neural Information Processing Systems} (Vol. 31). Curran Associates. \url{https://proceedings.neurips.cc/paper/2018/hash/294a8ed24b1ad22ec2e7efea049b8737-Abstract.html}
+
+\hangindent=2em\hangafter=1 Alfaro-Almagro, F., Jenkinson, M., Bangerter, N. K., Andersson, J. L. R., Griffanti, L., Douaud, G., Sotiropoulos, S. N., Jbabdi, S., Hernandez-Fernandez, M., Vallee, E., Vidaurre, D., Webster, M., McCarthy, P., Rorden, C., Daducci, A., Alexander, D. C., Zhang, H., Dragonu, I., Matthews, P. M., \ldots{} Smith, S. M. (2018). Image processing and quality control for the first 10,000 brain imaging datasets from UK Biobank. \textit{NeuroImage}, \textit{166}, 400--424. \url{https://doi.org/10.1016/j.neuroimage.2017.10.034}
+
+\hangindent=2em\hangafter=1 Amann, J., Blasimme, A., Vayena, E., Frey, D., \& Madai, V. I. (2020). Explainability for artificial intelligence in healthcare: A multidisciplinary perspective. \textit{BMC Medical Informatics and Decision Making}, \textit{20}(1), 310. \url{https://doi.org/10.1186/s12911-020-01332-6}
+
+\hangindent=2em\hangafter=1 Baglioni, C., Battagliese, G., Feige, B., Spiegelhalder, K., Nissen, C., Voderholzer, U., Lombardo, C., \& Riemann, D. (2011). Insomnia as a predictor of depression: A meta-analytic evaluation of longitudinal epidemiological studies. \textit{Journal of Affective Disorders}, \textit{135}(1--3), 10--19. \url{https://doi.org/10.1016/j.jad.2011.01.011}
+
+\hangindent=2em\hangafter=1 Baltrusaitis, T., Ahuja, C., \& Morency, L.-P. (2019). Multimodal machine learning: A survey and taxonomy. \textit{IEEE Transactions on Pattern Analysis and Machine Intelligence}, \textit{41}(2), 423--443. \url{https://doi.org/10.1109/TPAMI.2018.2798607}
+
+\hangindent=2em\hangafter=1 Alkhanbouli, R., Matar Abdulla Almadhaani, H., Alhosani, F., \& Simsekler, M. C. E. (2025). The role of explainable artificial intelligence in disease prediction: A systematic literature review and future research directions. \textit{BMC Medical Informatics and Decision Making}, \textit{25}(1), Article 110. \url{https://doi.org/10.1186/s12911-025-02944-6}
+
+\hangindent=2em\hangafter=1 Bethlehem, R. A. I., Seidlitz, J., White, S. R., Vogel, J. W., Anderson, K. M., Adamson, C., Adler, S., Alexopoulos, G. S., Anagnostou, E., Areces-Gonzalez, A., Astle, D. E., Auyeung, B., Ayub, M., Bae, J., Ball, G., Baron-Cohen, S., Beare, R., Bedford, S. A., Benegal, V., \ldots{} Alexander-Bloch, A. F. (2022). Brain charts for the human lifespan. \textit{Nature}, \textit{604}(7906), 525--533. \url{https://doi.org/10.1038/s41586-022-04554-y}
+
+\hangindent=2em\hangafter=1 Brereton, R. G. (2015). The Mahalanobis distance and its relationship to principal component scores. \textit{Journal of Chemometrics}, \textit{29}(3), 143--145. \url{https://doi.org/10.1002/cem.2692}
+
+\hangindent=2em\hangafter=1 Bi, G., Chen, Z., Liu, Z., Wang, H., Xiao, X., Xie, Y., Zhang, W., Huang, Y., Chen, Y., Peng, L., \& Huang, M. (2025). MAGI: Multi-agent guided interview for psychiatric assessment. In \textit{Findings of the Association for Computational Linguistics: ACL 2025} (pp. 21678--21701). Association for Computational Linguistics. \url{https://doi.org/10.18653/v1/2025.findings-acl.1278}
+
+\hangindent=2em\hangafter=1 Bycroft, C., Freeman, C., Petkova, D., Band, G., Elliott, L. T., Sharp, K., Motyer, A., Vukcevic, D., Delaneau, O., O'Connell, J., Cortes, A., Welsh, S., Young, A., Effingham, M., McVean, G., Leslie, S., Allen, N., Donnelly, P., \& Marchini, J. (2018). The UK Biobank resource with deep phenotyping and genomic data. \textit{Nature}, \textit{562}(7726), 203--209. \url{https://doi.org/10.1038/s41586-018-0579-z}
+
+\hangindent=2em\hangafter=1 Calhoun, V. D., \& Sui, J. (2016). Multimodal fusion of brain imaging data: A key to finding the missing link(s) in complex mental illness. \textit{Biological Psychiatry: Cognitive Neuroscience and Neuroimaging}, \textit{1}(3), 230--244. \url{https://doi.org/10.1016/j.bpsc.2015.12.005}
+
+\hangindent=2em\hangafter=1 Casey, B. J., Cannonier, T., Conley, M. I., Cohen, A. O., Barch, D. M., Heitzeg, M. M., Soules, M. E., Teslovich, T., Dellarco, D. V., Garavan, H., Orr, C. A., Wager, T. D., Banich, M. T., Speer, N. K., Sutherland, M. T., Riedel, M. C., Dick, A. S., Bjork, J. M., Thomas, K. M., \ldots{} Dale, A. M. (2018). The Adolescent Brain Cognitive Development (ABCD) study: Imaging acquisition across 21 sites. \textit{Developmental Cognitive Neuroscience}, \textit{32}, 43--54. \url{https://doi.org/10.1016/j.dcn.2018.03.001}
+
+\hangindent=2em\hangafter=1 Cawthon, R. M. (2002). Telomere measurement by quantitative PCR. \textit{Nucleic Acids Research}, \textit{30}(10), e47. \url{https://doi.org/10.1093/nar/30.10.e47}
+
+\hangindent=2em\hangafter=1 Chan, J. K. N., Correll, C. U., Wong, C. S. M., Chu, R. S. T., Fung, V. S. C., Wong, G. H. S., Lei, J. H. C., \& Chang, W. C. (2023). Life expectancy and years of potential life lost in people with mental disorders: A systematic review and meta-analysis. \textit{eClinicalMedicine}, \textit{65}, 102294. \url{https://doi.org/10.1016/j.eclinm.2023.102294}
+
+\hangindent=2em\hangafter=1 Chen, X., Yi, H., You, M., Liu, W., Wang, L., Li, H., Zhang, X., Guo, Y., Fan, L., Chen, G., Lao, Q., Fu, W., Li, K., \& Li, J. (2025). Enhancing diagnostic capability with multi-agents conversational large language models. \textit{npj Digital Medicine}. Advance online publication. \url{https://doi.org/10.1038/s41746-025-01550-0}
+
+\hangindent=2em\hangafter=1 Chen, Z., Hu, B., Liu, X., Becker, B., Eickhoff, S. B., Miao, K., Gu, X., Tang, Y., Dai, X., Li, C., Leonov, A., Xiao, Z., Feng, Z., Chen, J., \& Hu, C.-P. (2023). Sampling inequalities affect generalization of neuroimaging-based diagnostic classifiers in psychiatry. \textit{BMC Medicine}, \textit{21}. \url{https://doi.org/10.1186/s12916-023-02941-4}
+
+\hangindent=2em\hangafter=1 Chicco, D., \& Jurman, G. (2023). The Matthews correlation coefficient (MCC) should replace the ROC AUC as the standard metric for assessing binary classification. \textit{BioData Mining}, \textit{16}, Article 4. \url{https://doi.org/10.1186/s13040-023-00322-4}
+
+\hangindent=2em\hangafter=1 Collins, G. S., Dhiman, P., Andaur Navarro, C. L., Ma, J., Hooft, L., Reitsma, J. B., Logullo, P., Beam, A. L., Peng, L., Van Calster, B., van Smeden, M., Riley, R. D., \& Moons, K. G. M. (2021). Protocol for development of a reporting guideline (TRIPOD-AI) and risk of bias tool (PROBAST-AI) for diagnostic and prognostic prediction model studies based on artificial intelligence. \textit{BMJ Open}, \textit{11}, e048008. \url{https://doi.org/10.1136/bmjopen-2020-048008}
+
+\hangindent=2em\hangafter=1 Collins, G. S., Moons, K. G. M., Dhiman, P., Riley, R. D., Beam, A. L., Van Calster, B., \& Logullo, P. (2024). Evaluation of clinical prediction models (part 1): From development to external validation and beyond. \textit{BMJ}, \textit{384}, e074819. \url{https://doi.org/10.1136/bmj-2023-074819}
+
+\hangindent=2em\hangafter=1 Cruz Rivera, S., Liu, X., Chan, A.-W., Denniston, A. K., \& Calvert, M. J., on behalf of the SPIRIT-AI and CONSORT-AI Working Group. (2020). Guidelines for clinical trial protocols for interventions involving artificial intelligence: The SPIRIT-AI extension. \textit{Nature Medicine}, \textit{26}, 1351--1363. \url{https://doi.org/10.1038/s41591-020-1037-7}
+
+\hangindent=2em\hangafter=1 Du, Y., Li, S., Torralba, A., Tenenbaum, J. B., \& Mordatch, I. (2023). Improving factuality and reasoning in language models through multiagent debate [Preprint]. \textit{arXiv}. \url{https://doi.org/10.48550/arXiv.2305.14325}
+
+\hangindent=2em\hangafter=1 European Parliament \& Council of the European Union. (2024). Regulation (EU) 2024/1689 of the European Parliament and of the Council of 13 June 2024 laying down harmonised rules on artificial intelligence and amending Regulations (EC) No 300/2008, (EU) No 167/2013, (EU) No 168/2013, (EU) 2018/858, (EU) 2018/1139 and (EU) 2019/2144 and Directives 2014/90/EU, (EU) 2016/797 and (EU) 2020/1828 (Artificial Intelligence Act). \textit{Official Journal of the European Union}, L 2024/1689. \url{https://data.europa.eu/eli/reg/2024/1689/oj}
+
+\hangindent=2em\hangafter=1 Fraza, C., Rutherford, S., Reh\'{a}k Bu\v{c}kov\'{a}, B., Beckmann, C. F., \& Marquand, A. F. (2025). The promise of quantifying individual risk for brain disorders through normative modeling, a narrative review. \textit{Neuroscience \& Biobehavioral Reviews}, \textit{176}, 106284. \url{https://doi.org/10.1016/j.neubiorev.2025.106284}
+
+\hangindent=2em\hangafter=1 Fry, A., Littlejohns, T. J., Sudlow, C., Doshi-Velez, F., Galea, S., Nuber-Champier, A., Collins, R., \& Allen, N. E. (2017). Comparison of sociodemographic and health-related characteristics of UK Biobank participants with those of the general population. \textit{American Journal of Epidemiology}, \textit{186}(9), 1026--1034. \url{https://doi.org/10.1093/aje/kwx246}
+
+\hangindent=2em\hangafter=1 Gargano, M. A., Matentzoglu, N., Coleman, B., Addo-Lartey, E. B., Anagnostopoulos, A. V., Anderton, J., Avillach, P., Bagley, A. M., Balhoff, J. P., Baynam, G., Bello, S. M., Berk, M., Bertram, H., Bishop, S., Blau, H., Bodenstein, D. F., Botas, P., Boztug, K., \v{C}ady, J., \ldots{} Robinson, P. N. (2024). The Human Phenotype Ontology in 2024: Phenotypes around the world. \textit{Nucleic Acids Research}, \textit{52}(D1), D1333--D1346. \url{https://doi.org/10.1093/nar/gkad1005}
+
+\hangindent=2em\hangafter=1 Goldshmidt, R., \& Horovicz, M. (2024). TokenSHAP: Interpreting large language models with Monte Carlo Shapley value estimation [Preprint]. \textit{arXiv}. \url{https://doi.org/10.48550/arXiv.2407.10114}
+
+\hangindent=2em\hangafter=1 Grotzinger, A. D., et al. (2025). Mapping the genetic landscape across 14 psychiatric disorders. \textit{Nature}. Advance online publication. \url{https://doi.org/10.1038/s41586-025-09820-3}
+
+\hangindent=2em\hangafter=1 Guarino, N., Oberle, D., \& Staab, S. (2009). What is an ontology? In S. Staab \& R. Studer (Eds.), \textit{Handbook on ontologies} (2nd ed., pp. 1--17). Springer. \url{https://doi.org/10.1007/978-3-540-92673-3_0}
+
+\hangindent=2em\hangafter=1 Gruber, T. R. (1993). A translation approach to portable ontology specifications. \textit{Knowledge Acquisition}, \textit{5}(2), 199--220. \url{https://doi.org/10.1006/knac.1993.1008}
+
+\hangindent=2em\hangafter=1 Hansen, L., Bernstorff, M., Enevoldsen, K., Kolding, S., Damgaard, J. G., Perfalk, E., Nielbo, K. L., Danielsen, A. A., \& Østergaard, S. D. (2025). Predicting diagnostic progression to schizophrenia or bipolar disorder via machine learning. \textit{JAMA Psychiatry}, \textit{82}(5), 459--469. \url{https://doi.org/10.1001/jamapsychiatry.2024.4702}
+
+\hangindent=2em\hangafter=1 Hibar, D. P., Westlye, L. T., Doan, N. T., Jahanshad, N., Cheung, J. W., Ching, C. R. K., Versace, A., Bilderbeck, A. C., Uhlmann, A., Mwangi, B., Krämer, B., Overs, B., Hartberg, C. B., Abe, C., Dima, D., Grotegerd, D., Sprooten, E., Bøen, E., Jimenez, E., \ldots{} Andreassen, O. A. (2018). Cortical abnormalities in bipolar disorder: An MRI analysis of 6503 individuals from the ENIGMA Bipolar Disorder Working Group. \textit{Molecular Psychiatry}, \textit{23}(4), 932--942. \url{https://doi.org/10.1038/mp.2017.73}
+
+\hangindent=2em\hangafter=1 Hooker, S., Erhan, D., Kindermans, P.-J., \& Kim, B. (2019). A benchmark for interpretability methods in deep neural networks. In H. Wallach, H. Larochelle, A. Beygelzimer, F. d'Alch\'{e}-Buc, E. Fox, \& R. Garnett (Eds.), \textit{Advances in Neural Information Processing Systems} (Vol. 32). Curran Associates. \url{https://proceedings.neurips.cc/paper/2019/hash/fe4b8556000d0f0cae99daa5c5c5a410-Abstract.html}
+
+\hangindent=2em\hangafter=1 Hua, Y., Na, H., Li, Z., Liu, F., Fang, X., Clifton, D., Moran, L. V., Ananiadou, S., Beam, A., \& Torous, J. (2025). A scoping review of large language models for generative tasks in mental health care. \textit{npj Digital Medicine}, \textit{8}, 230. \url{https://doi.org/10.1038/s41746-025-01611-4}
+
+\hangindent=2em\hangafter=1 Huang, J., Chen, X., Mishra, S., Zheng, H. S., Yu, A. W., Song, X., \& Zhou, D. (2024). Large language models cannot self-correct reasoning yet. In \textit{Proceedings of the International Conference on Learning Representations}. \url{https://openreview.net/forum?id=IkmD3fKBPQ}
+
+\hangindent=2em\hangafter=1 Jeong, D. P., Lipton, Z. C., \& Ravikumar, P. (2025). LLM-Select: Feature selection with large language models. \textit{Transactions on Machine Learning Research}. Advance online publication. \url{https://openreview.net/forum?id=16f7ea1N3p}
+
+\hangindent=2em\hangafter=1 Ji, Z., Lee, N., Frieske, R., Yu, T., Su, D., Xu, Y., Ishii, E., Bang, Y. J., Madotto, A., \& Fung, P. (2023). Survey of hallucination in natural language generation. \textit{ACM Computing Surveys}, \textit{55}(12), 1--38. \url{https://doi.org/10.1145/3571730}
+
+\hangindent=2em\hangafter=1 Kas, M. J. H., Penninx, B. W. J. H., Knudsen, G. M., Cuthbert, B., Falkai, P., Sachs, G. S., Ressler, K. J., Ba\l{}kowiec-Iskra, E., Butlen-Ducuing, F., Leboyer, M., Marston, H., Luthman, J., \& Mantua, V. (2025). Precision psychiatry roadmap: Towards a biology-informed framework for mental disorders. \textit{Molecular Psychiatry}, \textit{30}(8), 3846--3855. \url{https://doi.org/10.1038/s41380-025-03070-5}
+
+\hangindent=2em\hangafter=1 Kotov, R., et al. (2022). The Hierarchical Taxonomy of Psychopathology (HiTOP) in psychiatric practice and research. \textit{Psychological Medicine}, \textit{52}(9), 1666--1678. \url{https://doi.org/10.1017/S0033291722001301}
+
+\hangindent=2em\hangafter=1 Lekadir, K., Frangi, A. F., Porras, A. R., Glocker, B., Cintas, C., Langlotz, C. P., Weicken, E., Asselbergs, F. W., Prior, F., Collins, G. S., Kaissis, G., Tsakou, G., Buvat, I., Kalpathy-Cramer, J., Mongan, J., Schnabel, J. A., Kushibar, K., Riklund, K., Marias, K., \ldots{} FUTURE-AI Consortium. (2025). FUTURE-AI: International consensus guideline for trustworthy and deployable artificial intelligence in healthcare. \textit{BMJ}, \textit{388}, e081554. \url{https://doi.org/10.1136/bmj-2024-081554}
+
+\hangindent=2em\hangafter=1 Li, X., Wang, S., Zeng, S., Wu, Y., \& Yang, Y. (2024). A survey on LLM-based multi-agent systems: Workflow, infrastructure, and challenges. \textit{Vicinagearth}, \textit{1}(1), Article 9. \url{https://doi.org/10.1007/s44336-024-00009-2}
+
+\hangindent=2em\hangafter=1 Lin, J., Tang, J., Tang, H., Yang, S., Chen, W.-M., Wang, W.-C., Xiao, G., Dang, X., Gan, C., \& Han, S. (2023). AWQ: Activation-aware weight quantization for LLM compression and acceleration [Preprint]. \textit{arXiv}. \url{https://doi.org/10.48550/arXiv.2306.00978}
+
+\hangindent=2em\hangafter=1 Liu, J. J., Borsari, B., Li, Y., Liu, S. X., Gao, Y., Xin, X., Lou, S., Jensen, M., Garrido-Martin, D., Verplaetse, T. L., Ash, G., Zhang, J., Girgenti, M. J., Roberts, W., \& Gerstein, M. (2025). Digital phenotyping from wearables using AI characterizes psychiatric disorders and identifies genetic associations. \textit{Cell}, \textit{188}, 515--529.e15. \url{https://doi.org/10.1016/j.cell.2024.11.012}
+
+\hangindent=2em\hangafter=1 Liu, X., Cruz Rivera, S., Moher, D., Calvert, M. J., \& Denniston, A. K., on behalf of the CONSORT-AI and SPIRIT-AI Working Group. (2020). Reporting guidelines for clinical trial reports for interventions involving artificial intelligence: The CONSORT-AI extension. \textit{Nature Medicine}, \textit{26}, 1364--1374. \url{https://doi.org/10.1038/s41591-020-1034-x}
+
+\hangindent=2em\hangafter=1 Mansour, S. L., Di Biase, M. A., Smith, R. E., Zalesky, A., \& Seguin, C. (2023). Connectomes for 40,000 UK Biobank participants: A multi-modal, multi-scale brain network resource. \textit{NeuroImage}, \textit{283}, Article 120407. \url{https://doi.org/10.1016/j.neuroimage.2023.120407}
+
+\hangindent=2em\hangafter=1 Marek, S., \& Laumann, T. O. (2024). Replicability and generalizability in population psychiatric neuroimaging. \textit{Neuropsychopharmacology}. Advance online publication. \url{https://doi.org/10.1038/s41386-024-01960-w}
+
+\hangindent=2em\hangafter=1 Marquand, A. F., Rezek, I., Buitelaar, J., \& Beckmann, C. F. (2016). Understanding heterogeneity in clinical cohorts using normative models: Beyond case--control studies. \textit{Biological Psychiatry}, \textit{80}(7), 552--561. \url{https://doi.org/10.1016/j.biopsych.2015.12.023}
+
+\hangindent=2em\hangafter=1 Marquand, A. F., Kia, S. M., Zabihi, M., Wolfers, T., Buitelaar, J. K., \& Beckmann, C. F. (2019). Conceptualizing mental disorders as deviations from normative functioning. \textit{Molecular Psychiatry}, \textit{24}(10), 1415--1424. \url{https://doi.org/10.1038/s41380-019-0441-1}
+
+\hangindent=2em\hangafter=1 McInnis, M. G., Coleman, B., Hurwitz, E., Robinson, P. N., Williams, A. E., Haendel, M. A., \& McMurry, J. A. (2025). Integrating knowledge: The power of ontologies in psychiatric research and clinical informatics. \textit{Biological Psychiatry}, \textit{98}(4), 293--301. \url{https://doi.org/10.1016/j.biopsych.2025.05.014}
+
+\hangindent=2em\hangafter=1 Milbourn, H., Porteous, D. J., Zeng, Y., Hall, L. S., Hayward, C., MacIntyre, D. J., Smith, D. J., \& Thomson, P. A. (2024). Generation Scotland: An update on Scotland's longitudinal family health study. \textit{BMJ Open}, \textit{14}(6), e085197. \url{https://doi.org/10.1136/bmjopen-2024-084719}
+
+\hangindent=2em\hangafter=1 Miller, K. L., Alfaro-Almagro, F., Bangerter, N. K., Thomas, D. L., Yacoub, E., Xu, J., Bartsch, A. J., Jbabdi, S., Sotiropoulos, S. N., Andersson, J. L. R., Griffanti, L., Douaud, G., Okell, T. W., Weale, P., Dragonu, I., Garratt, S., Hudson, S., Collins, R., Matthews, P. M., \& Smith, S. M. (2016). Multimodal population brain imaging in the UK Biobank prospective epidemiological study. \textit{Nature Neuroscience}, \textit{19}(11), 1523--1536. \url{https://doi.org/10.1038/nn.4393}
+
+\hangindent=2em\hangafter=1 National Institute of Mental Health. (2024). Research Domain Criteria (RDoC). \url{https://www.nimh.nih.gov/research/research-funded-by-nimh/rdoc}
+
+\hangindent=2em\hangafter=1 Nicolson, A., et al. (2025). The human factor in explainable artificial intelligence: Clinician trust, reliance, and performance in gestational age estimation. \textit{npj Digital Medicine}. Advance online publication. \url{https://doi.org/10.1038/s41746-025-02023-0}
+
+\hangindent=2em\hangafter=1 Nooner, K. B., Colcombe, S. J., Tobe, R. H., Mennes, M., Benedict, M. M., Moreno, A. L., Panek, L. J., Brown, S., Zavitz, S. T., Li, Q., Sikka, S., Gutman, D., Bangaru, S., Schlachter, R. T., Kamiel, S. M., Anwar, A. R., Hinz, C. M., Kaplan, M. S., Rachlin, A. B., \ldots{} Milham, M. P. (2012). The NKI-Rockland Sample: A model for accelerating the pace of discovery science in psychiatry. \textit{Frontiers in Neuroscience}, \textit{6}, Article 152. \url{https://doi.org/10.3389/fnins.2012.00152}
+
+\hangindent=2em\hangafter=1 Nori, H., King, N., McKinney, S. M., Carignan, D., \& Horvitz, E. (2023). Capabilities of GPT-4 on medical competency examinations [Preprint]. \textit{arXiv}. \url{https://doi.org/10.48550/arXiv.2303.13375}
+
+\hangindent=2em\hangafter=1 Qwen Team. (2025). Qwen3 technical report [Preprint]. \textit{arXiv}. \url{https://doi.org/10.48550/arXiv.2505.09388}
+
+\hangindent=2em\hangafter=1 Rigby, R. A., \& Stasinopoulos, D. M. (2005). Generalized additive models for location, scale and shape. \textit{Journal of the Royal Statistical Society: Series C (Applied Statistics)}, \textit{54}(3), 507--554. \url{https://doi.org/10.1111/j.1467-9876.2005.00510.x}
+
+\hangindent=2em\hangafter=1 Rudin, C. (2019). Stop explaining black box machine learning models for high stakes decisions and use interpretable models instead. \textit{Nature Machine Intelligence}, \textit{1}(5), 206--215. \url{https://doi.org/10.1038/s42256-019-0048-x}
+
+\hangindent=2em\hangafter=1 Schmaal, L., Hibar, D. P., Sämann, P. G., Hall, G. B., Baune, B. T., Jahanshad, N., Cheung, J. W., van Erp, T. G. M., Bos, D., Ikram, M. A., Vernooij, M. W., Niessen, W. J., Tiemeier, H., Hofman, A., Wittfeld, K., Grabe, H. J., Janowitz, D., Bülow, R., Selonke, M., \ldots{} Veltman, D. J. (2017). Cortical abnormalities in adults and adolescents with major depression based on brain scans from 20 cohorts worldwide in the ENIGMA Major Depressive Disorder Working Group. \textit{Molecular Psychiatry}, \textit{22}(6), 900--909. \url{https://doi.org/10.1038/mp.2016.60}
+
+\hangindent=2em\hangafter=1 Shinn, N., Cassano, F., Berman, E., Gopinath, A., Narasimhan, K., \& Yao, S. (2023). Reflexion: Language agents with verbal reinforcement learning [Preprint]. \textit{arXiv}. \url{https://doi.org/10.48550/arXiv.2303.11366}
+
+\hangindent=2em\hangafter=1 Shoham, Y., \& Leyton-Brown, K. (2009). \textit{Multiagent systems: Algorithmic, game-theoretic, and logical foundations}. Cambridge University Press. \url{https://doi.org/10.1017/CBO9780511811654}
+
+\hangindent=2em\hangafter=1 Singhal, K., Azizi, S., Tu, T., Mahdavi, S. S., Wei, J., Chung, H. W., Scales, N., Tanwani, A., Cole-Lewis, H., Pfohl, S., Payne, P., Seneviratne, M., Gamber, P., Kelly, C., Babiker, A., Schärli, N., Chowdhery, A., Mansfield, P., Demner-Fushman, D., \ldots{} Natarajan, V. (2023). Large language models encode clinical knowledge. \textit{Nature}, \textit{620}(7972), 172--180. \url{https://doi.org/10.1038/s41586-023-06291-2}
+
+\hangindent=2em\hangafter=1 Sorka, M., Gorenshtein, A., Aran, D., \& Shelly, S. (2025). A multi-agent approach to neurological clinical reasoning. \textit{PLOS Digital Health}. \url{https://doi.org/10.1371/journal.pdig.0001106}
+
+\hangindent=2em\hangafter=1 Spiller, T. R., Fielstein, E., Pietrzak, R. H., von Känel, R., \& Harpaz-Rotem, I. (2024). Unveiling the structure in mental disorder presentations. \textit{JAMA Psychiatry}. Advance online publication. \url{https://doi.org/10.1001/jamapsychiatry.2024.2047}
+
+\hangindent=2em\hangafter=1 Stone, P., \& Veloso, M. (2000). Multiagent systems: A survey from a machine learning perspective. \textit{Autonomous Robots}, \textit{8}(3), 345--383. \url{https://doi.org/10.1023/A:1008942012299}
+
+\hangindent=2em\hangafter=1 Sudlow, C., Gallacher, J., Allen, N., Beral, V., Burton, P., Danesh, J., Downey, P., Elliott, P., Green, J., Landray, M., Liu, B., Matthews, P., Ong, G., Pell, J., Silman, A., Young, A., Sprosen, T., Peakman, T., \& Collins, R. (2015). UK Biobank: An open access resource for identifying the causes of a wide range of complex diseases of middle and old age. \textit{PLOS Medicine}, \textit{12}(3), e1001779. \url{https://doi.org/10.1371/journal.pmed.1001779}
+
+\hangindent=2em\hangafter=1 Sundararajan, M., Taly, A., \& Yan, Q. (2017). Axiomatic attribution for deep networks. In D. Precup \& Y. W. Teh (Eds.), \textit{Proceedings of the 34th International Conference on Machine Learning} (Vol. 70, pp. 3319--3328). PMLR. \url{https://doi.org/10.48550/arXiv.1703.01365}
+
+\hangindent=2em\hangafter=1 Sullivan, E. V., Harris, R. A., \& Pfefferbaum, A. (2017). Alcohol's effects on brain and behavior. \textit{Alcohol Research: Current Reviews}, \textit{38}(2), 207--210.
+
+\hangindent=2em\hangafter=1 Teles, A. S., Chaturvedi, J., Wang, T., Scazufca, M., Msosa, Y., Stahl, D., \& Roberts, A. (2025). Generative multimodal large language models in mental health care: Applications, opportunities, and challenges. \textit{PLOS Mental Health}, \textit{2}(11), e0000488. \url{https://doi.org/10.1371/journal.pmen.0000488}
+
+\hangindent=2em\hangafter=1 U.S. Food and Drug Administration. (2025, August). \textit{Marketing submission recommendations for a predetermined change control plan for artificial intelligence-enabled device software functions: Guidance for industry and Food and Drug Administration staff}. \url{https://www.fda.gov/regulatory-information/search-fda-guidance-documents/marketing-submission-recommendations-predetermined-change-control-plan-artificial-intelligence}
+
+\hangindent=2em\hangafter=1 Van Essen, D. C., Smith, S. M., Barch, D. M., Behrens, T. E. J., Yacoub, E., Ugurbil, K., \& WU-Minn HCP Consortium. (2013). The WU-Minn Human Connectome Project: An overview. \textit{NeuroImage}, \textit{80}, 62--79. \url{https://doi.org/10.1016/j.neuroimage.2013.05.041}
+
+\hangindent=2em\hangafter=1 Varoquaux, G., Raamana, P. R., Engemann, D. A., Hoyos-Idrobo, A., Schwartz, Y., \& Thirion, B. (2017). Assessing and tuning brain decoders: Cross-validation, caveats, and guidelines. \textit{NeuroImage}, \textit{145}(Part B), 166--179. \url{https://doi.org/10.1016/j.neuroimage.2016.10.038}
+
+\hangindent=2em\hangafter=1 Volkow, N. D., Koob, G. F., \& McLellan, A. T. (2016). Neurobiologic advances from the brain disease model of addiction. \textit{New England Journal of Medicine}, \textit{374}(4), 363--371. \url{https://doi.org/10.1056/NEJMra1511480}
+
+\hangindent=2em\hangafter=1 Wang, L., Ma, C., Feng, X., Zhang, Z., Yang, H., Zhang, J., Chen, Z., Tang, J., Chen, X., Lin, Y., Zhao, W. X., Wei, Z., \& Wen, J. (2024). A survey on large language model based autonomous agents. \textit{Frontiers of Computer Science}, \textit{18}(6), 186345. \url{https://doi.org/10.1007/s11704-024-40231-1}
+
+\hangindent=2em\hangafter=1 Wang, X., Wei, J., Schuurmans, D., Le, Q. V., Chi, E. H., Narang, S., Chowdhery, A., \& Zhou, D. (2023). Self-consistency improves chain of thought reasoning in language models [Preprint]. \textit{arXiv}. \url{https://doi.org/10.48550/arXiv.2203.11171}
+
+\hangindent=2em\hangafter=1 Wechsler, D. (2008). \textit{Wechsler Adult Intelligence Scale--Fourth Edition (WAIS--IV)}. Pearson.
+
+\hangindent=2em\hangafter=1 Wei, J., Wang, X., Schuurmans, D., Bosma, M., Ichter, B., Xia, F., Chi, E., Le, Q. V., \& Zhou, D. (2022). Chain-of-thought prompting elicits reasoning in large language models. In S. Koyejo, S. Mohamed, A. Agarwal, D. Belgrave, K. Cho, \& A. Oh (Eds.), \textit{Advances in Neural Information Processing Systems} (Vol. 35, pp. 24824--24837). Curran Associates. \url{https://proceedings.neurips.cc/paper_files/paper/2022/hash/9d5609613524ecf4f15af0f7b31abca4-Abstract-Conference.html}
+
+\hangindent=2em\hangafter=1 Wolf, T., Debut, L., Sanh, V., Chaumond, J., Delangue, C., Moi, A., Cistac, P., Rault, T., Louf, R., Funtowicz, M., Davison, J., Shleifer, S., von Platen, P., Ma, C., Jernite, Y., Plu, J., Xu, C., Le Scao, T., Gugger, S., \ldots{} Rush, A. M. (2020). Transformers: State-of-the-art natural language processing. In \textit{Proceedings of the 2020 Conference on Empirical Methods in Natural Language Processing: System Demonstrations} (pp. 38--45). Association for Computational Linguistics. \url{https://doi.org/10.18653/v1/2020.emnlp-demos.6}
+
+\hangindent=2em\hangafter=1 Wolfers, T., Doan, N. T., Kaufmann, T., Alnæs, D., Moberget, T., Agartz, I., Buitelaar, J. K., Ueland, T., Melle, I., Franke, B., Andreassen, O. A., \& Marquand, A. F. (2018). Mapping the heterogeneous phenotype of schizophrenia and bipolar disorder using normative models. \textit{JAMA Psychiatry}, \textit{75}(11), 1146--1155. \url{https://doi.org/10.1001/jamapsychiatry.2018.2467}
+
+\hangindent=2em\hangafter=1 Woo, C.-W., Chang, L. J., Lindquist, M. A., \& Wager, T. D. (2017). Building better biomarkers: Brain models in translational neuroimaging. \textit{Nature Neuroscience}, \textit{20}(3), 365--377. \url{https://doi.org/10.1038/nn.4478}
+
+\hangindent=2em\hangafter=1 Wooldridge, M. (2009). \textit{An introduction to multiagent systems} (2nd ed.). Wiley.
+
+\hangindent=2em\hangafter=1 World Health Organization. (2024). \textit{Ethics and governance of artificial intelligence for health: Guidance on large multi-modal models}. \url{https://iris.who.int/handle/10665/375579}
+
+\hangindent=2em\hangafter=1 World Health Organization. (2025a). \textit{Mental health atlas 2024}. \url{https://www.who.int/publications/i/item/9789240114487}
+
+\hangindent=2em\hangafter=1 World Health Organization. (2025b, September 2). Over a billion people living with mental health conditions -- services require urgent scale-up [News release]. \url{https://www.who.int/news/item/02-09-2025-over-a-billion-people-living-with-mental-health-conditions-services-require-urgent-scale-up}
+
+\hangindent=2em\hangafter=1 World Health Organization. (2025c). \textit{World mental health today: Latest data}. \url{https://www.who.int/publications/i/item/9789240113817}
+
+\hangindent=2em\hangafter=1 W3C OWL Working Group. (2012). \textit{OWL 2 web ontology language primer (Second Edition)} (W3C Recommendation). World Wide Web Consortium. \url{https://www.w3.org/TR/owl2-primer/}
+
+\hangindent=2em\hangafter=1 Yao, S., Zhao, J., Yu, D., Du, N., Shafran, I., Narasimhan, K., \& Cao, Y. (2023). ReAct: Synergizing reasoning and acting in language models [Preprint]. \textit{arXiv}. \url{https://doi.org/10.48550/arXiv.2210.03629}
+
+\hangindent=2em\hangafter=1 Yao, S., Yu, D., Zhao, J., Shafran, I., Griffiths, T. L., Cao, Y., \& Narasimhan, K. (2023). Tree of thoughts: Deliberate problem solving with large language models [Preprint]. \textit{arXiv}. \url{https://doi.org/10.48550/arXiv.2305.10601}
+
+\endgroup
+
+\FloatBarrier
+\clearpage
+\appendix
+\section*{Supplementary Materials}
+\addcontentsline{toc}{section}{Supplementary Materials}
+\renewcommand{\thefigure}{S\arabic{figure}}
+\setcounter{figure}{0}
+\renewcommand{\thetable}{S\arabic{table}}
+\setcounter{table}{0}
+
+\vspace*{\fill}
+\captionsetup{type=figure}
+\captionof{figure}{Supplementary overview of UK Biobank inputs, healthy-reference exclusion logic, modality ontologies, and example hierarchical deviation maps.}
+\label{fig:s1}
+{\centering\includegraphics[width=\linewidth]{figures/s_fig1_B_healthy_criteria.png}\par}
+\par\smallskip
+\begin{minipage}{\linewidth}
+\raggedright\small\setstretch{1.5}\textit{Note.} Panel A summarizes the breadth of UK Biobank-derived data sources contributing to the project-specific multimodal representation. Panel B illustrates the three exclusion domains used to define the healthy-reference cohort for normative modelling: registered ICD-10 clinical pathology, upper-tail polygenic liability, and low global cognitive performance. Panels C.A--C.F show the six primary structured modality ontologies used by COMPASS: brain MRI, biological assay, cognition, demographics, genomics, and lifestyle-environment variables. Panel D shows example hierarchical deviation maps for two healthy participants (left) and two pathological participants (right).
+\end{minipage}
+\vspace*{\fill}
+
+\clearpage
+\thispagestyle{plain}
+\vspace*{\fill}
+\captionsetup{type=figure}
+\captionof{figure}{Neuropsychiatric comorbidity structure and consensus network organization in the source cohort.}
+\label{fig:s2}
+{\centering\includegraphics[width=\linewidth]{figures/s_fig2_comorbidity_analysis.png}\par}
+\par\smallskip
+\begin{minipage}{\linewidth}
+\raggedright\small\setstretch{1.5}\textit{Note.} Panel A shows pairwise comorbidity percentages, expressed as the percentage of cases in each row-defined disorder group that also fall into the corresponding column-defined group. Panel B shows the neuropsychiatric Ising $J$ matrix with signed associations; diagonal terms were ignored for color scaling. Panel C shows the neuropsychiatric consensus co-association matrix at threshold $T = 0.5$. Panel D shows the resulting consensus-clustering-based network representation.
+\end{minipage}
+\vspace*{\fill}
+
+\clearpage
+\thispagestyle{plain}
+\vspace*{\fill}
+\captionsetup{type=figure}
+\captionof{figure}{Brain-modality hierarchical-deviation distributions in healthy versus clinical reference groups.}
+\label{fig:s3}
+{\centering\includegraphics[width=\linewidth]{figures/s_fig4_aggregation.png}\par}
+\par\smallskip
+\begin{minipage}{\linewidth}
+\raggedright\small\setstretch{1.5}\textit{Note.} Panel A compares the distribution of brain-modality hierarchical deviation scores between healthy and neuropsychiatric participants; the disorder-specific distributions shown at right summarize the corresponding neuropsychiatric subgroup patterns. Panel B shows the analogous comparison between healthy and neurological participants, again with disorder-specific distributions shown at right. In both panels, the clinical groups exhibit a right-shift toward higher abnormality relative to the healthy reference group.
+\end{minipage}
+\vspace*{\fill}
+
+\clearpage
+\thispagestyle{plain}
+\vspace*{\fill}
+\captionsetup{type=figure,skip=4pt}
+\captionof{figure}{Debugging-oriented COMPASS user interface and real-time workflow visualization.}
+\label{fig:s4}
+{\centering\includegraphics[width=0.88\linewidth]{figures/s_fig3_ui.png}\par}
+\par\smallskip
+\begin{minipage}{\linewidth}
+\raggedright\small\setstretch{1.5}\textit{Note.} Panel A shows the interface used to configure an inference run by selecting a participant, choosing the LLM backend (i.e., local hosting or public API), and specifying the prediction-task type supported by COMPASS. Panel B shows the real-time visualization of the agentic workflow from orchestration through communication, used for debugging and inspection of intermediate outputs during local development and validation.
+\end{minipage}
+\par\vspace{1.0\baselineskip}
+\captionsetup{type=figure,skip=4pt}
+\captionof{figure}{Source-level data coverage across included benchmark participants.}
+\label{fig:s5}
+{\centering\includegraphics[width=0.88\linewidth]{figures/s_fig5_coverage.png}\par}
+\par\smallskip
+\begin{minipage}{\linewidth}
+\raggedright\small\setstretch{1.5}\textit{Note.} Panel A summarizes coverage for non-brain sources among the included benchmark participants, including source-level coverage, completeness, mean observed feature count, and median observed feature count. Panel B shows the corresponding source-level coverage summary for brain-derived inputs among the same included participants.
+\end{minipage}
+\vspace*{\fill}
+
+\clearpage
+\thispagestyle{plain}
+\vspace*{\fill}
+\captionsetup{type=figure}
+\captionof{figure}{Matrix-based connectomics feature-extraction pipeline for participant-specific structural and functional connectivity descriptors.}
+\label{fig:s6}
+{\centering\includegraphics[width=\linewidth]{figures/s_fig6_FEP1.png}\par}
+\par\smallskip
+\begin{minipage}{\linewidth}
+\raggedright\small\setstretch{1.5}\textit{Note.} Stage 1 defines a shared Schaefer-1000 cortical and Tian-S4 subcortical node space with a fixed atlas order. Stage 2 assembles participant-specific connectivity matrices for FA-weighted structural connectivity, streamline-count structural connectivity, and resting-state functional connectivity. Stage 3 extracts the reduced connectomics feature families used in the present benchmark (Groups A--F): edge-distribution statistics, network-block organization, node centrality, modular cartography, global graph topology, and spectral graph signatures. Stage 4 exports modality-specific per-participant feature banks for downstream normalization and hierarchical integration.
+\end{minipage}
+\vspace*{\fill}
+
+\clearpage
+\thispagestyle{plain}
+\vspace*{\fill}
+\captionsetup{type=figure}
+\captionof{figure}{Structural--functional coupling feature-extraction pipeline from anatomically aligned structural and resting-state functional connectivity matrices.}
+\label{fig:s7}
+{\centering\includegraphics[width=0.93\linewidth]{figures/s_fig7_FEP2.png}\par}
+\par\smallskip
+\begin{minipage}{\linewidth}
+\raggedright\footnotesize\setstretch{1.35}\textit{Note.} Stage 1 defines the shared Schaefer-1000 cortical and Tian-S4 subcortical node space used for exact parcel-index correspondence across modalities. Stage 2 assembles FA-weighted structural connectivity and resting-state functional connectivity matrices in that common atlas order. Stage 3 computes anatomically matched blockwise structural--functional coupling by correlating vectorized structural and functional submatrices under the shared node frame. Stage 4 organizes these coupling summaries into the seven structural--functional coupling feature families used in the present benchmark (Groups G1--G7): cortical within-network, subcortical within-family, cortico-cortical between-network, cortico-subcortical cross-compartment, global coupling, interhemispheric homotopic, and subcortical between-family features. Stage 5 exports participant-level structural--functional coupling descriptors for downstream normalization and hierarchical integration.
+\end{minipage}
+\vspace*{\fill}
+
+\clearpage
+\thispagestyle{plain}
+
+% ─── Table S1 ─────────────────────────────────────────────────
+\begingroup
+\captionsetup{type=table}
+\captionof{table}{Root Input Channel Specifications, Leaf Counts, and Functional Roles}
+\label{tab:s1}
+\footnotesize
+\begin{tabularx}{\linewidth}{l r p{0.28\linewidth} X}
+\toprule
+Root domain & Total leaves & Upstream type & Functional role \\
+\midrule
+\texttt{BRAIN\_MRI} & 1,563 & FreeSurfer v6 IDPs (ASEG volumes, DKT cortical thickness/area/volume, desikan WM parcellations); Schaefer-1000 + Tian-S4 SC/FC feature banks (Groups A--F) & Structural and functional brain phenotyping; leaf-level GAMLSS $z$-scores against a healthy-reference trajectory \\
+\texttt{BIOLOGICAL\_ASSAY} & 3,100 & Haematology (Cat.\ 100081), NMR metabolomics (Cat.\ 220), plasma neurobiomarkers (Cat.\ 30900), serum biochemistry (Cat.\ 17518), urine assays (Cat.\ 100083), Olink proteomics (Cat.\ 1839) & Six harmonized assay families; leaves normativized and serialized as deviation scores within their assay-subtree hierarchy \\
+\texttt{GENOMICS} & 93 & PRSice-2 polygenic risk scores (enhanced and standard tiers) for psychiatric, neurodegenerative, and cardiometabolic traits; qPCR telomere T/S ratio (Field 22192, Z-adjusted log; Cawthon, 2002) & 92 disorder-specific PRS leaves plus a cellular-ageing index; PRS also used as healthy-reference exclusion criteria \\
+\texttt{COGNITION} & 20 & Fluid intelligence (20016, 20191), numeric memory (4282, 20240), reaction time (20023), pairs matching (399, 20132), trail making (6348, 6350, 20156, 20157), matrix pattern completion (6373, 20760), symbol-digit substitution (23324, 20159), prospective memory (20018), paired-associate learning (20197), vocabulary (6364, 26302), and tower rearranging (21004) & Performance markers spanning reaction speed, episodic memory, executive function, visuospatial reasoning, working memory, and planning \\
+\texttt{LIFESTYLE} & 48 & Sleep duration/quality, tobacco pack-years, alcohol frequency/quantity, physical activity, dietary patterns, substance use & Behavioural and environmental exposures; ordinal/continuous leaves normativized where criteria met; remainder via non-normativizable stack \\
+\texttt{DEMOGRAPHICS} & 8 & Age, genetic sex, self-reported sex, ethnicity, Townsend deprivation index, assessment centre, recruitment batch & Normative model covariates; excluded from leaf-level deviation aggregation \\
+\bottomrule
+\end{tabularx}
+\par\smallskip\noindent\small\textit{Note.} Six root modality domains were represented in structured JSON form; a seventh non-tabular text channel (\texttt{non\_numerical\_data.txt}) was stored separately and carried ICD-10 text fields, medication records, job history, and schema-decoded categorical variables. Total leaf count: 4,832.
+\endgroup
+
+% ─── Table S2 ─────────────────────────────────────────────────
+\begin{table}[H]
+\caption{Brain Feature Family Specifications, Upstream Sources, Feature Counts, and Ontology Content}
+\label{tab:s2}
+\footnotesize
+\begin{tabularx}{\linewidth}{l p{0.33\linewidth} r X}
+\toprule
+Feature family & Upstream source & Fields & Ontology content \\
+\midrule
+ASEG & \texttt{freesurfer\_ASEG\_190.csv} & 190 & Subcortical volumes, ventricles, CSF spaces, cerebellum, brainstem, corpus callosum \\
+DKT & \texttt{freesurfer\_DKT\_196.csv} & 196 & Cortical thickness, surface area, and volume via Desikan--Killiany--Tourville atlas \\
+Desikan WM & \texttt{freesurfer\_desikan\_white\_192.csv} & 192 & White-matter tract parcellation volumes \\
+Structural conn. & UKB Field 31026: Connectome Schaefer7n1000p and Tian Subcortex S4 3T & --- & FA-weighted and streamline-count connectivity matrices \\
+Functional conn. & UKB Field 31018: fMRI timeseries Schaefer7ns 100p to 1000p (1000 -- 7ns version) + UKB Field 31019: fMRI timeseries Tian Subcortex S1 to S4 3T (S4 version) & --- & Fisher-$z$-transformed resting-state functional connectivity matrices \\
+SFC & Self-computed from aligned SC/FC matrix pairs; no UKB showcase field & --- & Structural--functional coupling across cortical and subcortical compartments \\
+\bottomrule
+\end{tabularx}
+\par\smallskip\noindent\small\textit{Note.} ASEG = automatic subcortical segmentation; DKT = Desikan--Killiany--Tourville cortical atlas; WM = white matter; conn.\ = connectomics; FA = fractional anisotropy; SFC = structural--functional coupling. Structural and functional connectivity matrices were computed locally from UKB-provided inputs; ``---'' denotes no direct UKB showcase-level field count.
+\end{table}
+
+% ─── Table S3 ─────────────────────────────────────────────────
+\begin{table}[H]
+\caption{Structural and Functional Connectomics Feature Group Specifications (Groups A--F)}
+\label{tab:s3}
+\footnotesize
+\begin{tabularx}{\linewidth}{l X r r}
+\toprule
+Group & Description & SC ($n$) & FC ($n$) \\
+\midrule
+A & Distributional edge-weight statistics (mean, SD, skew, kurtosis, quantiles) & 29 & 36 \\
+B & Network-level summary features (density, mean strength, within-/between-network block ratios) & 106 & 105 \\
+C & Node-level centrality measures (degree, strength, betweenness, eigenvector centrality) & 38 & 38 \\
+D & Cartographic classification (participation coefficient, within-module degree $z$-score) & 31 & 31 \\
+E & Global graph-topology indices (clustering coefficient, path length, small-worldness, modularity) & 36 & 39 \\
+F & Spectral features (full adjacency eigenspectrum, Laplacian algebraic connectivity, spectral entropy) & 3,162 & 3,162 \\
+\midrule
+\multicolumn{2}{l}{Total} & 3,402 & 3,411 \\
+\bottomrule
+\end{tabularx}
+\par\smallskip\noindent\small\textit{Note.} SC = structural connectivity (applied identically to FA-weighted and streamline-count matrices); FC = functional connectivity. The present benchmark used the reduced A--F configuration; ROI-level (G), hemispheric-asymmetry (H), and subject-level summary (I) groups were omitted. Group F feature count reflects per-node eigenspectrum coverage (Schaefer-1000 + Tian-S4 parcellations).
+\end{table}
+
+% ─── Table S4 ─────────────────────────────────────────────────
+\begin{table}[H]
+\caption{Structural--Functional Coupling (SFC) Feature Group Specifications (Groups G1--G7)}
+\label{tab:s4}
+\footnotesize
+\begin{tabularx}{\linewidth}{l l X r}
+\toprule
+Group & Scope & Description & $n$ \\
+\midrule
+G1 & Cortical within-network & Intra-cortical SFC deviation within each Schaefer network & 28 \\
+G2 & Subcortical within-family & Intra-subcortical SFC deviation within each Tian-S4 family & 28 \\
+G3 & Cortico-cortical between-network & Inter-cortical SFC deviation across different Schaefer networks & 21 \\
+G4 & Cortico-subcortical & Cross-compartment SFC deviation between cortical networks and subcortical families & 245 \\
+G5 & Global SFC summary & Whole-brain SFC indices aggregated across all compartments & 6 \\
+G6 & Interhemispheric homotopic & Homotopic SFC deviation between left/right homologous regions & 14 \\
+G7 & Subcortical between-family & Inter-subcortical SFC deviation across different Tian-S4 families & 21 \\
+\midrule
+\multicolumn{3}{l}{Total} & 363 \\
+\bottomrule
+\end{tabularx}
+\par\smallskip\noindent\small\textit{Note.} SFC groups are computed from aligned structural--functional matrix pairs using Schaefer-1000 cortical (1,000 parcels) and Tian-S4 subcortical (54 regions) parcellations. $n$ = number of scalar features per group.
+\end{table}
+
+% ─── Table S5 ─────────────────────────────────────────────────
+\begin{table}[H]
+\caption{Non-Tabular Data Field Specifications and Transformation Rules}
+\label{tab:s5}
+\footnotesize
+\begin{tabularx}{\linewidth}{l X X}
+\toprule
+Field & UK Biobank source & Transformation \\
+\midrule
+\texttt{icd10\_diagnoses} & ICD-10 diagnosis strings (field 41270) & Anti-leakage-scrubbed for case participants; rewritten to canonical empty label \\
+\texttt{medications\_total} & Self-reported medication records (field 20003) & Aggregated into semicolon-delimited text summary per participant \\
+\texttt{job\_history\_total} & Occupational history records (field 22601) & Aggregated text summary of reported job history entries \\
+Decoded nominal block & Categorical (single/multiple) fields not meeting ordinal criteria & Schema-decoded via UK Biobank Showcase exports; negative sentinels mapped to missing \\
+Decoded inferred-ordinal block & Categorical fields meeting ordinal heuristic threshold & Heuristic-scored ordinal inference using title terms, label patterns, and code structure \\
+\bottomrule
+\end{tabularx}
+\par\smallskip\noindent\small\textit{Note.} Non-tabular information was stored in \texttt{non\_numerical\_data.txt} as a controlled serialization comprising UK Biobank-derived text fields and schema-informed categorical variables.
+\end{table}
+
+% ─── Table S6 (COMPASS agent roles) ─────────────────────────
+\begin{table}[H]
+\caption{COMPASS Agent Roles and Functional Specialization Within the Multi-Agent Inference Engine}
+\label{tab:s6}
+\footnotesize
+\begin{tabularx}{\linewidth}{p{0.18\linewidth} l X}
+\toprule
+Agent & Stage & Functional role \\
+\midrule
+\texttt{Orchestrator} & Planning & Constructs the participant-specific analysis plan from the disorder label and data-availability metadata; dispatches agent calls in dependency order; always receives \texttt{data\_overview.json} and \texttt{hierarchical\_deviation\_map.json} \\
+\texttt{Executor} & Retrieval & Runs structured retrieval and token-budget-aware compression over targeted ontology branches; operates selectively on \texttt{multimodal\_data.json} subtrees \\
+\texttt{Integrator} & Fusion & Summarizes retrieved unimodal fragments into phenotype-relevant cross-modal evidence blocks for downstream adjudication \\
+\texttt{Predictor} & Inference & Converts fused multimodal evidence into a structured case--control prediction with supporting rationale and confidence tier \\
+\texttt{Critic} & Validation & Inspects the prediction trace for unsupported inferences, data-coverage failures, or logical inconsistencies; may flag the output for re-evaluation \\
+\texttt{Communicator} & Reporting & Produces the human-readable synthesis layer when natural language report generation is requested \\
+\bottomrule
+\end{tabularx}
+\par\smallskip\noindent\small\textit{Note.} The Orchestrator is the only agent with direct access to the high-level control files; all access to the large \texttt{multimodal\_data.json} tree is mediated by targeted Executor calls to maintain tractable token budgets on a single GPU.
+\end{table}
+
+% ─── Table S7 (COMPASS tool layer — moved from main body) ────
+\begin{table}[H]
+\caption{COMPASS Tool Layer: Component Specifications and Functional Roles Within the Agentic Workflow}
+\label{tab:s7}
+\footnotesize
+\begin{tabularx}{\linewidth}{p{0.26\linewidth} l p{0.15\linewidth} X}
+\toprule
+Component/tool & Stage & Primary inputs & Technical role \\
+\midrule
+\texttt{PhenotypeRepresentation} & Early & Target and comparator labels & Generates a target phenotype template and expected biomarker profile independently of participant data \\
+\texttt{AnomalyNarrativeBuilder} & Early & Deviation map JSON & Converts node-level abnormality burden into a compact anomaly narrative for rapid screening \\
+\texttt{FeatureSynthesizer} & Early & Deviation map, task label & Produces domain- and hierarchy-level attention guidance for later retrieval \\
+\texttt{UnimodalCompressor} & Mid & Multimodal data JSON subtrees & Performs target-conditioned token compression of large subtrees \\
+\texttt{ClinicalRelevanceRanker} & Mid & Early summaries, abnormality profile, task label & Reweights candidate signals by condition-specific diagnostic relevance \\
+\texttt{MultimodalNarrativeCreator} & Mid & Unimodal summaries, deviation map, text channel & Fuses convergent and divergent evidence across modalities \\
+\texttt{HypothesisGenerator} & Late & Integrated narratives & Produces mechanistic or pathophysiological hypotheses explaining cross-modal co-occurrence \\
+\texttt{DifferentialDiagnosis} & Late & Phenotype template, hypotheses, ranked relevance, multimodal summaries & Performs final comparator-aware adjudication with rule-in/rule-out logic \\
+\texttt{CodeExecutor} & Flexible & Structured inputs and Python snippets & Enables deterministic calculations when programmatic analysis is more appropriate \\
+\bottomrule
+\end{tabularx}
+\par\smallskip\noindent\small\textit{Note.} Auxiliary chunk-level evidence extraction utilities can additionally be invoked when a summary must be linked back to a localized evidence span.
+\end{table}
+
+% ─── Table S8 ────────────────────────────────────────────────────
+\begin{table}[H]
+\caption{UK Biobank-Derived Input Data States and Project-Specific Transformations Before COMPASS Inference}
+\label{tab:s8}
+\footnotesize
+\begin{tabularx}{\linewidth}{l X X}
+\toprule
+Data family & UK Biobank-derived input state & Project-specific transformation before inference \\
+\midrule
+Brain MRI & IDPs and connectomic feature tables (not raw images) & Regrouped into morphologic and connectomic branches, normalized against healthy-reference trajectories, serialized as hierarchical leaf-level deviations \\
+Genomics & Quality-controlled, imputed; PRS tables (not raw variant matrices); qPCR-derived telomere T/S ratio (Field 22192, Z-adjusted log form) & Preferred enhanced PRS when available; telomere leaf normativized via GAMLSS; harmonized naming; inserted into genomics ontology branch; PRS reused for healthy-reference exclusion \\
+Biological assays & Harmonized assay-specific tables for haematology, plasma neurobiomarkers, NMR metabolomics, serum biochemistry, urine assays, and proteomics & Reorganized into assay subtrees and transformed into a shared deviation space \\
+Cognition & Assessment-derived cognitive task tables covering reasoning, memory, reaction time, trail making, symbol-digit substitution, and related performance measures & Numeric features normativized; duration and error variables direction-corrected; mapped into the cognition ontology branch and reused for healthy-reference cognitive screening \\
+Lifestyle-environment & Assessment-derived self-report tables spanning sleep, smoking, alcohol use, diet, physical activity, sexual factors, and sun exposure & Continuous and ordered features normativized where applicable; remaining variables routed through the non-normativizable preprocessing stack and organized into lifestyle subtrees \\
+Demographics & Core participant descriptor tables including sex, age, birth year, and age completed full-time education & Serialized as explicit context variables for participant interpretation and prompt anchoring; excluded from hierarchical deviation aggregation \\
+Linked diagnoses and text metadata & Structured diagnosis exports plus UK Biobank schema/coding metadata & Collapsed into controlled text fields and schema-informed categorical blocks, then anti-leakage-scrubbed \\
+\bottomrule
+\end{tabularx}
+\par\smallskip\noindent\small\textit{Note.} IDP = imaging-derived phenotype; PRS = polygenic risk score; NMR = nuclear magnetic resonance. Anti-leakage scrubbing removed verbatim ICD-10 case labels from case-labelled participant folders before inference.
+\end{table}
+
+% ─── Table S9 (deviation burden — moved from main body) ──────
+\begin{table}[H]
+\caption{Mean Absolute Deviation Burden by Hierarchical Modality Sub-Branch Across All 200 Participants}
+\label{tab:s9}
+\footnotesize
+\begin{tabularx}{\linewidth}{l l r r X}
+\toprule
+Root domain & Sub-branch & Mean $|z|$ & SD & Signal character \\
+\midrule
+\texttt{BRAIN\_MRI} & Morphologics & 0.812 & 0.192 & Moderate, low-variance morphometric signal \\
+\texttt{BRAIN\_MRI} & Connectomics & 0.730 & 0.115 & Lowest mean; most uniform branch across participants \\
+\texttt{BIOLOGICAL\_ASSAY} & Proteomics & 0.904 & 0.157 & Strong, consistent proteomic deviation \\
+\texttt{BIOLOGICAL\_ASSAY} & Serum biochemistry & 0.871 & 0.508 & Strong mean; high between-participant variability \\
+\texttt{BIOLOGICAL\_ASSAY} & NMR metabolomics & 0.827 & 0.312 & Moderate metabolomic deviation \\
+\texttt{GENOMICS} & Polygenic risk scores & 0.798 & 0.095 & Uniform; lowest variance branch in the benchmark \\
+\texttt{COGNITION} & General factor & 0.903 & 0.734 & High mean; heterogeneous across disorder groups \\
+\texttt{COGNITION} & Processing speed & 1.584 & 0.663 & Highest burden in the benchmark \\
+\texttt{LIFESTYLE} & Sleep & 0.916 & 0.721 & High mean; largest within-branch variance \\
+\texttt{LIFESTYLE} & Smoking & 0.853 & 0.492 & Moderate--high behavioural deviation signal \\
+\bottomrule
+\end{tabularx}
+\par\smallskip\noindent\small\textit{Note.} Mean $|z|$ = mean absolute GAMLSS deviation score aggregated across all leaves within the sub-branch for all 200 evaluable participants. SD = standard deviation across participants. Signal character summarizes deviation magnitude and between-participant consistency: low SD = uniform profile; high SD = disorder-group-dependent heterogeneity. Branches are ordered by root domain; within each domain by descending mean $|z|$.
+\end{table}
+
+% ─── Table S10 (data completeness/token load — moved from main body) ─────
+\begin{table}[H]
+\caption{Modality-Level Data Completeness and Mean Token Contribution Across the Evaluable Benchmark Cohort}
+\label{tab:s10}
+\small
+\begin{tabularx}{\linewidth}{X r X r r r}
+\toprule
+Domain & \textit{n} & Mean present leaves & Mean coverage (\%) & Coverage range (\%) & Mean token load \\
+\midrule
+Brain MRI & 200 & 1,418.7 / 1,563 & 90.8 & 89.6--94.4 & 18,025.6 \\
+Biological assays & 200 & 200.5 / 3,100 & 6.5 & 2.4--6.8 & 1,707.9 \\
+Genomics & 200 & 52.0 / 93 & 55.9 & 1.1--97.8 & 698.4 \\
+Cognition & 200 & 6.6 / 20 & 33.0 & 15.0--95.0 & 84.9 \\
+Lifestyle & 200 & 24.9 / 48 & 51.9 & 22.9--83.3 & 255.8 \\
+Demographics & 200 & 6.0 / 8 & 74.4 & 50.0--87.5 & 17.6 \\
+\bottomrule
+\end{tabularx}
+\par\smallskip\noindent\small\textit{Note.} Mean present leaves reported as observed count / total available leaves. Token load reflects mean input tokens contributed per domain across all 200 participants.
+\end{table}
+
+% ─── Table S11 ────────────────────────────────────────────────
+\begingroup
+\footnotesize
+\setlength{\LTleft}{0pt}
+\setlength{\LTright}{0pt}
+\setlength{\tabcolsep}{4pt}
+\renewcommand{\arraystretch}{1.1}
+\begin{longtable}{p{0.16\linewidth} p{0.27\linewidth} p{0.47\linewidth}}
+\caption{Brain Modality: Sub-Branch Composition, Upstream Sources, and Engineering Specifications}
+\label{tab:s11}\\
+\toprule
+Component & Upstream source / configuration & Technical specification and representation role \\
+\midrule
+\endfirsthead
+\caption[]{Brain Modality: Sub-Branch Composition, Upstream Sources, and Engineering Specifications (continued)}\\
+\toprule
+Component & Upstream source / configuration & Technical specification and representation role \\
+\midrule
+\endhead
+\bottomrule
+\endfoot
+\bottomrule
+\endlastfoot
+Domain overview & \texttt{BRAIN\_MRI} root (1,563 leaves); UK Biobank-derived IDPs plus downstream matrix-derived feature banks & The brain branch was serialized as an ontology-organized hierarchy separating \texttt{Morphologics} from \texttt{Connectomics}, allowing coarse-to-fine retrieval over pre-engineered deviation scores rather than raw imaging files. \\
+Morphologics & FreeSurfer-derived ASEG (190 fields), DKT (196 fields), and Desikan white-matter parcel summaries (192 fields) & Covers ventricular compartments; cerebrospinal-fluid and choroid-plexus spaces; subcortical nuclei (thalamus, caudate, putamen, pallidum, hippocampus, amygdala, accumbens area, ventral diencephalon); cerebellum; brainstem; corpus callosum segments; and parcel-level cortical thickness, surface area, and volume across frontal, temporal, parietal, occipital, insular, cingulate, and related territories. A grouping utility further organized morphologic leaves into \texttt{ventricles}, \texttt{grey\_matter}, \texttt{white\_matter}, and \texttt{other} tissue classes for node-wise deviation summaries. \\
+Structural connectivity & Schaefer-1000 cortical and Tian-S4 subcortical (54-region) parcellations in fixed matrix order; FA-weighted and streamline-count edge definitions & Structural connectomics was derived from participant-specific matrices under two edge-weight formulations: fractional anisotropy (dense, bounded) and streamline count (sparse, heavy-tailed, optionally \texttt{log1p}-transformed). The benchmark used the reduced feature-group configuration \texttt{A}--\texttt{F}, spanning distributional, network-level, node-level, cartographic, global-graph, and spectral descriptors while omitting ROI-level and hemispheric-asymmetry groups (\texttt{G}--\texttt{I}). \\
+Functional connectivity & Same Schaefer-1000 and Tian-S4 node definition; Fisher-\textit{z}-transformed resting-state functional matrices & Functional connectomics was computed in the same atlas order to maintain exact parcel correspondence with the structural branch. The same reduced \texttt{A}--\texttt{F} feature-group configuration was used, enabling matched structural--functional comparison at the level of network organization, topology, and spectral signatures. \\
+Structural--functional coupling & Anatomically aligned structural and functional matrix pairs & A dedicated SFC branch encoded within-network cortical deviation, subcortical-family deviation, cortico-cortical between-network deviation, cortico-subcortical deviation, global summary indices, interhemispheric homotopic deviation, and subcortical--subcortical between-family deviation through feature groups \texttt{G1}--\texttt{G7}. This branch provided explicit cross-modal integration of structural and resting-state organization. \\
+\end{longtable}
+\par\smallskip\noindent\small\textit{Note.} Additional brain-component inventories are provided in Supplementary Tables~\hyperref[tab:s2]{S2}--\hyperref[tab:s4]{S4} and Supplementary Figures~\ref{fig:s6}--\ref{fig:s7}.
+\endgroup
+
+% ─── Table S12 ────────────────────────────────────────────────
+\begin{table}[H]
+\caption{Genomics Modality: Genotyping Provenance, Derived Liability Features, and Telomere-Length Specification}
+\label{tab:s12}
+\footnotesize
+\begin{tabularx}{\linewidth}{p{0.18\linewidth} p{0.28\linewidth} X}
+\toprule
+Component & UK Biobank-derived source / derivation & Technical specification and representation role \\
+\midrule
+Domain overview & \texttt{GENOMICS} root (93 leaves) & The genomics branch was dominated by derived liability measures rather than raw variant calls, enabling compact representation of inherited risk within the multimodal hierarchy. \\
+Genotyping backbone & UK BiLEVE Axiom and UK Biobank Axiom arrays; centralized UK Biobank quality control and phased imputation against the Haplotype Reference Consortium and UK10K panels (Bycroft et al., 2018) & Local preprocessing consumed already quality-controlled and imputed genotype resources, then reduced them to clinically interpretable liability features for downstream deviation-aware reasoning. \\
+Standard PRS tier & External consortium summary statistics (e.g., PGC, GWAS Catalog); clumping-and-thresholding (C+T) pipeline & Standard PRS features were constructed from genome-wide significant variants and provided a sparse, established liability representation when more advanced genome-wide models were unavailable. \\
+Enhanced PRS tier & Larger meta-analytic GWAS; whole-genome weighted posterior methods (LDpred2 / PRS-CS) & Enhanced PRS values provided better calibration and discrimination, particularly for highly polygenic psychiatric traits. They were used preferentially when available; when absent, the corresponding standard PRS value was substituted without imputation. \\
+Trait coverage & Psychiatric, neurodegenerative, cerebrovascular, and selected cardiometabolic traits & The PRS set covered disorders such as schizophrenia and bipolar disorder, diseases such as Alzheimer's disease and Parkinson's disease, cerebrovascular burden such as ischaemic stroke, and cardiometabolic traits reused in healthy-reference exclusion. \\
+Telomere length & UK Biobank Field 22192: Z-adjusted log T/S ratio; qPCR-derived blood-based telomere assay using the Cawthon ratio method (Cawthon, 2002); plate identifier Field 22193 used for adjustment & The telomere leaf captured the log-transformed telomere-repeat to single-copy DNA ratio after correction for between-plate variability and cohort standardization. Its inclusion extended the branch from PRS-only liability profiling into a cellular-ageing dimension linked to cumulative senescence and oxidative stress history. \\
+\bottomrule
+\end{tabularx}
+\par\smallskip\noindent\small\textit{Note.} PRS = polygenic risk score; C+T = clumping and thresholding; qPCR = quantitative polymerase chain reaction. Enhanced PRS values were preferred over standard PRS whenever both were available; no missing enhanced score was imputed.
+\end{table}
+
+% ─── Table S13 ────────────────────────────────────────────────
+\begingroup
+\footnotesize
+\setlength{\LTleft}{0pt}
+\setlength{\LTright}{0pt}
+\setlength{\tabcolsep}{4pt}
+\begin{longtable}{p{0.15\linewidth} p{0.22\linewidth} p{0.33\linewidth} p{0.20\linewidth}}
+\caption{Biological Assay Modality: Assay Families, Platforms, Approximate Field Counts, and Biomarker Coverage}
+\label{tab:s13}\\
+\toprule
+Assay family & UK Biobank category / platform & Technical content & Representation role \\
+\midrule
+\endfirsthead
+\caption[]{Biological Assay Modality: Assay Families, Platforms, Approximate Field Counts, and Biomarker Coverage (continued)}\\
+\toprule
+Assay family & UK Biobank category / platform & Technical content & Representation role \\
+\midrule
+\endhead
+\bottomrule
+\endfoot
+\bottomrule
+\endlastfoot
+Haematology & $\sim$30 fields; UKB Category 100081; Beckman Coulter LH750; EDTA whole blood & Full blood count with five-part differential, including red-cell indices (haemoglobin, MCV, MCHC, MCH, RDW), white-cell counts and differentials (neutrophils, lymphocytes, monocytes, eosinophils, basophils), platelet measures, and reticulocyte indices. & Peripheral cellular composition and inflammatory-haematologic state within an assay-family subtree. \\
+Serum biochemistry & $\sim$36 fields; UKB Category 17518; Beckman Coulter AU5800; non-fasting blood samples & Routine analytes spanning metabolic markers (HbA1c, glucose, insulin-resistance proxies), lipid fractions (total cholesterol, HDL, LDL, triglycerides, apolipoprotein A1/B), renal function (creatinine, cystatin C, urea, urate), liver enzymes (ALT, AST, GGT, ALP, direct bilirubin), inflammation (C-reactive protein), and micronutrients (calcium, phosphate, albumin, total protein, vitamin D). & Broad systemic biochemical profiling relevant to metabolic, inflammatory, renal, and hepatic comorbidity context. \\
+NMR metabolomics & $\sim$168 fields; UKB Category 220; Nightingale Health high-throughput proton NMR; EDTA plasma & Quantified 14 lipoprotein subfractions across five concentration measures (total lipids, cholesterol, triglycerides, phospholipids, free cholesterol), plus fatty-acid composition, glycolysis metabolites (glucose, lactate, pyruvate, citrate), amino acids (leucine, isoleucine, valine, alanine, glutamine, glycine, histidine, phenylalanine, tyrosine), ketone bodies, and derived ratios including apolipoprotein B/A1. & High-dimensional metabolic phenotyping that preserved lipid-transport, energy-metabolism, and amino-acid signatures. \\
+Proteomics & $\sim$3,000 fields; UKB Category 1839; Olink Explore 3072 proximity extension assay (PEA); EDTA plasma & Relative protein abundance in Normalized Protein eXpression (NPX) units across secreted and circulating proteins linked to inflammation, neurological function, metabolic regulation, cardiovascular biology, and oncology. & Largest and most information-dense assay branch, enabling targeted retrieval of broad circulating-protein signatures. \\
+Plasma neurobiomarkers & $\sim$10 fields; UKB Category 30900; Simoa / Olink Neurology assays; EDTA plasma & Included markers of neuronal injury and glial activation such as neurofilament light chain (NfL), glial fibrillary acidic protein (GFAP), ubiquitin C-terminal hydrolase L1 (UCHL1), tau, amyloid-beta isoforms (A$\beta$40/A$\beta$42), and related biomarkers. & Direct circulating evidence of neuroaxonal and astrocytic pathology within the assay hierarchy. \\
+Urine assays & $\sim$5 fields; UKB Category 100083; Beckman Coulter AU5800; spot urine & Creatinine, sodium, potassium, microalbumin, and albumin:creatinine ratio provided renal function indices and tubular-integrity markers informative for cardiometabolic and neuropsychiatric comorbidity screening. & Compact renal and fluid-balance branch complementing blood-based assay data. \\
+\end{longtable}
+\par\smallskip\noindent\small\textit{Note.} The \texttt{BIOLOGICAL\_ASSAY} root contained 3,100 leaves in total. All six sub-modalities were re-indexed into assay-family subtrees, converted into a shared deviation space, and retained in full so that the Clinical Ontology-driven Multi-modal Predictive Agentic Support System (COMPASS) could retrieve contextually relevant biology without sacrificing overall assay coverage. UKB = UK Biobank; NMR = nuclear magnetic resonance; EDTA = ethylenediaminetetraacetic acid; HbA1c = glycated hemoglobin; HDL = high-density lipoprotein; LDL = low-density lipoprotein; ALT = alanine aminotransferase; AST = aspartate aminotransferase; GGT = gamma-glutamyl transferase; ALP = alkaline phosphatase; PEA = proximity extension assay; NPX = Normalized Protein eXpression; NfL = neurofilament light chain; GFAP = glial fibrillary acidic protein; UCHL1 = ubiquitin C-terminal hydrolase L1; A$\beta$ = amyloid-beta.
+\endgroup
+
+% ─── Table S14 ────────────────────────────────────────────────
+\begin{table}[H]
+\caption{Cognition Modality: UK Biobank Task Mappings, Field-Level Coverage, and Preprocessing Rules}
+\label{tab:s14}
+\footnotesize
+\begin{tabularx}{\linewidth}{p{0.18\linewidth} p{0.16\linewidth} X p{0.19\linewidth}}
+\toprule
+Construct & UK Biobank fields & Task specification & Interpretive role \\
+\midrule
+Fluid intelligence / reasoning & 20016, 20191 & Thirteen-item timed verbal-numerical reasoning battery. & Broad reasoning ability; treated as a proxy for higher-order problem solving. \\
+Numeric memory / working memory span & 4282, 20240 & Maximum forward digit span. & Working-memory maintenance capacity. \\
+Reaction time & 20023 & Mean correct-response latency in a snap card-matching paradigm. & Processing speed and psychomotor efficiency. \\
+Pairs matching / episodic associative memory & 399, 20132 & Number of errors in a card-pairs recognition task. & Episodic associative memory performance. \\
+Trail making / executive set-shifting & 6348, 6350, 20156, 20157 & Path-completion durations for numeric and alphanumeric sequences corresponding to Trail Making Test Parts A and B. & Executive control, set-shifting, and speeded sequencing. \\
+Matrix pattern completion / non-verbal reasoning & 6373, 20760 & Number of abstract pattern-completion problems solved. & Non-verbal reasoning and perceptual organization. \\
+Symbol digit substitution / processing speed & 23324, 20159 & Symbol-digit substitution performance markers. & Rapid information processing and attentional speed. \\
+Prospective memory & 20018 & Recall of an instructed future action. & Prospective memory and delayed intention execution. \\
+Paired associate learning / verbal episodic memory & 20197 & Verbal paired-associate learning score. & Verbal episodic-memory encoding and retrieval. \\
+Vocabulary / crystallized ability & 6364, 26302 & Picture-vocabulary level and specific cognitive-ability score. & Crystallized verbal knowledge and lexical ability. \\
+Tower rearranging / planning & 21004 & Tower-rearranging task score. & Planning and multistep executive organization. \\
+\bottomrule
+\end{tabularx}
+\par\smallskip\noindent\small\textit{Note.} The \texttt{COGNITION} root contained 20 leaves in total and was normativized against the same age- and sex-stratified reference distribution as other continuous modalities. Duration and error variables were reverse-coded before deviation scoring so that higher deviation uniformly reflected poorer performance. The task set was selected to approximate broad WAIS-IV-like domains without constituting a direct WAIS implementation, and the branch also contributed to healthy-reference exclusion through the composite total-intelligence proxy described in Section~2.4.2.
+\end{table}
+
+% ─── Table S15 ────────────────────────────────────────────────
+\begingroup
+\footnotesize
+\setlength{\LTleft}{0pt}
+\setlength{\LTright}{0pt}
+\setlength{\tabcolsep}{4pt}
+\renewcommand{\arraystretch}{1.1}
+\begin{longtable}{p{0.19\linewidth} p{0.24\linewidth} p{0.47\linewidth}}
+\caption{Validated Local Deployment, Runtime, and Reproducibility Configuration for COMPASS}
+\label{tab:s15}\\
+\toprule
+Component & Validated specification & Technical detail and operational role \\
+\midrule
+\endfirsthead
+\caption[]{Validated Local Deployment, Runtime, and Reproducibility Configuration for COMPASS (continued)}\\
+\toprule
+Component & Validated specification & Technical detail and operational role \\
+\midrule
+\endhead
+\bottomrule
+\endfoot
+\bottomrule
+\endlastfoot
+Deployment model & Fully local institutional execution & Participant folders containing multimodal health-derived data were processed within institution-controlled infrastructure rather than external hosted services, preserving data locality and governance compliance during inference. \\
+Scheduler and container stack & Slurm scheduler; Apptainer-backed job execution on IIS Biobizkaia / Izaro infrastructure & The production path used batch submission through Slurm with Apptainer available on compute nodes; launcher scripts auto-submitted jobs when invoked from login nodes, ensuring the same containerized execution path across runs. \\
+Base software environment & NVIDIA PyTorch container \nolinkurl{nvcr.io/nvidia/pytorch:24.01-py3} converted to \nolinkurl{pytorch_24.01.sif} plus a project-specific virtual environment & The local runtime inherited CUDA-compatible deep-learning dependencies from the pinned PyTorch base image while allowing project-level package control for backend compatibility and reproducibility. \\
+Model storage policy & Local model weights stored inside the institutional computing environment & Generation and embedding checkpoints were kept on governed local storage rather than fetched on demand, so both data and model execution remained inside the same controlled boundary. \\
+Generation backend & \texttt{Qwen/Qwen3-14B-AWQ} & The validated prediction model was a quantized 14-billion-parameter causal language model selected because it could execute the full COMPASS multi-agent stack under single-node hardware constraints. \\
+Embedding backend & \texttt{Qwen/Qwen3-Embedding-8B} & A separate embedding model supported retrieval-oriented and similarity-based utilities without changing the core generation backend. \\
+Inference engine & Local \texttt{vllm} runtime with \nolinkurl{local_dtype=auto}, \nolinkurl{local_kv_cache_dtype=auto}, \nolinkurl{local_attn=auto}, \nolinkurl{local_trust_remote_code}, \nolinkurl{local_enforce_eager}, and \nolinkurl{local_gpu_memory_utilization=0.95} & The runtime configuration maximized feasible local throughput while preserving backend compatibility for long-context multi-agent inference; tensor and pipeline parallelism were both fixed at one. \\
+Quantization path & Activation-aware weight quantization with \texttt{awq\_marlin} kernels & Quantization reduced memory pressure while preferentially preserving high-salience weight channels, making a 14B model feasible on a 48 GB device without multi-GPU sharding; it functioned as a deployment enabler rather than an experimental manipulation. \\
+Context and output budgets & Requested context window up to 60,000 tokens; default high-output budgets of 16,000 agent-output tokens and 8,000 tool-output tokens & The runtime automatically clamped the requested context to the model/tokenizer limit and resolved downstream generation budgets from that ceiling, enabling stable multi-stage prompting under a large but finite local context. \\
+Hardware allocation & 1 NVIDIA L40S GPU (\nolinkurl{--gres=gpu:l40s:1}), 16 CPU cores, 64 GB system memory, 168 h wall-time limit & This single-node allocation defined the validated local execution profile for the paper benchmark and prioritized stable long-context inference over distributed parallel throughput. \\
+Execution policy & Sequential participant processing with optional preflight dataflow audit and immediate copying of completed outputs to a persistent analysis directory & The workflow was designed to preserve partial progress, maintain auditable intermediate outputs, and reduce the chance that long-batch interruption would erase already completed participant runs. \\
+Long-context compatibility & Minimal Qwen/\texttt{vllm} rope-scaling compatibility patch enabled by default; optional extended long-context path disabled unless explicitly requested & The validated benchmark used the conservative compatibility path rather than an aggressively extended context configuration, reducing runtime variability while maintaining the required prompt budget. \\
+Reproducibility batch template & 200 participants (five disorder groups $\times$ 40; 20 cases and 20 controls per group) with automated post-hoc analysis enabled & This batch served as the operational reproducibility template for the validated L40S workflow; the control label was fixed as a generic non-target comparator phenotype profile, whereas the paper-wide benchmark definition remained encoded separately in \nolinkurl{binary_targets.json} with 5,396 balanced entries. \\
+\end{longtable}
+\par\smallskip\noindent\small\textit{Note.} This table retains the implementation detail condensed from Sections~2.9.1--2.9.3 so that the main text can remain methodologically concise without sacrificing deployment reproducibility. HPC = high-performance computing; GDPR = General Data Protection Regulation; GPU = graphics processing unit; CPU = central processing unit; AWQ = activation-aware weight quantization.
+\endgroup
+
+\clearpage
+
+% ─── Table S16 ────────────────────────────────────────────────
+\begingroup
+\footnotesize
+\setlength{\LTleft}{0pt}
+\setlength{\LTright}{0pt}
+\setlength{\tabcolsep}{4pt}
+\renewcommand{\arraystretch}{1.1}
+\begin{longtable}{p{0.20\linewidth} p{0.28\linewidth} p{0.42\linewidth}}
+\caption{Public COMPASS Repository Components, Execution Interfaces, and Reproducibility Functions}
+\label{tab:s16}\\
+\toprule
+Repository component & Technical content & Reproducibility role \\
+\midrule
+\endfirsthead
+\caption[]{Public COMPASS Repository Components, Execution Interfaces, and Reproducibility Functions (continued)}\\
+\toprule
+Repository component & Technical content & Reproducibility role \\
+\midrule
+\endhead
+\bottomrule
+\endfoot
+\bottomrule
+\endlastfoot
+\texttt{main.py} & Shared entry point for participant-level inference, prediction-type selection, backend choice, and optional explainability execution flags & Provides a single executable interface for reproducing the core COMPASS workflow across command-line runs and scripted batch jobs. \\
+\texttt{agents/} & Role-specialized agent definitions and prompt logic for orchestration, execution, integration, prediction, critique, and communication & Makes the agentic decision stack inspectable at the prompt and control-logic level rather than exposing only compiled outputs. \\
+\texttt{tools/} & Analysis tools, retrieval helpers, and prompt-bound tool interfaces invoked during structured reasoning & Documents how the engine converts multimodal participant inputs into callable evidence-processing steps during inference. \\
+\texttt{config/} & Backend settings, runtime defaults, and role-specific configuration layers & Centralizes model-routing and execution controls so that experimental runs can be repeated under explicit configuration state. \\
+\texttt{frontend/} & Monitoring dashboard and report-generation interface with live inspection of plans, reasoning traces, and logs & Supports operational auditability by exposing real-time system state and generated report artifacts during execution. \\
+\texttt{docker/} & Reproducible CPU/UI container builds, including a standard interface image and an optional local-inference dependency variant & Enables portable deployment of the public engine without reproducing the local UK Biobank-specific preprocessing environment. \\
+\texttt{hpc/} & Slurm and Apptainer workflows, operational documentation, and a didactic notebook for single-GPU execution & Encodes the local institutional execution path used for privacy-preserving runs and documents the single-node deployment profile in a reproducible form. \\
+\nolinkurl{utils/validation/with_annotated_dataset/} & Validation scripts and notebooks for binary, multiclass, regression, and hierarchical performance analysis against annotated targets & Provides reproducible post-hoc benchmarking utilities rather than limiting the release to inference-only code. \\
+\nolinkurl{utils/validation/explainable_AI/} & External perturbation-based attribution, internal gradient-based attribution, prior-guided LLM relevance scoring, and the public XAI notebook & Preserves the explainability stack used for method development and documents how binary-task post-hoc attribution can be executed and interpreted. \\
+\nolinkurl{data/pseudo_data/inputs/} & Demonstration participant packages containing the structured JSON and text inputs expected by the engine & Allows public inspection of the full input contract and dry-run testing without distributing restricted UK Biobank-derived participant files. \\
+\nolinkurl{COMPASS_demo.ipynb} & End-to-end notebook showing interactive usage, backend selection, and participant-level execution & Supplies a notebook-based reproducibility path for readers who prefer an inspectable guided run over direct CLI invocation. \\
+\texttt{LICENSE} and \texttt{CITATION.cff} & Software licensing metadata and machine-readable citation metadata for the public release & Clarifies reuse conditions under GPL-3.0 and supports formal attribution of the public software artifact in derivative research outputs. \\
+\end{longtable}
+\par\smallskip\noindent\small\textit{Note.} The public repository is available at \url{https://github.com/stvsever/COMPASS-Engine}. The public distribution provides the executable COMPASS engine, deployment interfaces, validation utilities, and demonstration assets, whereas the UK Biobank-specific preprocessing workspace described in the main Methods remains local because it depends on restricted-source data handling. GPL-3.0 = GNU General Public License v3.0; UI = user interface; CLI = command-line interface; HPC = high-performance computing; XAI = explainable artificial intelligence; LLM = large language model. The currently documented public XAI workflow is scoped to root-level binary classification.
+\endgroup
+
+\par\vspace{0.9\baselineskip}
+
+% ─── Table S17 ────────────────────────────────────────────────
+\begin{table}[H]
+\caption{Binary Performance Metrics Used in the Validation Workflow}
+\label{tab:s17}
+\small
+{\setlength{\tabcolsep}{4pt}%
+\begin{tabularx}{\linewidth}{@{} >{\raggedright\arraybackslash}p{2.0cm} >{\raggedright\arraybackslash}p{5.0cm} >{\raggedright\arraybackslash}X @{}}
+\toprule
+Metric & Formula & Technical role \\
+\midrule
+Accuracy & $\dfrac{TP + TN}{n_{\mathrm{valid}}}$ & Overall proportion of correctly classified valid binary outputs. \\
+Sensitivity & $\dfrac{TP}{TP + FN}$ & True-positive rate: fraction of cases correctly identified as \texttt{CASE}. \\
+Specificity & $\dfrac{TN}{TN + FP}$ & True-negative rate: fraction of controls correctly identified as \texttt{CONTROL}. \\
+Precision & $\dfrac{TP}{TP + FP}$ & Positive predictive value: reliability of emitted \texttt{CASE} predictions. \\
+F1 score & $\dfrac{2TP}{2TP + FP + FN}$ & Harmonic mean of sensitivity and precision, emphasizing balance between missed cases and false alarms. \\
+MCC & \resizebox{4.8cm}{!}{$\dfrac{TP\,TN - FP\,FN}{\sqrt{\smash[b]{(TP\!+\!FP)(TP\!+\!FN)(TN\!+\!FP)(TN\!+\!FN)}}}$} & Balanced correlation-like summary over all four confusion-matrix cells; robust to asymmetric error profiles and class imbalance. \\
+\bottomrule
+\end{tabularx}}
+\par\smallskip\noindent\small\textit{Note.} $TP$ = true positives; $TN$ = true negatives; $FP$ = false positives; $FN$ = false negatives; $n_{\mathrm{valid}} = TP + TN + FP + FN$. Rows without an extractable binary label were tracked separately as failed outputs and excluded from the confusion-matrix denominators shown here.
+\end{table}
+
+\end{document}
