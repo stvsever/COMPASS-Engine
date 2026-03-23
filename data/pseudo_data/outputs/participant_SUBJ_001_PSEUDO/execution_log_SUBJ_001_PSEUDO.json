@@ -1,24 +1,24 @@
 [
   {
     "type": "PIPELINE_START",
-    "timestamp": "2026-03-01T18:20:20.560900",
+    "timestamp": "2026-03-18T15:27:13.856539",
     "data": {
       "participant_id": "SUBJ_001_PSEUDO",
       "target_condition": "DEPRESSION",
       "control_condition": "HEALTHY",
       "prediction_task_mode": "binary_classification",
-      "timestamp": "2026-03-01T18:20:20.560897"
+      "timestamp": "2026-03-18T15:27:13.856536"
     }
   },
   {
     "type": "ORCHESTRATOR",
-    "timestamp": "2026-03-01T18:21:18.356716",
+    "timestamp": "2026-03-18T15:27:59.056261",
     "data": {
-      "plan_id": "depression_subj001_plan_v1",
+      "plan_id": "orch_plan_SUBJ_001_DEPRESSION_v1",
       "total_steps": 13,
       "priority_domains": [
-        "BIOLOGICAL_ASSAY",
         "BRAIN_MRI",
+        "BIOLOGICAL_ASSAY",
         "COGNITION",
         "LIFESTYLE_ENVIRONMENT",
         "DEMOGRAPHICS"
@@ -27,7 +27,7 @@
   },
   {
     "type": "DATAFLOW_SUMMARY",
-    "timestamp": "2026-03-01T18:23:41.884416",
+    "timestamp": "2026-03-18T15:29:40.697886",
     "data": {
       "iteration": 1,
       "target_condition": "DEPRESSION",
@@ -70,9 +70,9 @@
         "processed_raw_full_included": true,
         "rag_added_count": null,
         "predictor_payload_estimate": {
-          "baseline_tokens": 36651,
-          "final_tokens": 43982,
-          "processed_raw_tokens": 43921,
+          "baseline_tokens": 37673,
+          "final_tokens": 45004,
+          "processed_raw_tokens": 44943,
           "single_chunk_limit": 1900000,
           "threshold": 1800000,
           "chunked_two_pass_required": false,
@@ -118,7 +118,7 @@
   },
   {
     "type": "PREDICTOR",
-    "timestamp": "2026-03-01T18:23:41.886825",
+    "timestamp": "2026-03-18T15:29:40.699145",
     "data": {
       "classification": "DEPRESSION",
       "probability": 0.92,
@@ -127,10 +127,37 @@
   },
   {
     "type": "CRITIC",
-    "timestamp": "2026-03-01T18:23:45.927249",
+    "timestamp": "2026-03-18T15:29:43.172046",
     "data": {
       "verdict": "SATISFACTORY",
       "confidence": 0.95
+    }
+  },
+  {
+    "type": "COMMUNICATOR",
+    "timestamp": "2026-03-18T15:30:43.392321",
+    "data": {
+      "input_threshold_tokens": 1800000,
+      "base_tokens": 3460,
+      "primary_tokens": 26151,
+      "final_prompt_tokens": 74154,
+      "chunking_used": false,
+      "chunking_reason": "primary_fit_threshold",
+      "chunk_count": 0,
+      "chunk_evidence_count": 0,
+      "rag_enabled": true,
+      "rag_added_count": 16,
+      "user_focus_modalities_present": true,
+      "user_general_instruction_present": true,
+      "embedding_store_path": "/Users/stijnvanseveren/Library/Caches/compass/embeddings.sqlite3",
+      "embedding_store_fallback": false,
+      "embedding_store_fallback_reason": null,
+      "fallback_used": false,
+      "fallback_reason": "",
+      "fallback_prompt_tokens": 0,
+      "fallback_max_completion_tokens": 0,
+      "trigger_source": "ui",
+      "output_path": "/Users/stijnvanseveren/PythonProjects/IIS_BIOBIZKAIA/INFERENCE_PIPELINE/multi_agent_system/data/pseudo_data/outputs/participant_SUBJ_001_PSEUDO/deep_phenotype.md"
     }
   }
 ]

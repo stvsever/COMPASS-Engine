@@ -249,15 +249,22 @@ COMPASS is being developed and tested on large multimodal phenotype cohorts to e
 
 ## <a id="project-credits"></a>📚 Project Credits
 
-**Author**: Stijn Van Severen (email: stijn.vanseveren@ugent.be)
+**Author**: Stijn Van Severen (email: stijn.vanseveren@ugent.be) [1]
 
 **Supervisors**: 
-- **Ibai Díez Palacio** (Computational Neuroimaging Lab at IIS Biobizkaia and Massachusetts General Hospital, and more)
-- **Jesús M. Cortés** (Computational Neuroimaging Lab at IIS Biobizkaia, and more)
+- **Ibai P. Díez** [2,3,5]
+- **Jesús M. Cortés** [2,3,4]
+
+**Affiliations**:
+1. Department of Experimental Psychology, Ghent University, Ghent, Belgium  
+2. Computational Neuroimaging Lab, Biobizkaia Health Research Institute, Barakaldo, Spain  
+3. IKERBASQUE: The Basque Foundation for Science, Bilbao, Spain  
+4. Department of Cell Biology and Histology, University of the Basque Country, Leioa, Spain  
+5. Center for Inflammation Imaging, Mass General Brigham, Harvard Medical School, Boston, MA, USA  
 
 **Research Lab**: [Computational Neuroimaging Lab](https://compneurobilbao.eus)
 
-Van Severen, S. B., Diez, I. P., & Cortes, J. M. (2026). *Leveraging Pre-trained Knowledge of Large Language Models: Toward a Scalable Multi-modal Approach for Deep Phenotypic Prediction of Neuropsychiatric Disorders.* [Manuscript in preparation]
+Van Severen, S., Díez, I. P., & Cortés, J. M. (2026). *Leveraging Pre-Trained Knowledge of Large Language Models: Toward a Scalable Multi-Modal Approach for Deep Phenotypic Prediction of Neuropsychiatric Disorders.* [Manuscript in preparation]
 
 ## <a id="internship-blogpost"></a>📝 Internship Blogpost
 
@@ -267,7 +274,7 @@ As part of the internship dissemination, a Dutch blogpost was created and is ava
 
 ## <a id="research-paper"></a>📄 Research Paper
 
-As the first clinical validation study of this architecture, we evaluated the system's binary classification performance on the UK Biobank dataset. For a comprehensive overview of the methodology and findings, please refer to the full **[Internship Report](research/main.pdf)**.
+As the first clinical validation study of this architecture, we evaluated the system's binary classification performance on the UK Biobank dataset. For a comprehensive overview of the methodology and findings, please refer to the full **[Internship Report](research/internship_report/main1.pdf)**.
 
 > *On a 200-participant UK Biobank benchmark spanning five disorder families, COMPASS achieved an aggregate accuracy of 0.725 (95% Wilson CI: 0.659–0.782), with balanced sensitivity (0.730) and specificity (0.720).*
 

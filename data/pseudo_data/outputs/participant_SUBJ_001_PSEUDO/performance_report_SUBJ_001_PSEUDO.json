@@ -29,8 +29,8 @@
     "critic": "",
     "communicator": ""
   },
-  "execution_timestamp": "2026-03-01T18:20:20.555291",
-  "total_duration_seconds": 205.38,
+  "execution_timestamp": "2026-03-18T15:27:13.851574",
+  "total_duration_seconds": 149.33,
   "iterations": 1,
   "selected_iteration": 1,
   "selection_reason": "Satisfactory verdict available; chose strongest satisfactory attempt (iteration 1).",
@@ -87,9 +87,9 @@
       "processed_raw_full_included": true,
       "rag_added_count": null,
       "predictor_payload_estimate": {
-        "baseline_tokens": 36651,
-        "final_tokens": 43982,
-        "processed_raw_tokens": 43921,
+        "baseline_tokens": 37673,
+        "final_tokens": 45004,
+        "processed_raw_tokens": 44943,
         "single_chunk_limit": 1900000,
         "threshold": 1800000,
         "chunked_two_pass_required": false,
@@ -162,146 +162,146 @@
   },
   "critic_verdict": "SATISFACTORY",
   "token_usage": {
-    "total_tokens": 127329,
-    "prompt_tokens": 95135,
-    "completion_tokens": 32194,
+    "total_tokens": 131397,
+    "prompt_tokens": 95510,
+    "completion_tokens": 35887,
     "calls": [
       {
         "component": "orchestrator",
         "prompt_tokens": 4406,
-        "completion_tokens": 4608,
-        "total": 9014,
+        "completion_tokens": 7163,
+        "total": 11569,
         "step_tool": null,
         "step_reasoning": null
       },
       {
         "component": "executor",
+        "prompt_tokens": 3382,
+        "completion_tokens": 1346,
+        "total": 4728,
+        "step_tool": "FeatureSynthesizer",
+        "step_reasoning": "Identifies top hierarchical features for depression to guide relevance ranking and focus reasoning resources."
+      },
+      {
+        "component": "executor",
         "prompt_tokens": 5107,
-        "completion_tokens": 1670,
-        "total": 6777,
+        "completion_tokens": 1836,
+        "total": 6943,
         "step_tool": "AnomalyNarrativeBuilder",
-        "step_reasoning": "Provides rapid overview of patient abnormalities from hierarchical_deviation_map.json for early prioritization."
-      },
-      {
-        "component": "executor",
-        "prompt_tokens": 2605,
-        "completion_tokens": 2003,
-        "total": 4608,
-        "step_tool": "UnimodalCompressor",
-        "step_reasoning": "Medium volume; critical for depression (e.g., executive function, memory); compression highlights discriminative patterns."
-      },
-      {
-        "component": "executor",
-        "prompt_tokens": 3249,
-        "completion_tokens": 2337,
-        "total": 5586,
-        "step_tool": "UnimodalCompressor",
-        "step_reasoning": "Medium-high volume; leverages pattern detection for key neuroimaging features like hippocampal volume or connectivity."
+        "step_reasoning": "Provides rapid overview of domain-level abnormalities from deviation map for prioritization without processing raw data."
       },
       {
         "component": "executor",
         "prompt_tokens": 3054,
-        "completion_tokens": 2150,
-        "total": 5204,
+        "completion_tokens": 2078,
+        "total": 5132,
         "step_tool": "UnimodalCompressor",
-        "step_reasoning": "Medium volume; extracts patterns like stress exposure or sleep relevant to depression etiology."
+        "step_reasoning": "Medium volume; extracts patterns in sleep, stress, environment relevant to psychosocial contributors."
+      },
+      {
+        "component": "executor",
+        "prompt_tokens": 2605,
+        "completion_tokens": 2627,
+        "total": 5232,
+        "step_tool": "UnimodalCompressor",
+        "step_reasoning": "Medium volume; compression identifies executive function or memory impairments key for phenotypic matching."
       },
       {
         "component": "executor",
         "prompt_tokens": 1209,
-        "completion_tokens": 1778,
-        "total": 2987,
+        "completion_tokens": 1684,
+        "total": 2893,
         "step_tool": "PhenotypeRepresentation",
-        "step_reasoning": "Establishes the target clinical phenotype as a reference for all downstream data matching and interpretation."
+        "step_reasoning": "Establishes the gold-standard clinical template for matching patient data deviations and guiding all downstream analysis."
       },
       {
         "component": "executor",
-        "prompt_tokens": 3384,
-        "completion_tokens": 1501,
-        "total": 4885,
-        "step_tool": "FeatureSynthesizer",
-        "step_reasoning": "Identifies top hierarchical features for efficient resource allocation in depression discrimination."
+        "prompt_tokens": 3249,
+        "completion_tokens": 2785,
+        "total": 6034,
+        "step_tool": "UnimodalCompressor",
+        "step_reasoning": "Medium-high volume; compression leverages pattern detector for key neuroimaging signatures like reduced FA or hippocampal volume."
       },
       {
         "component": "executor",
         "prompt_tokens": 5365,
-        "completion_tokens": 2653,
-        "total": 8018,
+        "completion_tokens": 3106,
+        "total": 8471,
         "step_tool": "UnimodalCompressor",
-        "step_reasoning": "Largest domain exceeds 1.5k tokens; compression extracts depression-discriminative signals like HPA axis or cytokine abnormalities."
+        "step_reasoning": "Large domain requires compression to extract targeted abnormality patterns like HPA axis or cytokine deviations crucial for depression."
       },
       {
         "component": "executor",
-        "prompt_tokens": 1844,
-        "completion_tokens": 1270,
-        "total": 3114,
+        "prompt_tokens": 1789,
+        "completion_tokens": 1063,
+        "total": 2852,
         "step_tool": "ClinicalRelevanceRanker",
-        "step_reasoning": "Prioritizes features post-synthesis for targeted fusion and hypothesis stages."
+        "step_reasoning": "Refines feature priorities from synthesizer using clinical knowledge for focused hypothesis and diagnosis."
       },
       {
         "component": "executor",
-        "prompt_tokens": 5769,
-        "completion_tokens": 1770,
-        "total": 7539,
+        "prompt_tokens": 4247,
+        "completion_tokens": 1921,
+        "total": 6168,
         "step_tool": "MultimodalNarrativeCreator",
-        "step_reasoning": "Captures interactions like inflammation modulated by lifestyle in depression pathophysiology."
+        "step_reasoning": "Captures brain-cognition interactions (e.g., fronto-limbic deficits) critical for depression phenotype."
       },
       {
         "component": "executor",
-        "prompt_tokens": 4297,
-        "completion_tokens": 1823,
-        "total": 6120,
+        "prompt_tokens": 5747,
+        "completion_tokens": 1980,
+        "total": 7727,
         "step_tool": "MultimodalNarrativeCreator",
-        "step_reasoning": "Integrates brain structure/function with cognition for depression-relevant patterns like fronto-limbic dysfunction."
+        "step_reasoning": "Integrates biomarkers with lifestyle (e.g., inflammation + stress) for holistic peripheral contributors to depression."
       },
       {
         "component": "executor",
-        "prompt_tokens": 8883,
-        "completion_tokens": 2250,
-        "total": 11133,
+        "prompt_tokens": 9163,
+        "completion_tokens": 2444,
+        "total": 11607,
         "step_tool": "MultimodalNarrativeCreator",
-        "step_reasoning": "Combines all modalities hierarchically for holistic view, including demographics for context."
+        "step_reasoning": "Hierarchical final integration supports cross-domain pattern recognition for accurate prediction."
       },
       {
         "component": "executor",
-        "prompt_tokens": 1465,
-        "completion_tokens": 1588,
-        "total": 3053,
+        "prompt_tokens": 1197,
+        "completion_tokens": 1613,
+        "total": 2810,
         "step_tool": "HypothesisGenerator",
-        "step_reasoning": "Derives mechanistic explanations from fused narratives to support prediction rationale."
+        "step_reasoning": "Links observations to mechanistic pathways (e.g., neuroinflammation hypothesis) for evidential prediction."
       },
       {
         "component": "executor",
-        "prompt_tokens": 3349,
-        "completion_tokens": 2186,
-        "total": 5535,
+        "prompt_tokens": 3079,
+        "completion_tokens": 2111,
+        "total": 5190,
         "step_tool": "DifferentialDiagnosis",
-        "step_reasoning": "Final step integrates all prior outputs, core files (data_overview.json, hierarchical_deviation_map.json, non_numerical_data.txt), and demographics for comprehensive binary prediction support."
+        "step_reasoning": "Final step provides prediction with rule-out logic, probabilities, and evidence summary using all prior outputs."
       },
       {
         "component": "predictor",
-        "prompt_tokens": 40829,
-        "completion_tokens": 2168,
-        "total": 42997,
+        "prompt_tokens": 41591,
+        "completion_tokens": 1755,
+        "total": 43346,
         "step_tool": null,
         "step_reasoning": null
       },
       {
         "component": "critic",
         "prompt_tokens": 320,
-        "completion_tokens": 439,
-        "total": 759,
+        "completion_tokens": 375,
+        "total": 695,
         "step_tool": null,
         "step_reasoning": null
       }
     ]
   },
   "plan_summary": {
-    "plan_id": "depression_subj001_plan_v1",
+    "plan_id": "orch_plan_SUBJ_001_DEPRESSION_v1",
     "total_steps": 13,
     "priority_domains": [
-      "BIOLOGICAL_ASSAY",
       "BRAIN_MRI",
+      "BIOLOGICAL_ASSAY",
       "COGNITION",
       "LIFESTYLE_ENVIRONMENT",
       "DEMOGRAPHICS"
@@ -323,9 +323,31 @@
     "metadata": {}
   },
   "deep_phenotype": {
-    "generated": false,
-    "path": null,
-    "trigger_source": null,
-    "metadata": {}
+    "generated": true,
+    "path": "/Users/stijnvanseveren/PythonProjects/IIS_BIOBIZKAIA/INFERENCE_PIPELINE/multi_agent_system/data/pseudo_data/outputs/participant_SUBJ_001_PSEUDO/deep_phenotype.md",
+    "trigger_source": "ui",
+    "metadata": {
+      "input_threshold_tokens": 1800000,
+      "base_tokens": 3460,
+      "primary_tokens": 26151,
+      "final_prompt_tokens": 74154,
+      "chunking_used": false,
+      "chunking_reason": "primary_fit_threshold",
+      "chunk_count": 0,
+      "chunk_evidence_count": 0,
+      "rag_enabled": true,
+      "rag_added_count": 16,
+      "user_focus_modalities_present": true,
+      "user_general_instruction_present": true,
+      "embedding_store_path": "/Users/stijnvanseveren/Library/Caches/compass/embeddings.sqlite3",
+      "embedding_store_fallback": false,
+      "embedding_store_fallback_reason": null,
+      "fallback_used": false,
+      "fallback_reason": "",
+      "fallback_prompt_tokens": 0,
+      "fallback_max_completion_tokens": 0,
+      "trigger_source": "ui",
+      "output_path": "/Users/stijnvanseveren/PythonProjects/IIS_BIOBIZKAIA/INFERENCE_PIPELINE/multi_agent_system/data/pseudo_data/outputs/participant_SUBJ_001_PSEUDO/deep_phenotype.md"
+    }
   }
 }
